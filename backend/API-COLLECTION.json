@@ -1,0 +1,273 @@
+{
+  "name": "API Gestão de Colaboradores",
+  "description": "Collection completa de endpoints da API",
+  "version": "1.0.0",
+  "baseUrl": "http://localhost:3000/api",
+  "auth": {
+    "type": "bearer",
+    "bearer": "{{token}}"
+  },
+  "requests": [
+    {
+      "name": "Health Check",
+      "method": "GET",
+      "url": "{{baseUrl}}/health",
+      "description": "Verifica se a API está funcionando"
+    },
+    {
+      "name": "Register",
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/register",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "Usuário Teste",
+        "email": "teste@exemplo.com",
+        "password": "senha123",
+        "role": "USER"
+      }
+    },
+    {
+      "name": "Login",
+      "method": "POST",
+      "url": "{{baseUrl}}/auth/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "admin@sistema.com",
+        "password": "admin123"
+      },
+      "description": "Copie o token da resposta e use nos próximos requests"
+    },
+    {
+      "name": "Get Me",
+      "method": "GET",
+      "url": "{{baseUrl}}/auth/me",
+      "auth": true
+    },
+    {
+      "name": "Lista Colaboradores",
+      "method": "GET",
+      "url": "{{baseUrl}}/colaboradores?page=1&limit=10",
+      "auth": true
+    },
+    {
+      "name": "Criar Colaborador",
+      "method": "POST",
+      "url": "{{baseUrl}}/colaboradores",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "opsId": "OPS001",
+        "nomeCompleto": "João Silva",
+        "genero": "Masculino",
+        "matricula": "MAT001",
+        "dataAdmissao": "2024-01-15",
+        "horarioInicioJornada": "08:00:00",
+        "idSetor": 1,
+        "idCargo": 1,
+        "idEmpresa": 1,
+        "idTurno": 1,
+        "idEscala": 1,
+        "status": "ATIVO"
+      }
+    },
+    {
+      "name": "Buscar Colaborador",
+      "method": "GET",
+      "url": "{{baseUrl}}/colaboradores/OPS001",
+      "auth": true
+    },
+    {
+      "name": "Atualizar Colaborador",
+      "method": "PUT",
+      "url": "{{baseUrl}}/colaboradores/OPS001",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "nomeCompleto": "João Silva Santos"
+      }
+    },
+    {
+      "name": "Estatísticas Colaborador",
+      "method": "GET",
+      "url": "{{baseUrl}}/colaboradores/OPS001/stats?startDate=2024-01-01&endDate=2024-12-31",
+      "auth": true
+    },
+    {
+      "name": "Lista Empresas",
+      "method": "GET",
+      "url": "{{baseUrl}}/empresas",
+      "auth": true
+    },
+    {
+      "name": "Criar Empresa",
+      "method": "POST",
+      "url": "{{baseUrl}}/empresas",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "razaoSocial": "Empresa Teste LTDA",
+        "cnpj": "12.345.678/0001-90",
+        "ativo": true
+      }
+    },
+    {
+      "name": "Lista Setores",
+      "method": "GET",
+      "url": "{{baseUrl}}/setores",
+      "auth": true
+    },
+    {
+      "name": "Criar Setor",
+      "method": "POST",
+      "url": "{{baseUrl}}/setores",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "nomeSetor": "Recursos Humanos",
+        "descricao": "Setor de RH",
+        "ativo": true
+      }
+    },
+    {
+      "name": "Lista Cargos",
+      "method": "GET",
+      "url": "{{baseUrl}}/cargos",
+      "auth": true
+    },
+    {
+      "name": "Criar Cargo",
+      "method": "POST",
+      "url": "{{baseUrl}}/cargos",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "nomeCargo": "Desenvolvedor",
+        "nivel": "Sênior",
+        "descricao": "Desenvolvedor Full Stack",
+        "ativo": true
+      }
+    },
+    {
+      "name": "Lista Tipos de Ausência",
+      "method": "GET",
+      "url": "{{baseUrl}}/tipos-ausencia",
+      "auth": true
+    },
+    {
+      "name": "Registrar Frequência",
+      "method": "POST",
+      "url": "{{baseUrl}}/frequencias",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "opsId": "OPS001",
+        "dataReferencia": "2024-01-15",
+        "idTipoAusencia": 1,
+        "horaEntrada": "08:00:00",
+        "horaSaida": "17:00:00",
+        "horasTrabalhadas": 8.0,
+        "observacao": "Dia normal de trabalho"
+      }
+    },
+    {
+      "name": "Lista Frequências",
+      "method": "GET",
+      "url": "{{baseUrl}}/frequencias?opsId=OPS001&dataInicio=2024-01-01&dataFim=2024-12-31",
+      "auth": true
+    },
+    {
+      "name": "Validar Frequência",
+      "method": "PUT",
+      "url": "{{baseUrl}}/frequencias/1/validar",
+      "auth": true
+    },
+    {
+      "name": "Registrar Ausência",
+      "method": "POST",
+      "url": "{{baseUrl}}/ausencias",
+      "auth": true,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "opsId": "OPS001",
+        "idTipoAusencia": 7,
+        "dataInicio": "2024-02-01",
+        "dataFim": "2024-02-15",
+        "diasCorridos": 15,
+        "diasUteis": 11,
+        "motivo": "Férias programadas",
+        "status": "ATIVO"
+      }
+    },
+    {
+      "name": "Lista Ausências",
+      "method": "GET",
+      "url": "{{baseUrl}}/ausencias?opsId=OPS001",
+      "auth": true
+    },
+    {
+      "name": "Ausências Ativas",
+      "method": "GET",
+      "url": "{{baseUrl}}/ausencias/ativas",
+      "auth": true
+    },
+    {
+      "name": "Finalizar Ausência",
+      "method": "PUT",
+      "url": "{{baseUrl}}/ausencias/1/finalizar",
+      "auth": true
+    },
+    {
+      "name": "Lista Turnos",
+      "method": "GET",
+      "url": "{{baseUrl}}/turnos",
+      "auth": true
+    },
+    {
+      "name": "Lista Escalas",
+      "method": "GET",
+      "url": "{{baseUrl}}/escalas",
+      "auth": true
+    },
+    {
+      "name": "Lista Estações",
+      "method": "GET",
+      "url": "{{baseUrl}}/estacoes",
+      "auth": true
+    },
+    {
+      "name": "Lista Contratos",
+      "method": "GET",
+      "url": "{{baseUrl}}/contratos",
+      "auth": true
+    }
+  ],
+  "variables": {
+    "baseUrl": "http://localhost:3000/api",
+    "token": "Cole_aqui_o_token_obtido_no_login"
+  },
+  "instructions": [
+    "1. Faça o request de 'Login' primeiro",
+    "2. Copie o token da resposta",
+    "3. Cole o token na variável {{token}} ou no header Authorization",
+    "4. Teste os demais endpoints",
+    "5. Lembre-se: endpoints com auth:true precisam do token"
+  ]
+}

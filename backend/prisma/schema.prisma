@@ -1,0 +1,366 @@
+// Schema do Prisma para Sistema de Gestão de Colaboradores
+// Define os modelos de dados e relacionamentos
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// MODELOS DE AUTENTICAÇÃO E USUÁRIOS DO SISTEMA
+// =====================================================
+
+// Model de Usuário do Sistema (para login e autenticação)
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// =====================================================
+// MODELOS DE ESTRUTURA ORGANIZACIONAL
+// =====================================================
+
+// Model de Empresa
+model Empresa {
+  idEmpresa        Int       @id @default(autoincrement()) @map("id_empresa")
+  razaoSocial      String    @map("razao_social") @db.VarChar(200)
+  cnpj             String?   @unique @db.VarChar(18)
+  ativo            Boolean   @default(true)
+  dataCriacao      DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao  DateTime  @default(now()) @updatedAt @map("data_atualizacao")
+
+  // Relacionamentos
+  contratos     Contrato[]
+  colaboradores Colaborador[]
+
+  @@map("empresa")
+}
+
+// Model de Setor
+model Setor {
+  idSetor     Int      @id @default(autoincrement()) @map("id_setor")
+  nomeSetor   String   @map("nome_setor") @db.VarChar(100)
+  descricao   String?  @db.Text
+  ativo       Boolean  @default(true)
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  colaboradores           Colaborador[]
+  movimentacoesSetorAnterior HistoricoMovimentacao[] @relation("SetorAnterior")
+  movimentacoesSetorNovo     HistoricoMovimentacao[] @relation("SetorNovo")
+
+  @@map("setor")
+}
+
+// Model de Cargo
+model Cargo {
+  idCargo     Int      @id @default(autoincrement()) @map("id_cargo")
+  nomeCargo   String   @map("nome_cargo") @db.VarChar(100)
+  nivel       String?  @db.VarChar(50)
+  descricao   String?  @db.Text
+  ativo       Boolean  @default(true)
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  colaboradores              Colaborador[]
+  movimentacoesCargoAnterior HistoricoMovimentacao[] @relation("CargoAnterior")
+  movimentacoesCargoNovo     HistoricoMovimentacao[] @relation("CargoNovo")
+
+  @@map("cargo")
+}
+
+// Model de Estação/Local de Trabalho
+model Estacao {
+  idEstacao   Int      @id @default(autoincrement()) @map("id_estacao")
+  nomeEstacao String   @map("nome_estacao") @db.VarChar(100)
+  localizacao String?  @db.VarChar(200)
+  capacidade  Int?
+  ativo       Boolean  @default(true)
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  colaboradores                 Colaborador[]
+  movimentacoesEstacaoAnterior  HistoricoMovimentacao[] @relation("EstacaoAnterior")
+  movimentacoesEstacaoNova      HistoricoMovimentacao[] @relation("EstacaoNova")
+
+  @@map("estacao")
+}
+
+// Model de Contrato
+model Contrato {
+  idContrato    Int       @id @default(autoincrement()) @map("id_contrato")
+  nomeContrato  String    @map("nome_contrato") @db.VarChar(100)
+  idEmpresa     Int?      @map("id_empresa")
+  dataInicio    DateTime? @map("data_inicio") @db.Date
+  dataFim       DateTime? @map("data_fim") @db.Date
+  ativo         Boolean   @default(true)
+  dataCriacao   DateTime  @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  empresa       Empresa?       @relation(fields: [idEmpresa], references: [idEmpresa])
+  colaboradores Colaborador[]
+
+  @@map("contrato")
+}
+
+// Model de Escala de Trabalho
+model Escala {
+  idEscala         Int      @id @default(autoincrement()) @map("id_escala")
+  nomeEscala       String   @map("nome_escala") @db.VarChar(100)
+  tipoEscala       String?  @map("tipo_escala") @db.VarChar(50) // Ex: 5x2, 6x1, 12x36
+  diasTrabalhados  Int?     @map("dias_trabalhados")
+  diasFolga        Int?     @map("dias_folga")
+  descricao        String?  @db.Text
+  ativo            Boolean  @default(true)
+  dataCriacao      DateTime @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  colaboradores Colaborador[]
+
+  @@map("escala")
+}
+
+// Model de Turno
+model Turno {
+  idTurno             Int      @id @default(autoincrement()) @map("id_turno")
+  nomeTurno           String   @map("nome_turno") @db.VarChar(50)
+  horarioInicio       DateTime @map("horario_inicio") @db.Time()
+  horarioFim          DateTime @map("horario_fim") @db.Time()
+  cargaHorariaDiaria  Decimal? @map("carga_horaria_diaria") @db.Decimal(4, 2)
+  ativo               Boolean  @default(true)
+  dataCriacao         DateTime @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  colaboradores              Colaborador[]
+  movimentacoesTurnoAnterior HistoricoMovimentacao[] @relation("TurnoAnterior")
+  movimentacoesTurnoNovo     HistoricoMovimentacao[] @relation("TurnoNovo")
+
+  @@map("turno")
+}
+
+// =====================================================
+// MODELO PRINCIPAL - COLABORADOR
+// =====================================================
+
+model Colaborador {
+  opsId                String    @id @map("ops_id") @db.VarChar(50)
+  nomeCompleto         String    @map("nome_completo") @db.VarChar(200)
+  genero               String?   @db.VarChar(20)
+  matricula            String    @unique @db.VarChar(50)
+  dataAdmissao         DateTime  @map("data_admissao") @db.Date
+  dataDesligamento     DateTime? @map("data_desligamento") @db.Date
+  horarioInicioJornada DateTime  @map("horario_inicio_jornada") @db.Time()
+  primeiroDiaPosDsr    DateTime? @map("primeiro_dia_pos_dsr") @db.Date
+  
+  // Chaves Estrangeiras
+  idSetor    Int? @map("id_setor")
+  idCargo    Int? @map("id_cargo")
+  idLider    String? @map("id_lider") @db.VarChar(50)
+  idEstacao  Int? @map("id_estacao")
+  idEmpresa  Int? @map("id_empresa")
+  idContrato Int? @map("id_contrato")
+  idEscala   Int? @map("id_escala")
+  idTurno    Int? @map("id_turno")
+  
+  status          StatusColaborador @default(ATIVO)
+  dataCriacao     DateTime          @default(now()) @map("data_criacao")
+  dataAtualizacao DateTime          @default(now()) @updatedAt @map("data_atualizacao")
+
+  // Relacionamentos
+  setor    Setor?     @relation(fields: [idSetor], references: [idSetor])
+  cargo    Cargo?     @relation(fields: [idCargo], references: [idCargo])
+  lider    Colaborador?  @relation("LiderSubordinado", fields: [idLider], references: [opsId])
+  estacao  Estacao?   @relation(fields: [idEstacao], references: [idEstacao])
+  empresa  Empresa?   @relation(fields: [idEmpresa], references: [idEmpresa])
+  contrato Contrato?  @relation(fields: [idContrato], references: [idContrato])
+  escala   Escala?    @relation(fields: [idEscala], references: [idEscala])
+  turno    Turno?     @relation(fields: [idTurno], references: [idTurno])
+  
+  subordinados          Colaborador[]            @relation("LiderSubordinado")
+  frequencias           Frequencia[]
+  ausencias             Ausencia[]
+  historicoMovimentacao HistoricoMovimentacao[]  @relation("ColaboradorMovimentado")
+  
+  movimentacoesLiderAnterior HistoricoMovimentacao[] @relation("LiderAnterior")
+  movimentacoesLiderNovo     HistoricoMovimentacao[] @relation("LiderNovo")
+
+  @@index([matricula])
+  @@index([status])
+  @@index([idSetor])
+  @@index([idLider])
+  @@index([dataAdmissao])
+  @@map("colaborador")
+}
+
+// =====================================================
+// MODELOS DE FREQUÊNCIA E AUSÊNCIAS
+// =====================================================
+
+// Model de Tipo de Ausência
+model TipoAusencia {
+  idTipoAusencia     Int      @id @default(autoincrement()) @map("id_tipo_ausencia")
+  codigo             String   @unique @db.VarChar(5)
+  descricao          String   @db.VarChar(200)
+  impactaAbsenteismo Boolean  @default(true) @map("impacta_absenteismo")
+  justificada        Boolean  @default(true)
+  requerDocumento    Boolean  @default(false) @map("requer_documento")
+  ativo              Boolean  @default(true)
+  dataCriacao        DateTime @default(now()) @map("data_criacao")
+
+  // Relacionamentos
+  frequencias Frequencia[]
+  ausencias   Ausencia[]
+
+  @@map("tipo_ausencia")
+}
+
+// Model de Frequência/Ponto Diário
+model Frequencia {
+  idFrequencia    Int       @id @default(autoincrement()) @map("id_frequencia")
+  opsId           String    @map("ops_id") @db.VarChar(50)
+  dataReferencia  DateTime  @map("data_referencia") @db.Date
+  idTipoAusencia  Int?      @map("id_tipo_ausencia")
+  
+  // Horários
+  horaEntrada      DateTime? @map("hora_entrada") @db.Time()
+  horaSaida        DateTime? @map("hora_saida") @db.Time()
+  horasTrabalhadas Decimal?  @map("horas_trabalhadas") @db.Decimal(4, 2)
+  
+  // Justificativas
+  observacao      String? @db.Text
+  justificativa   String? @db.Text
+  documentoAnexo  String? @map("documento_anexo") @db.VarChar(500)
+  
+  // Controle
+  dataRegistro   DateTime  @default(now()) @map("data_registro")
+  registradoPor  String?   @map("registrado_por") @db.VarChar(50)
+  validado       Boolean   @default(false)
+  validadoPor    String?   @map("validado_por") @db.VarChar(50)
+  dataValidacao  DateTime? @map("data_validacao")
+
+  // Relacionamentos
+  colaborador  Colaborador   @relation(fields: [opsId], references: [opsId])
+  tipoAusencia TipoAusencia? @relation(fields: [idTipoAusencia], references: [idTipoAusencia])
+
+  @@unique([opsId, dataReferencia])
+  @@index([opsId])
+  @@index([dataReferencia])
+  @@index([idTipoAusencia])
+  @@map("frequencia")
+}
+
+// Model de Ausência (períodos prolongados)
+model Ausencia {
+  idAusencia          Int       @id @default(autoincrement()) @map("id_ausencia")
+  opsId               String    @map("ops_id") @db.VarChar(50)
+  idTipoAusencia      Int       @map("id_tipo_ausencia")
+  
+  dataInicio          DateTime  @map("data_inicio") @db.Date
+  dataFim             DateTime  @map("data_fim") @db.Date
+  dataPrevistaRetorno DateTime? @map("data_prevista_retorno") @db.Date
+  diasCorridos        Int?      @map("dias_corridos")
+  diasUteis           Int?      @map("dias_uteis")
+  
+  // Documentação
+  motivo          String? @db.Text
+  documentoAnexo  String? @map("documento_anexo") @db.VarChar(500)
+  numeroProtocolo String? @map("numero_protocolo") @db.VarChar(100)
+  
+  // Controle
+  status           StatusAusencia @default(ATIVO)
+  dataRegistro     DateTime       @default(now()) @map("data_registro")
+  registradoPor    String?        @map("registrado_por") @db.VarChar(50)
+  dataAtualizacao  DateTime       @default(now()) @updatedAt @map("data_atualizacao")
+
+  // Relacionamentos
+  colaborador  Colaborador  @relation(fields: [opsId], references: [opsId])
+  tipoAusencia TipoAusencia @relation(fields: [idTipoAusencia], references: [idTipoAusencia])
+
+  @@index([opsId])
+  @@index([dataInicio, dataFim])
+  @@index([status])
+  @@map("ausencia")
+}
+
+// =====================================================
+// MODELO DE HISTÓRICO
+// =====================================================
+
+// Model de Histórico de Movimentações
+model HistoricoMovimentacao {
+  idHistorico       Int       @id @default(autoincrement()) @map("id_historico")
+  opsId             String    @map("ops_id") @db.VarChar(50)
+  tipoMovimentacao  String    @map("tipo_movimentacao") @db.VarChar(50)
+  
+  // Dados anteriores
+  setorAnterior   Int?    @map("setor_anterior")
+  cargoAnterior   Int?    @map("cargo_anterior")
+  estacaoAnterior Int?    @map("estacao_anterior")
+  turnoAnterior   Int?    @map("turno_anterior")
+  liderAnterior   String? @map("lider_anterior") @db.VarChar(50)
+  
+  // Dados novos
+  setorNovo   Int?    @map("setor_novo")
+  cargoNovo   Int?    @map("cargo_novo")
+  estacaoNova Int?    @map("estacao_nova")
+  turnoNovo   Int?    @map("turno_novo")
+  liderNovo   String? @map("lider_novo") @db.VarChar(50)
+  
+  dataEfetivacao DateTime @map("data_efetivacao") @db.Date
+  motivo         String?  @db.Text
+  registradoPor  String?  @map("registrado_por") @db.VarChar(50)
+  dataRegistro   DateTime @default(now()) @map("data_registro")
+
+  // Relacionamentos
+  colaborador     Colaborador  @relation("ColaboradorMovimentado", fields: [opsId], references: [opsId])
+  setorAnt        Setor?       @relation("SetorAnterior", fields: [setorAnterior], references: [idSetor])
+  setorNov        Setor?       @relation("SetorNovo", fields: [setorNovo], references: [idSetor])
+  cargoAnt        Cargo?       @relation("CargoAnterior", fields: [cargoAnterior], references: [idCargo])
+  cargoNov        Cargo?       @relation("CargoNovo", fields: [cargoNovo], references: [idCargo])
+  estacaoAnt      Estacao?     @relation("EstacaoAnterior", fields: [estacaoAnterior], references: [idEstacao])
+  estacaoNov      Estacao?     @relation("EstacaoNova", fields: [estacaoNova], references: [idEstacao])
+  turnoAnt        Turno?       @relation("TurnoAnterior", fields: [turnoAnterior], references: [idTurno])
+  turnoNov        Turno?       @relation("TurnoNovo", fields: [turnoNovo], references: [idTurno])
+  liderAnt        Colaborador? @relation("LiderAnterior", fields: [liderAnterior], references: [opsId])
+  liderNov        Colaborador? @relation("LiderNovo", fields: [liderNovo], references: [opsId])
+
+  @@index([opsId])
+  @@index([dataEfetivacao])
+  @@map("historico_movimentacao")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserRole {
+  USER
+  ADMIN
+  MANAGER
+}
+
+enum StatusColaborador {
+  ATIVO
+  INATIVO
+  AFASTADO
+  FERIAS
+}
+
+enum StatusAusencia {
+  ATIVO
+  FINALIZADO
+  CANCELADO
+}
