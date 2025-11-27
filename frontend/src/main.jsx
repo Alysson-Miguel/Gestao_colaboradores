@@ -2,12 +2,15 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
-import "./styles/globals.css"; // importa o Tailwind correto
+import { ThemeProvider } from "./context/ThemeContext"; // <-- ADICIONE ISSO
+import "./styles/globals.css"; // Tailwind
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </AuthProvider>
   </React.StrictMode>
 );

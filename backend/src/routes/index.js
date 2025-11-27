@@ -19,7 +19,7 @@ const colaboradorRoutes = require('./colaborador.routes');
 const tipoausenciaRoutes = require('./tipoausencia.routes');
 const frequenciaRoutes = require('./frequencia.routes');
 const ausenciaRoutes = require('./ausencia.routes');
-
+const dashboardRoutes = require('./dashboard.routes');
 // Rota de health check
 router.get('/health', (req, res) => {
   res.json({
@@ -43,5 +43,6 @@ router.use('/colaboradores', colaboradorRoutes);
 router.use('/tipos-ausencia', tipoausenciaRoutes);
 router.use('/frequencias', frequenciaRoutes);
 router.use('/ausencias', ausenciaRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 module.exports = router;

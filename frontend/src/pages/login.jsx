@@ -1,8 +1,8 @@
 import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { AuthContext } from "../App"; // Ajuste se necessário
-import axios from "axios";
+import { AuthContext } from "../context/AuthContext";
+import api from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -26,16 +26,32 @@ export default function Login() {
     try {
       setLoading(true);
 
-      // Faça sua chamada real para o backend
-      const response = await axios.post("https://seu-backend.com/api/login", {
+      // Faz login via API
+      const response = await api.post("/api/auth/login", {
         email,
-        senha,
+        password: senha,
       });
 
-      const userData = response.data; // ajuste conforme retorno do backend
-      login(userData);
-      navigate("/"); // redireciona para dashboard
+      // 🔥 CORREÇÃO: Acessa response.data.data (conforme o successResponse)
+      console.log("Resposta completa:", response.data);
+      
+      const { user, token } = response.data.data; // <-- AQUI está o problema!
+      
+      if (!token) {
+        setError("Token não recebido do servidor.");
+        return;
+      }
+
+      console.log("✅ Token recebido:", token.substring(0, 20) + "...");
+      console.log("✅ User recebido:", user.name);
+
+      // Salva user e token no contexto (apenas UMA vez)
+      login(user, token);
+
+      // Redireciona para dashboard
+      navigate("/");
     } catch (err) {
+      console.error("❌ Erro no login:", err);
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);
@@ -48,12 +64,11 @@ export default function Login() {
         <h1 className="text-3xl font-bold text-white mb-6 text-center">
           Bem-vindo
         </h1>
-        <p className="text-gray-400 text-center mb-6">
-          Faça login para acessar o sistema
-        </p>
 
         {error && (
-          <p className="text-sm text-red-400 mb-4 text-center">{error}</p>
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+            <p className="text-sm text-red-400 text-center">{error}</p>
+          </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -89,21 +104,18 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-medium"
+            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
-        <p className="text-gray-400 mt-6 text-center">
-          Não tem conta?{" "}
-          <span
-            className="text-blue-500 hover:underline cursor-pointer"
-            onClick={() => navigate("/register")}
-          >
-            Cadastre-se
-          </span>
-        </p>
+        {/* Info de teste */}
+        <div className="mt-6 p-3 bg-gray-700/50 rounded-lg">
+          <p className="text-xs text-gray-400 text-center">
+            <strong>Teste:</strong> Use as credenciais cadastradas no banco
+          </p>
+        </div>
       </div>
     </div>
   );
