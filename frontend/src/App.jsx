@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from "react";
 
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/dashboard";
 import Login from "./pages/Login";
 import Colaboradores from "./pages/colaboradores";
 import EmpresasPage from "./pages/empresas";
