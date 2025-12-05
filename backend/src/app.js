@@ -26,8 +26,35 @@ const app = express();
 // Segurança com Helmet
 app.use(helmet());
 
-// CORS
-app.use(cors(config.cors));
+// ⛔ CORS PADRÃO REMOVIDO — AGORA USAMOS ORIGENS MÚLTIPLAS
+// app.use(cors(config.cors));
+
+// -----------------------------------------------------
+// ✅ CORS — PERMITIR MÚLTIPLAS ORIGENS (Vercel + Localhost)
+// -----------------------------------------------------
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://gestao-colaboradores.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Permite Postman, Insomnia, server-to-server
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn("🚫 CORS bloqueado para origem:", origin);
+      return callback(new Error("CORS bloqueado pelo servidor"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Parse de JSON e URL-encoded
 app.use(express.json({ limit: '10mb' }));
