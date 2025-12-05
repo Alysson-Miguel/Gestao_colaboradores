@@ -14,6 +14,7 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
     }
   };
 
+  // ----------- ESTADO INICIAL (AGORA SEM NOME, SOMENTE IDs) -----------
   const [form, setForm] = useState({
     opsId: employee?.opsId || "",
     nomeCompleto: employee?.nomeCompleto || "",
@@ -24,19 +25,22 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
     matricula: employee?.matricula || "",
     dataAdmissao: employee?.dataAdmissao?.split("T")[0] || "",
     horarioInicioJornada: formatHorario(employee?.horarioInicioJornada),
-    empresaNome: employee?.empresa?.razaoSocial || "",
-    cargoNome: employee?.cargo?.nomeCargo || "",
+
+    idEmpresa: employee?.empresa?.idEmpresa || "",
+    idCargo: employee?.cargo?.idCargo || "",
     idSetor: employee?.setor?.idSetor || "",
     idLider: employee?.lider?.opsId || "",
     idEstacao: employee?.estacao?.idEstacao || "",
     idContrato: employee?.contrato?.idContrato || "",
     idEscala: employee?.escala?.idEscala || "",
     idTurno: employee?.turno?.idTurno || "",
+
     status: employee?.status || "ATIVO",
   });
 
   const update = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
+  // ----------- LISTAS DO BACKEND -----------
   const [empresas, setEmpresas] = useState([]);
   const [cargos, setCargos] = useState([]);
   const [setores, setSetores] = useState([]);
@@ -48,25 +52,29 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
 
   useEffect(() => {
     async function loadLists() {
-      const [emp, cg, st, lid, est, ct, esc, tr] = await Promise.all([
-        api.get("/empresas"),
-        api.get("/cargos"),
-        api.get("/setores"),
-        api.get("/colaboradores"), // líderes
-        api.get("/estacoes"),
-        api.get("/contratos"),
-        api.get("/escalas"),
-        api.get("/turnos"),
-      ]);
+      try {
+        const [emp, cg, st, lid, est, ct, esc, tr] = await Promise.all([
+          api.get("/empresas"),
+          api.get("/cargos"),
+          api.get("/setores"),
+          api.get("/colaboradores"), // líderes
+          api.get("/estacoes"),
+          api.get("/contratos"),
+          api.get("/escalas"),
+          api.get("/turnos"),
+        ]);
 
-      setEmpresas(emp.data.data);
-      setCargos(cg.data.data);
-      setSetores(st.data.data);
-      setLideres(lid.data.data);
-      setEstacoes(est.data.data);
-      setContratos(ct.data.data);
-      setEscalas(esc.data.data);
-      setTurnos(tr.data.data);
+        setEmpresas(emp.data.data);
+        setCargos(cg.data.data);
+        setSetores(st.data.data);
+        setLideres(lid.data.data);
+        setEstacoes(est.data.data);
+        setContratos(ct.data.data);
+        setEscalas(esc.data.data);
+        setTurnos(tr.data.data);
+      } catch (error) {
+        console.error("Erro ao carregar listas:", error);
+      }
     }
 
     loadLists();
@@ -94,12 +102,11 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
             ["email", "E-mail"],
             ["genero", "Gênero"],
             ["matricula", "Matrícula"],
-            ["dataAdmissao", "Data de Admissão", "date"],
-          ].map(([field, label, type]) => (
+          ].map(([field, label]) => (
             <div key={field}>
               <label className="block text-sm mb-1">{label}</label>
               <input
-                type={type || "text"}
+                type="text"
                 value={form[field]}
                 onChange={(e) => update(field, e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border"
@@ -107,7 +114,18 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
             </div>
           ))}
 
-          {/* HORÁRIO (SELECT) */}
+          {/* DATA ADMISSÃO */}
+          <div>
+            <label className="block text-sm mb-1">Data de Admissão</label>
+            <input
+              type="date"
+              value={form.dataAdmissao}
+              onChange={(e) => update("dataAdmissao", e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border"
+            />
+          </div>
+
+          {/* HORÁRIO */}
           <div>
             <label className="block text-sm mb-1">Hora Início Jornada</label>
             <select
@@ -117,7 +135,9 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
             >
               <option value="">Selecione...</option>
               {HORARIOS.map((h) => (
-                <option key={h} value={h}>{h}</option>
+                <option key={h} value={h}>
+                  {h}
+                </option>
               ))}
             </select>
           </div>
@@ -126,13 +146,13 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
           <div>
             <label className="block text-sm mb-1">Empresa</label>
             <select
-              value={form.empresaNome}
-              onChange={(e) => update("empresaNome", e.target.value)}
+              value={form.idEmpresa}
+              onChange={(e) => update("idEmpresa", e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border"
             >
               <option value="">Selecione...</option>
               {empresas.map((e) => (
-                <option key={e.idEmpresa} value={e.razaoSocial}>
+                <option key={e.idEmpresa} value={e.idEmpresa}>
                   {e.razaoSocial}
                 </option>
               ))}
@@ -143,13 +163,13 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
           <div>
             <label className="block text-sm mb-1">Cargo</label>
             <select
-              value={form.cargoNome}
-              onChange={(e) => update("cargoNome", e.target.value)}
+              value={form.idCargo}
+              onChange={(e) => update("idCargo", e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border"
             >
               <option value="">Selecione...</option>
               {cargos.map((c) => (
-                <option key={c.idCargo} value={c.nomeCargo}>
+                <option key={c.idCargo} value={c.idCargo}>
                   {c.nomeCargo} ({c.nivel})
                 </option>
               ))}
@@ -272,10 +292,12 @@ export default function EmployeeModal({ employee, onClose, onSave }) {
           </div>
         </div>
 
+        {/* BOTÕES */}
         <div className="flex justify-end mt-6 gap-3">
           <button onClick={onClose} className="px-6 py-3 bg-gray-200 rounded-xl">
             Cancelar
           </button>
+
           <button
             onClick={() => onSave(form)}
             className="px-6 py-3 bg-blue-600 text-white rounded-xl"

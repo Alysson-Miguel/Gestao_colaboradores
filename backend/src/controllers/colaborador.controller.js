@@ -38,7 +38,8 @@ const getAllColaboradores = async (req, res) => {
     where.OR = [
       { nomeCompleto: { contains: search, mode: 'insensitive' } },
       { matricula: { contains: search, mode: 'insensitive' } },
-      { opsId: { startsWith: search, mode: 'insensitive' } },
+      { opsId: { contains: search, mode: 'insensitive' } },
+      { cpf: { contains: search, mode: 'insensitive' } },
     ];
   }
 
@@ -59,10 +60,15 @@ const getAllColaboradores = async (req, res) => {
           empresa: true,
           cargo: true,
           setor: true,
-          lider: { select: { opsId: true, nomeCompleto: true } },
+          estacao: true,
+          contrato: true,
+          escala: true,
+          turno: true,
+          lider: {
+            select: { opsId: true, nomeCompleto: true },
+          },
         },
       }),
-
       prisma.colaborador.count({ where }),
     ]);
 
@@ -73,7 +79,7 @@ const getAllColaboradores = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("🔥 ERRO COMPLETO NO getAllColaboradores:", err);
+    console.error("🔥 ERRO NO getAllColaboradores:", err);
     return errorResponse(res, 500, "Erro ao buscar colaboradores", err);
   }
 };
@@ -233,7 +239,7 @@ const updateColaborador = async (req, res) => {
     updateData.horarioInicioJornada = new Date(`1970-01-01T${hora}:00Z`);
   }
 
-  // Inteiros + conversão de "" → null
+  // Inteiros + conversão "" → null
   [
     "idSetor",
     "idCargo",
@@ -250,7 +256,7 @@ const updateColaborador = async (req, res) => {
     }
   });
 
-  // Remover campos que NÃO existem no banco
+  // Remover campos virtuais
   delete updateData.empresaNome;
   delete updateData.cargoNome;
 
@@ -258,9 +264,13 @@ const updateColaborador = async (req, res) => {
     where: { opsId },
     data: updateData,
     include: {
-      setor: true,
-      cargo: true,
       empresa: true,
+      cargo: true,
+      setor: true,
+      estacao: true,
+      contrato: true,
+      escala: true,
+      turno: true,
       lider: { select: { opsId: true, nomeCompleto: true } },
     },
   });

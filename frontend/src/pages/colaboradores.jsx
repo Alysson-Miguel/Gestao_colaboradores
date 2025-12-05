@@ -15,9 +15,10 @@ export default function ColaboradoresPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState("");
+  const [turnoSelecionado, setTurnoSelecionado] = useState("TODOS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navigate = useNavigate(); // 👈 ESSENCIAL
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,16 +61,34 @@ export default function ColaboradoresPage() {
     }
   };
 
+  // -------------------------
+  // FILTROS
+  // -------------------------
   const filtered = employees.filter((e) => {
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return (
-      e.nomeCompleto?.toLowerCase().includes(q) ||
-      e.email?.toLowerCase().includes(q) ||
-      e.cpf?.toLowerCase().includes(q) ||
-      String(e.opsId)?.includes(q)
-    );
+    // FILTRO DE BUSCA
+    if (query) {
+      const q = query.toLowerCase();
+      const matchBusca =
+        e.nomeCompleto?.toLowerCase().includes(q) ||
+        e.email?.toLowerCase().includes(q) ||
+        e.cpf?.toLowerCase().includes(q) ||
+        String(e.opsId)?.includes(q);
+
+      if (!matchBusca) return false;
+    }
+
+    // FILTRO DE TURNO
+    if (turnoSelecionado !== "TODOS") {
+      const turnoEmpregado =
+        e?.turno?.nomeTurno || e?.turno || "Sem Turno";
+
+      if (turnoEmpregado !== turnoSelecionado) return false;
+    }
+
+    return true;
   });
+
+  const turnos = ["TODOS", "T1", "T2", "T3"];
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950 relative">
@@ -77,7 +96,7 @@ export default function ColaboradoresPage() {
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        navigate={navigate}   // 👈 ENVIE O navigate AQUI
+        navigate={navigate}
       />
 
       <div className="flex-1 lg:ml-64 transition-all duration-300">
@@ -89,7 +108,10 @@ export default function ColaboradoresPage() {
               Colaboradores
             </h1>
 
+            {/* BARRA DE AÇÕES */}
             <div className="flex items-center gap-3">
+
+              {/* CAMPO DE BUSCA */}
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -97,6 +119,20 @@ export default function ColaboradoresPage() {
                 className="px-4 py-2 rounded-xl border bg-white dark:bg-gray-800 dark:text-white"
               />
 
+              {/* SELETOR DE TURNO */}
+              <select
+                value={turnoSelecionado}
+                onChange={(e) => setTurnoSelecionado(e.target.value)}
+                className="px-4 py-2 rounded-xl border bg-white dark:bg-gray-800 dark:text-white"
+              >
+                {turnos.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+
+              {/* BOTÃO ADICIONAR */}
               <button
                 onClick={handleNew}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl shadow"
@@ -107,7 +143,8 @@ export default function ColaboradoresPage() {
             </div>
           </div>
 
-          <div className="bg-red-600 dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800">
+          {/* LISTA */}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800">
             {loading ? (
               <p className="p-6 text-gray-500">Carregando colaboradores...</p>
             ) : (
@@ -121,6 +158,7 @@ export default function ColaboradoresPage() {
         </div>
       </div>
 
+      {/* MODAL */}
       {modalOpen && (
         <EmployeeModal
           key={selected?.opsId || "new"}
