@@ -1,66 +1,108 @@
-// src/components/EmployeeTable.jsx
-import React from "react";
+import { Button, Badge } from "../components/UIComponents";
 
 export default function EmployeeTable({ employees = [], onEdit, onDelete }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[800px]">
-        <thead className="bg-gray-50 dark:bg-gray-800">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Nome</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Cargo</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Departamento</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Empresa</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Admissão</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Status</th>
-            <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Ações</th>
+    <div className="overflow-x-auto rounded-xl bg-surface">
+      <table className="w-full min-w-[900px] text-sm">
+        {/* HEADER */}
+        <thead>
+          <tr
+            className="
+              bg-[#121214]
+              text-xs uppercase tracking-wide
+              text-textSecondary
+            "
+          >
+            {["Nome", "Cargo", "Setor", "Empresa", "Admissão", "Status", ""].map(
+              (h) => (
+                <th
+                  key={h}
+                  className={`px-5 py-4 font-semibold ${
+                    h === "" ? "text-right" : "text-left"
+                  }`}
+                >
+                  {h}
+                </th>
+              )
+            )}
           </tr>
         </thead>
 
-        <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+        {/* BODY */}
+        <tbody>
           {employees.length === 0 && (
             <tr>
-              <td colSpan="7" className="p-6 text-center text-gray-500">Nenhum colaborador encontrado.</td>
+              <td colSpan={7} className="p-8 text-center text-muted">
+                Nenhum colaborador encontrado
+              </td>
             </tr>
           )}
 
-          {employees.map((emp) => {
-            // possível estrutura das relações: cargo: { nomeCargo }, setor/nomeSetor, empresa/razaoSocial
-            const nome = emp.nomeCompleto || emp.nome || "-";
-            const cargo = (emp.cargo && (emp.cargo.nomeCargo || emp.cargo.nome || emp.cargo)) || emp.cargo || "-";
-            const dept = (emp.setor && (emp.setor.nomeSetor || emp.setor.nome)) || emp.departamento || "-";
-            const empresa = (emp.empresa && (emp.empresa.razaoSocial || emp.empresa.nome)) || emp.empresa || "-";
-            const dataAdmissao = emp.dataAdmissao ? new Date(emp.dataAdmissao).toLocaleDateString() : "-";
-            const status = emp.status || (emp.ativo ? (emp.ativo === true ? "ATIVO" : "INATIVO") : "-");
+          {employees.map((emp, index) => {
+            const status = emp.status || (emp.ativo ? "ATIVO" : "INATIVO");
 
             return (
-              <tr key={emp.opsId || emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold">
-                      {String(nome).charAt(0) || "?"}
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">{nome}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{emp.email || emp.matricula || emp.opsId}</div>
-                    </div>
-                  </div>
+              <tr
+                key={emp.opsId}
+                className={`
+                  transition-colors
+                  ${index % 2 === 0 ? "bg-surface" : "bg-[#1E1E20]"}
+                  hover:bg-[#242426]
+                `}
+              >
+                {/* NOME */}
+                <td className="px-5 py-4 font-medium text-text">
+                  {emp.nomeCompleto}
                 </td>
 
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{cargo}</td>
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{dept}</td>
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{empresa}</td>
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{dataAdmissao}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium ${status === "ATIVO" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"}`}>
+                {/* CARGO */}
+                <td className="px-5 py-4 text-textSecondary">
+                  {emp.cargo?.nomeCargo || "-"}
+                </td>
+
+                {/* SETOR */}
+                <td className="px-5 py-4 text-textSecondary">
+                  {emp.setor?.nomeSetor || "-"}
+                </td>
+
+                {/* EMPRESA */}
+                <td className="px-5 py-4 text-textSecondary">
+                  {emp.empresa?.razaoSocial || "-"}
+                </td>
+
+                {/* ADMISSÃO */}
+                <td className="px-5 py-4 text-textSecondary">
+                  {emp.dataAdmissao
+                    ? new Date(emp.dataAdmissao).toLocaleDateString()
+                    : "-"}
+                </td>
+
+                {/* STATUS */}
+                <td className="px-5 py-4">
+                  <Badge.Status
+                    variant={status === "ATIVO" ? "success" : "danger"}
+                  >
                     {status}
-                  </span>
+                  </Badge.Status>
                 </td>
 
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => onEdit(emp)} className="px-3 py-1 text-xs rounded-lg bg-blue-600 text-white">Editar</button>
-                    <button onClick={() => onDelete(emp)} className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white">Excluir</button>
+                {/* AÇÕES */}
+                <td className="px-5 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button.Secondary
+                      size="sm"
+                      onClick={() => onEdit(emp)}
+                    >
+                      Editar
+                    </Button.Secondary>
+
+                    <Button.IconButton
+                      size="sm"
+                      variant="danger"
+                      onClick={() => onDelete(emp)}
+                    >
+                      Excluir
+                    </Button.IconButton>
                   </div>
                 </td>
               </tr>

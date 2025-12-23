@@ -1,19 +1,34 @@
-import { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useState, useContext, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Mail, Lock, Eye, EyeOff, UserPlus } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useContext(AuthContext);
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /* =====================================================
+     MENSAGEM DE SUCESSO VINDO DO CADASTRO
+  ===================================================== */
+  useEffect(() => {
+    if (location.state?.success) {
+      setSuccess(location.state.success);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  /* =====================================================
+     LOGIN
+  ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -31,30 +46,14 @@ export default function Login() {
         password: senha,
       });
 
-      console.log("Resposta completa:", response.data);
-
       const { user, token } = response.data.data;
 
-      if (!token) {
-        setError("Token não recebido do servidor.");
-        return;
-      }
-
-      console.log("✅ Token recebido:", token.substring(0, 20) + "...");
-      console.log("✅ User recebido:", user.name);
-
-      // 🔥 SALVA NO LOCALSTORAGE PARA O AXIOS USAR AUTOMÁTICO
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Atualiza contexto global
       login(user, token);
-
-      // Redireciona
       navigate("/");
-
     } catch (err) {
-      console.error("❌ Erro no login:", err);
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);
@@ -62,62 +61,129 @@ export default function Login() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-950 p-4">
-      <div className="w-full max-w-md bg-gray-800 rounded-2xl p-8 border border-gray-700 shadow-lg">
-        <h1 className="text-3xl font-bold text-white mb-6 text-center">
-          Bem-vindo
-        </h1>
+    <div className="min-h-screen flex items-center justify-center bg-[#0D0D0D] px-4">
+      <div className="w-full max-w-lg bg-[#1A1A1C] border border-[#3D3D40] rounded-2xl p-10 shadow-2xl">
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
-            <p className="text-sm text-red-400 text-center">{error}</p>
+        {/* HEADER */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Gestão RH
+          </h1>
+          <p className="text-sm text-[#BFBFC3]">
+            Acesse sua conta para continuar
+          </p>
+        </div>
+
+        {/* SUCCESS */}
+        {success && (
+          <div className="mb-6 px-4 py-3 rounded-lg border border-[#34C759]/40 bg-[#34C759]/10">
+            <p className="text-sm text-[#34C759] text-center">
+              {success}
+            </p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* ERROR */}
+        {error && (
+          <div className="mb-6 px-4 py-3 rounded-lg border border-[#FF453A]/40 bg-[#FF453A]/10">
+            <p className="text-sm text-[#FF453A] text-center">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* EMAIL */}
           <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#BFBFC3]" />
             <input
               type="email"
               placeholder="E-mail"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-xl placeholder-gray-300 text-white focus:ring-2 focus:ring-blue-500"
+              className="
+                w-full pl-12 pr-4 py-3
+                bg-[#2A2A2C]
+                border border-[#3D3D40]
+                rounded-xl
+                text-white
+                placeholder:text-[#BFBFC3]
+                focus:outline-none
+                focus:ring-1 focus:ring-[#FA4C00]
+              "
             />
           </div>
 
+          {/* SENHA */}
           <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#BFBFC3]" />
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Senha"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              className="w-full pl-12 pr-12 py-3 bg-gray-700 border border-gray-600 rounded-xl placeholder-gray-300 text-white focus:ring-2 focus:ring-blue-500"
+              className="
+                w-full pl-12 pr-12 py-3
+                bg-[#2A2A2C]
+                border border-[#3D3D40]
+                rounded-xl
+                text-white
+                placeholder:text-[#BFBFC3]
+                focus:outline-none
+                focus:ring-1 focus:ring-[#FA4C00]
+              "
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#BFBFC3] hover:text-white"
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
 
+          {/* BOTÃO ENTRAR */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+            className="
+              w-full py-3 rounded-xl
+              bg-[#FA4C00]
+              hover:bg-[#ff5e1a]
+              text-white font-medium
+              transition
+              disabled:opacity-50
+            "
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
 
-        <div className="mt-6 p-3 bg-gray-700/50 rounded-lg">
-          <p className="text-xs text-gray-400 text-center">
-            <strong>Teste:</strong> Use suas credenciais cadastradas.
-          </p>
+        {/* DIVIDER */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[#3D3D40]" />
+          <span className="text-xs text-[#BFBFC3]">ou</span>
+          <div className="flex-1 h-px bg-[#3D3D40]" />
         </div>
+
+        {/* CADASTRO */}
+        <button
+          onClick={() => navigate("/register")}
+          className="
+            w-full flex items-center justify-center gap-2
+            py-3 rounded-xl
+            border border-[#3D3D40]
+            bg-[#1A1A1C]
+            hover:bg-[#2A2A2C]
+            text-[#BFBFC3]
+            transition
+          "
+        >
+          <UserPlus size={18} />
+          Criar nova conta
+        </button>
       </div>
     </div>
   );

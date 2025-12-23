@@ -1,16 +1,19 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import api from "../services/api";
-import { useNavigate } from "react-router-dom";
 
 export default function PontoPage() {
   const [cpf, setCpf] = useState("");
   const [msg, setMsg] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const navigate = useNavigate();
 
   const handleRegistrar = async () => {
+    if (!cpf) return;
+
     try {
       const res = await api.post("/ponto/registrar", { cpf });
       setMsg(res.data.message);
@@ -20,40 +23,70 @@ export default function PontoPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
+    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+      {/* SIDEBAR */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        navigate={navigate}
+      />
 
       <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="p-6 max-w-lg mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-            Registrar Ponto
-          </h1>
+        {/* PAGE */}
+        <main className="px-8 py-6">
+          {/* PAGE HEADER */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold">Registrar Ponto</h1>
+            <p className="text-sm text-[#BFBFC3]">
+              Registro de presença e controle de jornada
+            </p>
+          </div>
 
-          <div className="space-y-4 bg-white dark:bg-gray-900 p-6 rounded-2xl border dark:border-gray-700">
-            <input
-              type="text"
-              placeholder="Digite seu CPF"
-              value={cpf}
-              onChange={(e) => setCpf(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 border"
-            />
+          {/* CARD */}
+          <section className="max-w-md mx-auto bg-[#1A1A1C] border border-[#3D3D40] rounded-xl p-6 space-y-5">
+            <div>
+              <label className="block text-xs text-[#BFBFC3] mb-1">
+                CPF do colaborador
+              </label>
+              <input
+                type="text"
+                placeholder="Digite seu CPF"
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value)}
+                className="
+                  w-full px-4 py-3 rounded-lg
+                  bg-[#2A2A2C]
+                  border border-[#3D3D40]
+                  text-white
+                  placeholder:text-[#BFBFC3]
+                  focus:outline-none
+                  focus:ring-1
+                  focus:ring-[#FA4C00]
+                "
+              />
+            </div>
 
             <button
               onClick={handleRegistrar}
-              className="w-full bg-blue-600 text-white py-2 rounded-xl"
+              className="
+                w-full py-3 rounded-lg
+                bg-[#FA4C00] hover:bg-[#e64500]
+                text-white font-medium
+                transition
+              "
             >
               Registrar Presença
             </button>
 
             {msg && (
-              <p className="mt-3 text-center text-gray-900 dark:text-gray-200">
+              <div className="pt-2 text-center text-sm text-[#BFBFC3]">
                 {msg}
-              </p>
+              </div>
             )}
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     </div>
   );

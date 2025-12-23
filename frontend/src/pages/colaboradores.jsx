@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
-
 import EmployeeModal from "../components/EmployeeModal";
 import EmployeeTable from "../components/EmployeeTable";
 import { ColaboradoresAPI } from "../services/colaboradores";
@@ -28,8 +27,7 @@ export default function ColaboradoresPage() {
         search: query || undefined,
       });
       setEmployees(list);
-    } catch (err) {
-      console.error("Erro ao listar colaboradores:", err);
+    } catch {
       alert("Erro ao carregar colaboradores.");
     } finally {
       setLoading(false);
@@ -40,49 +38,20 @@ export default function ColaboradoresPage() {
     load();
   }, [load]);
 
-  const handleNew = () => {
-    setSelected(null);
-    setModalOpen(true);
-  };
-
-  const handleEdit = (emp) => {
-    setSelected(emp);
-    setModalOpen(true);
-  };
-
-  const handleDelete = async (emp) => {
-    if (!window.confirm(`Excluir o colaborador "${emp.nomeCompleto}"?`)) return;
-    try {
-      await ColaboradoresAPI.excluir(emp.opsId);
-      load();
-    } catch (err) {
-      console.error("Erro ao excluir colaborador:", err);
-      alert("Erro ao excluir colaborador.");
-    }
-  };
-
-  // -------------------------
-  // FILTROS
-  // -------------------------
   const filtered = employees.filter((e) => {
-    // FILTRO DE BUSCA
     if (query) {
       const q = query.toLowerCase();
-      const matchBusca =
+      const match =
         e.nomeCompleto?.toLowerCase().includes(q) ||
         e.email?.toLowerCase().includes(q) ||
         e.cpf?.toLowerCase().includes(q) ||
         String(e.opsId)?.includes(q);
-
-      if (!matchBusca) return false;
+      if (!match) return false;
     }
 
-    // FILTRO DE TURNO
     if (turnoSelecionado !== "TODOS") {
-      const turnoEmpregado =
-        e?.turno?.nomeTurno || e?.turno || "Sem Turno";
-
-      if (turnoEmpregado !== turnoSelecionado) return false;
+      const turno = e?.turno?.nomeTurno || e?.turno || "Sem Turno";
+      if (turno !== turnoSelecionado) return false;
     }
 
     return true;
@@ -91,39 +60,56 @@ export default function ColaboradoresPage() {
   const turnos = ["TODOS", "T1", "T2", "T3"];
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950 relative">
-      {/* SIDEBAR */}
+    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         navigate={navigate}
       />
 
-      <div className="flex-1 lg:ml-64 transition-all duration-300">
+      <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Colaboradores
-            </h1>
+        <main className="p-8 space-y-6">
 
-            {/* BARRA DE AÇÕES */}
-            <div className="flex items-center gap-3">
+          {/* TÍTULO */}
+          <div>
+            <h1 className="text-2xl font-semibold">Colaboradores</h1>
+            <p className="text-sm text-[#BFBFC3]">
+              Gestão e controle de colaboradores ativos
+            </p>
+          </div>
 
-              {/* CAMPO DE BUSCA */}
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar nome, e-mail, CPF ou OPS ID..."
-                className="px-4 py-2 rounded-xl border bg-white dark:bg-gray-800 dark:text-white"
-              />
+          {/* BARRA DE FILTROS */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
 
-              {/* SELETOR DE TURNO */}
+            {/* FILTROS */}
+            <div className="flex items-center gap-3 flex-wrap">
+
+              {/* BUSCA */}
+              <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl">
+                <Search size={16} className="text-[#BFBFC3]" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar colaborador..."
+                  className="bg-transparent outline-none text-sm text-white placeholder-[#BFBFC3]"
+                />
+              </div>
+
+              {/* TURNO */}
               <select
                 value={turnoSelecionado}
                 onChange={(e) => setTurnoSelecionado(e.target.value)}
-                className="px-4 py-2 rounded-xl border bg-white dark:bg-gray-800 dark:text-white"
+                className="
+                  bg-[#1A1A1C]
+                  text-sm
+                  px-4 py-2
+                  rounded-xl
+                  text-[#BFBFC3]
+                  outline-none
+                  hover:bg-[#2A2A2C]
+                "
               >
                 {turnos.map((t) => (
                   <option key={t} value={t}>
@@ -131,31 +117,49 @@ export default function ColaboradoresPage() {
                   </option>
                 ))}
               </select>
-
-              {/* BOTÃO ADICIONAR */}
-              <button
-                onClick={handleNew}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl shadow"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar Colaborador
-              </button>
             </div>
+
+            {/* CTA */}
+            <button
+              onClick={() => {
+                setSelected(null);
+                setModalOpen(true);
+              }}
+              className="
+                inline-flex items-center gap-2
+                px-5 py-2.5
+                bg-[#FA4C00]
+                hover:bg-[#ff5a1a]
+                text-sm font-medium
+                rounded-xl
+                transition
+              "
+            >
+              <Plus size={16} />
+              Novo Colaborador
+            </button>
           </div>
 
-          {/* LISTA */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800">
+          {/* LISTAGEM */}
+          <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">
             {loading ? (
-              <p className="p-6 text-gray-500">Carregando colaboradores...</p>
+              <div className="p-6 text-[#BFBFC3]">Carregando colaboradores…</div>
             ) : (
               <EmployeeTable
                 employees={filtered}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onEdit={(emp) => {
+                  setSelected(emp);
+                  setModalOpen(true);
+                }}
+                onDelete={async (emp) => {
+                  if (!window.confirm(`Excluir ${emp.nomeCompleto}?`)) return;
+                  await ColaboradoresAPI.excluir(emp.opsId);
+                  load();
+                }}
               />
             )}
           </div>
-        </div>
+        </main>
       </div>
 
       {/* MODAL */}
@@ -168,19 +172,14 @@ export default function ColaboradoresPage() {
             setSelected(null);
           }}
           onSave={async (data) => {
-            try {
-              if (selected) {
-                await ColaboradoresAPI.atualizar(selected.opsId, data);
-              } else {
-                await ColaboradoresAPI.criar(data);
-              }
-              setModalOpen(false);
-              setSelected(null);
-              load();
-            } catch (err) {
-              console.error("Erro ao salvar colaborador:", err);
-              alert("Erro ao salvar colaborador.");
+            if (selected) {
+              await ColaboradoresAPI.atualizar(selected.opsId, data);
+            } else {
+              await ColaboradoresAPI.criar(data);
             }
+            setModalOpen(false);
+            setSelected(null);
+            load();
           }}
         />
       )}

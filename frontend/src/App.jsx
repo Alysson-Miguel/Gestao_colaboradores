@@ -1,18 +1,18 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from "react";
 
 import Dashboard from "./pages/dashboard";
 import Login from "./pages/login";
+import Register from "./pages/register";
 import Colaboradores from "./pages/colaboradores";
 import EmpresasPage from "./pages/empresas";
 import CargosPage from "./pages/cargos";
 import SetoresPage from "./pages/Setores";
 import PontoPage from "./pages/Ponto";
 
-// ⬇️ IMPORTS CORRETOS AGORA
-import { AuthProvider } from "./context/AuthProvider";
 import { AuthContext } from "./context/AuthContext";
 
+/* ================= PROTECTED ROUTE ================= */
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useContext(AuthContext);
   const hasToken = !!localStorage.getItem("token");
@@ -24,79 +24,73 @@ function ProtectedRoute({ children }) {
   return <Navigate to="/login" replace />;
 }
 
+/* ================= APP ================= */
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+    <Routes>
 
-          {/* LOGIN */}
-          <Route path="/login" element={<Login />} />
+      {/* ===== ROTAS PÚBLICAS ===== */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-          {/* DASHBOARD */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+      {/* ===== ROTAS PROTEGIDAS ===== */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* COLABORADORES */}
-          <Route
-            path="/colaboradores"
-            element={
-              <ProtectedRoute>
-                <Colaboradores />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/colaboradores"
+        element={
+          <ProtectedRoute>
+            <Colaboradores />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* EMPRESAS */}
-          <Route
-            path="/empresas"
-            element={
-              <ProtectedRoute>
-                <EmpresasPage />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/empresas"
+        element={
+          <ProtectedRoute>
+            <EmpresasPage />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* CARGOS */}
-          <Route
-            path="/cargos"
-            element={
-              <ProtectedRoute>
-                <CargosPage />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/cargos"
+        element={
+          <ProtectedRoute>
+            <CargosPage />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* SETORES */}
-          <Route
-            path="/setores"
-            element={
-              <ProtectedRoute>
-                <SetoresPage />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/setores"
+        element={
+          <ProtectedRoute>
+            <SetoresPage />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* PONTO */}
-          <Route
-            path="/ponto"
-            element={
-              <ProtectedRoute>
-                <PontoPage />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/ponto"
+        element={
+          <ProtectedRoute>
+            <PontoPage />
+          </ProtectedRoute>
+        }
+      />
 
-          {/* DEFAULT → REDIRECIONA PARA / */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      {/* ===== FALLBACK ===== */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+
+    </Routes>
   );
 }

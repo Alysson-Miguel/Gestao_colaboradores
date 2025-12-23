@@ -1,70 +1,95 @@
 import { useState } from "react";
+import { Button } from "../components/UIComponents";
+import { X } from "lucide-react";
 
 export default function SetorModal({ setor, onClose, onSave }) {
-  const [form, setForm] = useState(() => ({
+  const [form, setForm] = useState({
     nomeSetor: setor?.nomeSetor || "",
     descricao: setor?.descricao || "",
     ativo: setor?.ativo ?? true,
-  }));
+  });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+  const handle = (field, value) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-index[9999]">
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl w-full max-w-lg border border-gray-300 dark:border-gray-700 shadow-xl">
-        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-          {setor ? "Editar Setor" : "Novo Setor"}
-        </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
-        <div className="space-y-3">
-          <input
-            name="nomeSetor"
-            value={form.nomeSetor}
-            onChange={handleChange}
-            placeholder="Nome do setor"
-            className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border rounded-xl dark:text-white"
-          />
-
-          <textarea
-            name="descricao"
-            value={form.descricao}
-            onChange={handleChange}
-            placeholder="Descrição"
-            rows={3}
-            className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border rounded-xl dark:text-white"
-          />
-
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              name="ativo"
-              checked={form.ativo}
-              onChange={handleChange}
-            />
-            <span className="text-gray-800 dark:text-gray-300">Ativo</span>
-          </label>
-        </div>
-
-        <div className="flex justify-end gap-3 mt-6">
+      <div className="relative w-full max-w-lg bg-[#1A1A1C] rounded-xl border border-[#3D3D40] shadow-2xl">
+        {/* HEADER */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#3D3D40]">
+          <h2 className="text-lg font-semibold text-white">
+            {setor ? "Editar Setor" : "Novo Setor"}
+          </h2>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded-xl"
+            className="p-2 rounded-md hover:bg-[#2A2A2C] text-[#BFBFC3]"
           >
-            Cancelar
+            <X size={18} />
           </button>
+        </div>
 
-          <button
-            onClick={() => onSave(form)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl"
-          >
-            Salvar
-          </button>
+        {/* CONTENT */}
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs text-[#BFBFC3] mb-1">
+              Nome do Setor
+            </label>
+            <input
+              value={form.nomeSetor}
+              onChange={(e) => handle("nomeSetor", e.target.value)}
+              className="
+                w-full px-4 py-3 rounded-lg
+                bg-[#2A2A2C] border border-[#3D3D40]
+                text-white
+                focus:outline-none focus:ring-1 focus:ring-[#FA4C00]
+              "
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-[#BFBFC3] mb-1">
+              Descrição
+            </label>
+            <textarea
+              rows={3}
+              value={form.descricao}
+              onChange={(e) => handle("descricao", e.target.value)}
+              className="
+                w-full px-4 py-3 rounded-lg
+                bg-[#2A2A2C] border border-[#3D3D40]
+                text-white
+                focus:outline-none focus:ring-1 focus:ring-[#FA4C00]
+              "
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-[#BFBFC3] mb-1">
+              Status
+            </label>
+            <select
+              value={form.ativo ? "true" : "false"}
+              onChange={(e) => handle("ativo", e.target.value === "true")}
+              className="
+                w-full px-4 py-3 rounded-lg
+                bg-[#2A2A2C] border border-[#3D3D40]
+                text-white
+              "
+            >
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#3D3D40]">
+          <Button.Secondary onClick={onClose}>Cancelar</Button.Secondary>
+          <Button.Primary onClick={() => onSave(form)}>
+            {setor ? "Salvar alterações" : "Criar setor"}
+          </Button.Primary>
         </div>
       </div>
     </div>

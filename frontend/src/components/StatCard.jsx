@@ -1,15 +1,11 @@
-// src/components/StatCard.jsx
-export default function StatCard({ title, value, icon }) {
-  // garante um nome com letra maiúscula para usar no JSX
-  const Icon = icon;
-
+export default function StatCard({ title, value, icon: Icon }) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 hover:shadow-lg transition-all">
-      <div className="p-3 bg-blue-600 rounded-xl inline-block mb-4">
-        {Icon && <Icon className="w-6 h-6 text-white" />}
+    <div className="bg-surface border border-border rounded-lg p-6">
+      <div className="w-10 h-10 bg-brand/15 text-brand rounded-lg flex items-center justify-center mb-4">
+        {Icon && <Icon className="w-5 h-5" />}
       </div>
-      <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
-      <p className="text-sm text-gray-600 dark:text-gray-400">{title}</p>
+      <p className="text-3xl font-bold text-text">{value}</p>
+      <p className="text-sm text-muted">{title}</p>
     </div>
   );
 }

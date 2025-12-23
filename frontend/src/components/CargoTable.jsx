@@ -1,31 +1,61 @@
-import { Pencil, Trash } from "lucide-react";
+import { Badge, Button } from "../components/UIComponents";
 
 export default function CargoTable({ cargos, onEdit, onDelete }) {
+  if (!cargos?.length) {
+    return (
+      <div className="p-8 text-center text-[#BFBFC3]">
+        Nenhum cargo cadastrado
+      </div>
+    );
+  }
+
   return (
-    <table className="w-full text-left">
-      <thead>
-        <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
-          <th className="py-2">Cargo</th>
-          <th className="py-2">Nível</th>
-          <th className="py-2">Ativo</th>
-          <th className="py-2 text-right">Ações</th>
+    <table className="w-full text-sm">
+      <thead className="bg-[#1A1A1C] border-b border-[#3D3D40]">
+        <tr className="text-xs uppercase text-[#BFBFC3]">
+          <th className="px-5 py-4 text-left font-semibold">Cargo</th>
+          <th className="px-5 py-4 text-left font-semibold">Nível</th>
+          <th className="px-5 py-4 text-left font-semibold">Status</th>
+          <th className="px-5 py-4 text-right font-semibold"></th>
         </tr>
       </thead>
 
       <tbody>
-        {cargos.map((c) => (
-          <tr key={c.idCargo} className="border-b border-gray-200 dark:border-gray-800">
-            <td className="py-3">{c.nomeCargo}</td>
-            <td className="py-3">{c.nivel || "-"}</td>
-            <td className="py-3">{c.ativo ? "Sim" : "Não"}</td>
+        {cargos.map((c, index) => (
+          <tr
+            key={c.idCargo}
+            className={`
+              ${index % 2 === 0 ? "bg-[#1A1A1C]" : "bg-[#2A2A2C]"}
+              hover:bg-[#242426] transition
+            `}
+          >
+            <td className="px-5 py-4 text-white font-medium">
+              {c.nomeCargo}
+            </td>
 
-            <td className="py-3 flex justify-end gap-3">
-              <button onClick={() => onEdit(c)} className="text-blue-600">
-                <Pencil size={18} />
-              </button>
-              <button onClick={() => onDelete(c)} className="text-red-600">
-                <Trash size={18} />
-              </button>
+            <td className="px-5 py-4 text-[#BFBFC3]">
+              {c.nivel || "-"}
+            </td>
+
+            <td className="px-5 py-4">
+              <Badge.Status variant={c.ativo ? "success" : "danger"}>
+                {c.ativo ? "Ativo" : "Inativo"}
+              </Badge.Status>
+            </td>
+
+            <td className="px-5 py-4 text-right">
+              <div className="flex justify-end gap-2">
+                <Button.Secondary size="sm" onClick={() => onEdit(c)}>
+                  Editar
+                </Button.Secondary>
+                <Button.IconButton
+                  size="sm"
+                  variant="danger"
+                  onClick={() => onDelete(c)}
+                >
+                  Excluir
+                </Button.IconButton>
+              </div>
             </td>
           </tr>
         ))}

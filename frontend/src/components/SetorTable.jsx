@@ -1,41 +1,60 @@
+import { Badge, Button } from "../components/UIComponents";
+
 export default function SetorTable({ setores, onEdit, onDelete }) {
+  if (!setores?.length) {
+    return (
+      <div className="p-8 text-center text-[#BFBFC3]">
+        Nenhum setor cadastrado
+      </div>
+    );
+  }
+
   return (
-    <table className="w-full table-auto">
-      <thead>
-        <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
-          <th className="py-3 text-left">Nome</th>
-          <th className="py-3 text-left">Descrição</th>
-          <th className="py-3 text-left">Ativo</th>
-          <th className="py-3 text-right pr-4">Ações</th>
+    <table className="w-full text-sm">
+      <thead className="bg-[#1A1A1C] border-b border-[#3D3D40]">
+        <tr className="text-xs uppercase text-[#BFBFC3]">
+          <th className="px-5 py-4 text-left font-semibold">Nome</th>
+          <th className="px-5 py-4 text-left font-semibold">Descrição</th>
+          <th className="px-5 py-4 text-left font-semibold">Status</th>
+          <th className="px-5 py-4 text-right font-semibold"></th>
         </tr>
       </thead>
 
       <tbody>
-        {setores.map((s) => (
+        {setores.map((s, index) => (
           <tr
             key={s.idSetor}
-            className="border-b border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-300"
+            className={`
+              ${index % 2 === 0 ? "bg-[#1A1A1C]" : "bg-[#2A2A2C]"}
+              hover:bg-[#242426] transition
+            `}
           >
-            <td className="py-3">{s.nomeSetor}</td>
-            <td className="py-3">{s.descricao || "-"}</td>
-            <td className="py-3">{s.ativo ? "Sim" : "Não"}</td>
+            <td className="px-5 py-4 text-white font-medium">
+              {s.nomeSetor}
+            </td>
 
-            {/* AÇÕES — alinhadas totalmente à direita */}
-            <td className="py-3">
-              <div className="flex justify-end gap-2 pr-2">
-                <button
-                  onClick={() => onEdit(s)}
-                  className="px-3 py-1 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                >
+            <td className="px-5 py-4 text-[#BFBFC3]">
+              {s.descricao || "-"}
+            </td>
+
+            <td className="px-5 py-4">
+              <Badge.Status variant={s.ativo ? "success" : "danger"}>
+                {s.ativo ? "Ativo" : "Inativo"}
+              </Badge.Status>
+            </td>
+
+            <td className="px-5 py-4 text-right">
+              <div className="flex justify-end gap-2">
+                <Button.Secondary size="sm" onClick={() => onEdit(s)}>
                   Editar
-                </button>
-
-                <button
+                </Button.Secondary>
+                <Button.IconButton
+                  size="sm"
+                  variant="danger"
                   onClick={() => onDelete(s)}
-                  className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700"
                 >
                   Excluir
-                </button>
+                </Button.IconButton>
               </div>
             </td>
           </tr>

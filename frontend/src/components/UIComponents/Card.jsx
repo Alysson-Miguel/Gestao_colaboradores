@@ -1,28 +1,54 @@
-import { User } from 'lucide-react';
+import { User } from "lucide-react";
 
 export const Card = {
   Simple: ({ title, description }) => (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all">
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
-      <p className="text-gray-600 dark:text-gray-400">{description}</p>
+    <div
+      className="
+        bg-linear-to-b from-surface to-surfaceHover
+        rounded-xl p-6
+      "
+    >
+      <h3 className="text-base font-semibold text-text mb-1">
+        {title}
+      </h3>
+      <p className="text-sm text-muted">{description}</p>
     </div>
   ),
 
   WithIcon: ({ title, description, icon }) => (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all">
-      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
-        {icon || <User className="w-6 h-6 text-white" />}
+    <div
+      className="
+        bg-linear-to-b from-surface to-surfaceHover
+        rounded-xl p-6
+      "
+    >
+      <div
+        className="
+          w-10 h-10 mb-4
+          rounded-lg bg-brand/15 text-brand
+          flex items-center justify-center
+        "
+      >
+        {icon || <User className="w-5 h-5" />}
       </div>
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
-      <p className="text-gray-600 dark:text-gray-400">{description}</p>
+
+      <h3 className="text-base font-semibold text-text mb-1">
+        {title}
+      </h3>
+      <p className="text-sm text-muted">{description}</p>
     </div>
   ),
 
   Stat: ({ label, value, delta }) => (
-    <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-6 shadow-lg shadow-blue-500/30">
-      <p className="text-blue-100 text-sm mb-1">{label}</p>
-      <p className="text-4xl font-bold text-white mb-2">{value}</p>
-      <p className="text-blue-100 text-sm">{delta}</p>
+    <div
+      className="
+        bg-linear-to-b from-surface to-surfaceHover
+        rounded-xl p-6
+      "
+    >
+      <p className="text-xs text-muted mb-1">{label}</p>
+      <p className="text-3xl font-bold text-text">{value}</p>
+      {delta && <p className="text-xs text-success mt-1">{delta}</p>}
     </div>
   ),
 };

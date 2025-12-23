@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
-
 import SetorModal from "../components/SetorModal";
 import SetorTable from "../components/SetorTable";
 import { SetoresAPI } from "../services/setores";
 
 export default function SetoresPage() {
-  const [setores, setSetores] = useState([]); // sempre array
+  const [setores, setSetores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -21,57 +20,24 @@ export default function SetoresPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const list = await SetoresAPI.listar({
-        limit: 1000,
-        search: query || undefined,
-      });
-
-      // Garante SEMPRE array
-      setSetores(Array.isArray(list) ? list : []);
-    } catch (err) {
-      console.error("Erro ao listar setores:", err);
-      alert("Erro ao carregar setores.");
-      setSetores([]); // fallback seguro
-    } finally {
-      setLoading(false);
-    }
+    const list = await SetoresAPI.listar({
+      limit: 1000,
+      search: query || undefined,
+    });
+    setSetores(Array.isArray(list) ? list : []);
+    setLoading(false);
   }, [query]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const handleNew = () => {
-    setSelected(null);
-    setModalOpen(true);
-  };
-
-  const handleEdit = (setor) => {
-    setSelected(setor);
-    setModalOpen(true);
-  };
-
-  const handleDelete = async (setor) => {
-    if (!window.confirm(`Excluir o setor "${setor.nomeSetor}"?`)) return;
-
-    try {
-      await SetoresAPI.excluir(setor.idSetor);
-      load();
-    } catch (err) {
-      console.error("Erro ao excluir setor:", err);
-      alert("Erro ao excluir setor.");
-    }
-  };
-
-  // ----- FILTRO SEGURO -----
-  const filtered = (setores || []).filter((s) => {
-    if (!query) return true;
-    return s.nomeSetor.toLowerCase().includes(query.toLowerCase());
-  });
+  const filtered = setores.filter((s) =>
+    s.nomeSetor.toLowerCase().includes(query.toLowerCase())
+  );
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -81,69 +47,91 @@ export default function SetoresPage() {
       <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <div className="p-6">
-          {/* HEADER PAGE */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Setores
-            </h1>
-
-            <div className="flex items-center gap-3">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar setor..."
-                className="px-4 py-2 rounded-xl border bg-white dark:bg-gray-800 dark:text-white"
-              />
-
-              <button
-                onClick={handleNew}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl shadow"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar Setor
-              </button>
+        <main className="px-8 py-6 space-y-6">
+          {/* PAGE HEADER */}
+          <section className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Setores</h1>
+              <p className="text-sm text-[#BFBFC3]">
+                Gestão de setores operacionais
+              </p>
             </div>
+
+            <button
+              onClick={() => {
+                setSelected(null);
+                setModalOpen(true);
+              }}
+              className="
+                flex items-center gap-2
+                px-4 py-2 rounded-lg
+                bg-[#FA4C00] hover:bg-[#e64500]
+                text-white text-sm font-medium
+              "
+            >
+              <Plus size={16} />
+              Novo Setor
+            </button>
+          </section>
+
+          {/* FILTER */}
+          <div className="relative w-72">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#BFBFC3]"
+            />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar setor"
+              className="
+                w-full pl-9 pr-4 py-2.5
+                rounded-lg
+                bg-[#1A1A1C]
+                border border-[#3D3D40]
+                text-sm text-white
+                placeholder:text-[#BFBFC3]
+                focus:outline-none focus:ring-1 focus:ring-[#FA4C00]
+              "
+            />
           </div>
 
           {/* TABLE */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-800">
+          <section className="bg-[#1A1A1C] rounded-xl border border-[#3D3D40] overflow-hidden">
             {loading ? (
-              <p className="p-6 text-gray-500">Carregando setores...</p>
+              <div className="p-8 text-center text-[#BFBFC3]">
+                Carregando setores...
+              </div>
             ) : (
               <SetorTable
                 setores={filtered}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onEdit={(s) => {
+                  setSelected(s);
+                  setModalOpen(true);
+                }}
+                onDelete={async (s) => {
+                  if (!window.confirm(`Excluir ${s.nomeSetor}?`)) return;
+                  await SetoresAPI.excluir(s.idSetor);
+                  load();
+                }}
               />
             )}
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
 
-      {/* MODAL */}
       {modalOpen && (
         <SetorModal
-          key={selected?.idSetor || "new"}
           setor={selected}
-          onClose={() => {
-            setModalOpen(false);
-            setSelected(null);
-          }}
+          onClose={() => setModalOpen(false)}
           onSave={async (data) => {
-            try {
-              if (selected) {
-                await SetoresAPI.atualizar(selected.idSetor, data);
-              } else {
-                await SetoresAPI.criar(data);
-              }
-              setModalOpen(false);
-              setSelected(null);
-              load();
-            } catch (err) {
-              console.error("Erro ao salvar setor:", err);
-              alert("Erro ao salvar setor.");
+            if (selected) {
+              await SetoresAPI.atualizar(selected.idSetor, data);
+            } else {
+              await SetoresAPI.criar(data);
             }
+            setModalOpen(false);
+            load();
           }}
         />
       )}
