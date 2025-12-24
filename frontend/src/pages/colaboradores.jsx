@@ -4,15 +4,12 @@ import { useNavigate } from "react-router-dom";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
-import EmployeeModal from "../components/EmployeeModal";
 import EmployeeTable from "../components/EmployeeTable";
 import { ColaboradoresAPI } from "../services/colaboradores";
 
 export default function ColaboradoresPage() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState("");
   const [turnoSelecionado, setTurnoSelecionado] = useState("TODOS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -72,7 +69,7 @@ export default function ColaboradoresPage() {
 
         <main className="p-8 space-y-6">
 
-          {/* TÍTULO */}
+          {/* HEADER */}
           <div>
             <h1 className="text-2xl font-semibold">Colaboradores</h1>
             <p className="text-sm text-[#BFBFC3]">
@@ -80,13 +77,10 @@ export default function ColaboradoresPage() {
             </p>
           </div>
 
-          {/* BARRA DE FILTROS */}
+          {/* FILTROS + CTA */}
           <div className="flex flex-wrap items-center justify-between gap-4">
 
-            {/* FILTROS */}
             <div className="flex items-center gap-3 flex-wrap">
-
-              {/* BUSCA */}
               <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl">
                 <Search size={16} className="text-[#BFBFC3]" />
                 <input
@@ -97,7 +91,6 @@ export default function ColaboradoresPage() {
                 />
               </div>
 
-              {/* TURNO */}
               <select
                 value={turnoSelecionado}
                 onChange={(e) => setTurnoSelecionado(e.target.value)}
@@ -112,19 +105,14 @@ export default function ColaboradoresPage() {
                 "
               >
                 {turnos.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
 
-            {/* CTA */}
+            {/* BOTÃO CORRETO */}
             <button
-              onClick={() => {
-                setSelected(null);
-                setModalOpen(true);
-              }}
+              onClick={() => navigate("/colaboradores/novo")}
               className="
                 inline-flex items-center gap-2
                 px-5 py-2.5
@@ -140,17 +128,16 @@ export default function ColaboradoresPage() {
             </button>
           </div>
 
-          {/* LISTAGEM */}
+          {/* LISTA */}
           <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">
             {loading ? (
               <div className="p-6 text-[#BFBFC3]">Carregando colaboradores…</div>
             ) : (
               <EmployeeTable
                 employees={filtered}
-                onEdit={(emp) => {
-                  setSelected(emp);
-                  setModalOpen(true);
-                }}
+                onEdit={(emp) =>
+                  navigate(`/colaboradores/${emp.opsId}/editar`)
+                }
                 onDelete={async (emp) => {
                   if (!window.confirm(`Excluir ${emp.nomeCompleto}?`)) return;
                   await ColaboradoresAPI.excluir(emp.opsId);
@@ -159,30 +146,9 @@ export default function ColaboradoresPage() {
               />
             )}
           </div>
+
         </main>
       </div>
-
-      {/* MODAL */}
-      {modalOpen && (
-        <EmployeeModal
-          key={selected?.opsId || "new"}
-          employee={selected}
-          onClose={() => {
-            setModalOpen(false);
-            setSelected(null);
-          }}
-          onSave={async (data) => {
-            if (selected) {
-              await ColaboradoresAPI.atualizar(selected.opsId, data);
-            } else {
-              await ColaboradoresAPI.criar(data);
-            }
-            setModalOpen(false);
-            setSelected(null);
-            load();
-          }}
-        />
-      )}
     </div>
   );
 }

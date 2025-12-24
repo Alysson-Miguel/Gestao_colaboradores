@@ -1,39 +1,29 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useContext } from "react";
 
-import Dashboard from "./pages/dashboard";
 import Login from "./pages/login";
 import Register from "./pages/register";
-import Colaboradores from "./pages/colaboradores";
+import Dashboard from "./pages/dashboard";
+
+import ColaboradoresPage from "./pages/colaboradores";
+import NovoColaborador from "./pages/colaboradores/novo";
+import EditarColaborador from "./pages/colaboradores/editar";
+
 import EmpresasPage from "./pages/empresas";
-import CargosPage from "./pages/cargos";
 import SetoresPage from "./pages/Setores";
+import CargosPage from "./pages/cargos";
 import PontoPage from "./pages/Ponto";
 
-import { AuthContext } from "./context/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
-/* ================= PROTECTED ROUTE ================= */
-function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useContext(AuthContext);
-  const hasToken = !!localStorage.getItem("token");
-
-  if (isAuthenticated || hasToken) {
-    return children;
-  }
-
-  return <Navigate to="/login" replace />;
-}
-
-/* ================= APP ================= */
 export default function App() {
   return (
     <Routes>
 
-      {/* ===== ROTAS PÚBLICAS ===== */}
+      {/* ================= ROTAS PÚBLICAS ================= */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* ===== ROTAS PROTEGIDAS ===== */}
+      {/* ================= ROTAS PROTEGIDAS ================= */}
       <Route
         path="/"
         element={
@@ -43,52 +33,57 @@ export default function App() {
         }
       />
 
+      {/* COLABORADORES */}
       <Route
         path="/colaboradores"
         element={
           <ProtectedRoute>
-            <Colaboradores />
+            <ColaboradoresPage />
           </ProtectedRoute>
         }
       />
 
+      <Route
+        path="/colaboradores/novo"
+        element={
+          <ProtectedRoute>
+            <NovoColaborador />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/colaboradores/:opsId/editar"
+        element={
+          <ProtectedRoute>
+            <EditarColaborador />
+          </ProtectedRoute>
+        }
+      />
+
+
+      {/* OUTRAS PÁGINAS */}
       <Route
         path="/empresas"
-        element={
-          <ProtectedRoute>
-            <EmpresasPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/cargos"
-        element={
-          <ProtectedRoute>
-            <CargosPage />
-          </ProtectedRoute>
-        }
+        element={<ProtectedRoute><EmpresasPage /></ProtectedRoute>}
       />
 
       <Route
         path="/setores"
-        element={
-          <ProtectedRoute>
-            <SetoresPage />
-          </ProtectedRoute>
-        }
+        element={<ProtectedRoute><SetoresPage /></ProtectedRoute>}
+      />
+
+      <Route
+        path="/cargos"
+        element={<ProtectedRoute><CargosPage /></ProtectedRoute>}
       />
 
       <Route
         path="/ponto"
-        element={
-          <ProtectedRoute>
-            <PontoPage />
-          </ProtectedRoute>
-        }
+        element={<ProtectedRoute><PontoPage /></ProtectedRoute>}
       />
 
-      {/* ===== FALLBACK ===== */}
+      {/* FALLBACK */}
       <Route path="*" element={<Navigate to="/login" replace />} />
 
     </Routes>

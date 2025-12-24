@@ -1,9 +1,8 @@
 /**
  * Controller de Colaborador
- * Gerencia operações CRUD e lógica de negócio dos colaboradores
  */
 
-const { prisma } = require('../config/database');
+const { prisma } = require("../config/database");
 const {
   successResponse,
   createdResponse,
@@ -11,12 +10,12 @@ const {
   notFoundResponse,
   paginatedResponse,
   errorResponse,
-} = require('../utils/response');
+} = require("../utils/response");
 
-/**
- * Lista todos os colaboradores com filtros avançados
- * GET /api/colaboradores
- */
+/* ================= CONSTANTES ================= */
+const HORARIOS_PERMITIDOS = ["05:25", "13:20", "21:00"];
+
+/* ================= GET ALL ================= */
 const getAllColaboradores = async (req, res) => {
   const {
     page = 1,
@@ -29,17 +28,15 @@ const getAllColaboradores = async (req, res) => {
     idLider,
   } = req.query;
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-  const take = parseInt(limit);
-
+  const skip = (Number(page) - 1) * Number(limit);
   const where = {};
 
   if (search) {
     where.OR = [
-      { nomeCompleto: { contains: search, mode: 'insensitive' } },
-      { matricula: { contains: search, mode: 'insensitive' } },
-      { opsId: { contains: search, mode: 'insensitive' } },
-      { cpf: { contains: search, mode: 'insensitive' } },
+      { nomeCompleto: { contains: search, mode: "insensitive" } },
+      { matricula: { contains: search, mode: "insensitive" } },
+      { opsId: { contains: search, mode: "insensitive" } },
+      { cpf: { contains: search, mode: "insensitive" } },
     ];
   }
 
@@ -50,82 +47,59 @@ const getAllColaboradores = async (req, res) => {
   if (idLider) where.idLider = idLider;
 
   try {
-    const [colaboradores, total] = await Promise.all([
+    const [data, total] = await Promise.all([
       prisma.colaborador.findMany({
         where,
         skip,
-        take,
+        take: Number(limit),
         orderBy: { nomeCompleto: "asc" },
         include: {
           empresa: true,
           cargo: true,
           setor: true,
-          estacao: true,
-          contrato: true,
-          escala: true,
           turno: true,
-          lider: {
-            select: { opsId: true, nomeCompleto: true },
-          },
         },
       }),
       prisma.colaborador.count({ where }),
     ]);
 
-    return paginatedResponse(res, colaboradores, {
-      page: parseInt(page),
-      limit: parseInt(limit),
+    return paginatedResponse(res, data, {
+      page: Number(page),
+      limit: Number(limit),
       total,
     });
-
   } catch (err) {
-    console.error("🔥 ERRO NO getAllColaboradores:", err);
+    console.error("❌ ERRO GET ALL:", err);
     return errorResponse(res, 500, "Erro ao buscar colaboradores", err);
   }
 };
 
-/**
- * Buscar colaborador por ID
- */
+/* ================= GET BY ID ================= */
 const getColaboradorById = async (req, res) => {
   const { opsId } = req.params;
 
-  const colaborador = await prisma.colaborador.findUnique({
-    where: { opsId },
-    include: {
-      setor: true,
-      cargo: true,
-      empresa: true,
-      contrato: true,
-      estacao: true,
-      turno: true,
-      escala: true,
-      lider: {
-        select: { opsId: true, nomeCompleto: true, matricula: true },
+  try {
+    const colaborador = await prisma.colaborador.findUnique({
+      where: { opsId },
+      include: {
+        empresa: true,
+        cargo: true,
+        setor: true,
+        turno: true,
       },
-      subordinados: {
-        select: {
-          opsId: true,
-          nomeCompleto: true,
-          matricula: true,
-          cargo: { select: { nomeCargo: true } },
-          status: true,
-        },
-      },
-      _count: {
-        select: { subordinados: true, frequencias: true, ausencias: true },
-      },
-    },
-  });
+    });
 
-  if (!colaborador) return notFoundResponse(res, "Colaborador não encontrado");
+    if (!colaborador)
+      return notFoundResponse(res, "Colaborador não encontrado");
 
-  return successResponse(res, colaborador);
+    return successResponse(res, colaborador);
+  } catch (err) {
+    console.error("❌ ERRO GET BY ID:", err);
+    return errorResponse(res, 500, "Erro ao buscar colaborador", err);
+  }
 };
 
-/**
- * Criar colaborador
- */
+/* ================= CREATE ================= */
 const createColaborador = async (req, res) => {
   try {
     const {
@@ -133,67 +107,66 @@ const createColaborador = async (req, res) => {
       nomeCompleto,
       cpf,
       telefone,
-      dataNascimento,
       email,
       genero,
       matricula,
       dataAdmissao,
       horarioInicioJornada,
-
-      empresaNome,
-      cargoNome,
-
+      idEmpresa,
       idSetor,
-      idLider,
-      idEstacao,
-      idContrato,
-      idEscala,
+      idCargo,
       idTurno,
       status,
     } = req.body;
 
-    // Buscar empresa pelo nome
-    let empresa = null;
-    if (empresaNome) {
-      empresa = await prisma.empresa.findFirst({ where: { razaoSocial: empresaNome } });
-      if (!empresa) return errorResponse(res, 400, `Empresa '${empresaNome}' não encontrada.`);
+    /* ===== VALIDAÇÕES BÁSICAS ===== */
+    if (!opsId || !nomeCompleto || !matricula || !dataAdmissao) {
+      return errorResponse(
+        res,
+        400,
+        "OPS ID, Nome, Matrícula e Data de Admissão são obrigatórios"
+      );
     }
 
-    // Buscar cargo pelo nome
-    let cargo = null;
-    if (cargoNome) {
-      cargo = await prisma.cargo.findFirst({ where: { nomeCargo: cargoNome } });
-      if (!cargo) return errorResponse(res, 400, `Cargo '${cargoNome}' não encontrado.`);
+    /* ===== DATA ADMISSÃO ===== */
+    let dataAdmissaoDate = null;
+    if (dataAdmissao) {
+      const dt = new Date(`${dataAdmissao}T00:00:00`);
+      if (isNaN(dt.getTime())) {
+        return errorResponse(res, 400, "Data de admissão inválida");
+      }
+      dataAdmissaoDate = dt;
     }
 
-    // Horário
+    /* ===== HORÁRIO ===== */
     let horario = null;
-    if (horarioInicioJornada && horarioInicioJornada.trim() !== "") {
-      const dt = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
-      horario = isNaN(dt.getTime()) ? null : dt;
+    if (horarioInicioJornada) {
+      if (!HORARIOS_PERMITIDOS.includes(horarioInicioJornada)) {
+        return errorResponse(
+          res,
+          400,
+          `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`
+        );
+      }
+      horario = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
     }
 
     const colaborador = await prisma.colaborador.create({
       data: {
         opsId,
         nomeCompleto,
-        cpf,
-        telefone,
-        dataNascimento: dataNascimento ? new Date(dataNascimento) : null,
-        email,
-        genero,
+        cpf: cpf || null,
+        telefone: telefone || null,
+        email: email || null,
+        genero: genero || null,
         matricula,
-        dataAdmissao: new Date(dataAdmissao),
+
+        dataAdmissao: dataAdmissaoDate,
         horarioInicioJornada: horario,
 
-        idEmpresa: empresa?.idEmpresa ?? null,
-        idCargo: cargo?.idCargo ?? null,
-
+        idEmpresa: idEmpresa ? Number(idEmpresa) : null,
         idSetor: idSetor ? Number(idSetor) : null,
-        idLider: idLider || null,
-        idEstacao: idEstacao ? Number(idEstacao) : null,
-        idContrato: idContrato ? Number(idContrato) : null,
-        idEscala: idEscala ? Number(idEscala) : null,
+        idCargo: idCargo ? Number(idCargo) : null,
         idTurno: idTurno ? Number(idTurno) : null,
 
         status: status || "ATIVO",
@@ -201,90 +174,73 @@ const createColaborador = async (req, res) => {
     });
 
     return createdResponse(res, colaborador, "Colaborador criado com sucesso");
-
-  } catch (error) {
-    console.error("❌ ERRO CREATE:", error);
-    return errorResponse(res, 500, "Erro ao criar colaborador", error);
+  } catch (err) {
+    console.error("❌ ERRO CREATE:", err);
+    return errorResponse(res, 500, "Erro ao criar colaborador", err);
   }
 };
 
-/**
- * Atualizar colaborador
- */
+/* ================= UPDATE ================= */
 const updateColaborador = async (req, res) => {
   const { opsId } = req.params;
-  const updateData = { ...req.body };
+  const data = { ...req.body };
 
-  const HORARIOS_PERMITIDOS = ["05:25", "13:20", "21:00"];
+  try {
+    /* ===== DATA ADMISSÃO ===== */
+    if (data.dataAdmissao) {
+      const dt = new Date(`${data.dataAdmissao}T00:00:00`);
+      if (isNaN(dt.getTime())) {
+        return errorResponse(res, 400, "Data de admissão inválida");
+      }
+      data.dataAdmissao = dt;
+    }
 
-  // Datas
-  if (updateData.dataAdmissao)
-    updateData.dataAdmissao = new Date(updateData.dataAdmissao);
-
-  if (updateData.dataDesligamento)
-    updateData.dataDesligamento = new Date(updateData.dataDesligamento);
-
-  // Horário validado
-  if (updateData.horarioInicioJornada) {
-    const hora = updateData.horarioInicioJornada.trim();
-
-    if (!HORARIOS_PERMITIDOS.includes(hora)) {
-      return errorResponse(
-        res,
-        `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`,
-        400
+    /* ===== HORÁRIO ===== */
+    if (data.horarioInicioJornada) {
+      if (!HORARIOS_PERMITIDOS.includes(data.horarioInicioJornada)) {
+        return errorResponse(
+          res,
+          400,
+          `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`
+        );
+      }
+      data.horarioInicioJornada = new Date(
+        `1970-01-01T${data.horarioInicioJornada}:00Z`
       );
     }
 
-    updateData.horarioInicioJornada = new Date(`1970-01-01T${hora}:00Z`);
+    /* ===== IDS ===== */
+    ["idEmpresa", "idSetor", "idCargo", "idTurno"].forEach((f) => {
+      if (data[f] === "" || data[f] === undefined) {
+        data[f] = null;
+      } else {
+        data[f] = Number(data[f]);
+      }
+    });
+
+    const colaborador = await prisma.colaborador.update({
+      where: { opsId },
+      data,
+    });
+
+    return successResponse(res, colaborador, "Colaborador atualizado com sucesso");
+  } catch (err) {
+    console.error("❌ ERRO UPDATE:", err);
+    return errorResponse(res, 500, "Erro ao atualizar colaborador", err);
   }
-
-  // Inteiros + conversão "" → null
-  [
-    "idSetor",
-    "idCargo",
-    "idEstacao",
-    "idEmpresa",
-    "idContrato",
-    "idEscala",
-    "idTurno",
-  ].forEach((field) => {
-    if (updateData[field] === "" || updateData[field] === undefined) {
-      updateData[field] = null;
-    } else {
-      updateData[field] = Number(updateData[field]);
-    }
-  });
-
-  // Remover campos virtuais
-  delete updateData.empresaNome;
-  delete updateData.cargoNome;
-
-  const colaborador = await prisma.colaborador.update({
-    where: { opsId },
-    data: updateData,
-    include: {
-      empresa: true,
-      cargo: true,
-      setor: true,
-      estacao: true,
-      contrato: true,
-      escala: true,
-      turno: true,
-      lider: { select: { opsId: true, nomeCompleto: true } },
-    },
-  });
-
-  return successResponse(res, colaborador, "Colaborador atualizado com sucesso");
 };
 
-/**
- * Deletar colaborador
- */
+/* ================= DELETE ================= */
 const deleteColaborador = async (req, res) => {
   const { opsId } = req.params;
-  await prisma.colaborador.delete({ where: { opsId } });
-  return deletedResponse(res, "Colaborador excluído com sucesso");
+
+  try {
+    await prisma.colaborador.delete({ where: { opsId } });
+    return deletedResponse(res, "Colaborador excluído com sucesso");
+  } catch (err) {
+    console.error("❌ ERRO DELETE:", err);
+    return errorResponse(res, 500, "Erro ao excluir colaborador", err);
+  }
 };
 
 module.exports = {
