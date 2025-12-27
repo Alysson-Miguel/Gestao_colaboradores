@@ -23,6 +23,7 @@ const dashboardRoutes = require('./dashboard.routes');
 const pontoRoutes = require("./ponto.routes");
 const atestadoMedicoRoutes = require("./atestados.routes");
 const medidaDisciplinarRoutes = require("./medidas-disciplinares.routes");
+const acidentesRoutes = require("./acidentes.routes");
 // Rota de health check
 router.get('/health', (req, res) => {
   res.json({
@@ -50,4 +51,5 @@ router.use('/dashboard', dashboardRoutes);
 router.use("/ponto", pontoRoutes);
 router.use("/atestados-medicos", atestadoMedicoRoutes);
 router.use("/medidas-disciplinares", medidaDisciplinarRoutes);
+router.use("/acidentes", acidentesRoutes);
 module.exports = router;

@@ -21,6 +21,9 @@ import NovoAtestado from "./pages/atestados/novo";
 import MedidasDisciplinaresPage from "./pages/medidas-disciplinares";
 import NovaMedidaDisciplinar from "./pages/medidas-disciplinares/novo";
 
+import AcidentesPage from "./pages/acidentes";
+import NovoAcidente from "./pages/acidentes/novo";
+
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 export default function App() {
@@ -120,6 +123,24 @@ export default function App() {
         element={
           <ProtectedRoute>
             <NovaMedidaDisciplinar />
+          </ProtectedRoute>
+        }
+      />
+      {/* ================= ACIDENTES ================= */}
+      <Route
+        path="/acidentes"
+        element={
+          <ProtectedRoute>
+            <AcidentesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/acidentes/novo"
+        element={
+          <ProtectedRoute>
+            <NovoAcidente />
           </ProtectedRoute>
         }
       />

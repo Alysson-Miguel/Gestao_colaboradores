@@ -1,0 +1,535 @@
+// src/pages/acidentes/novo.jsx
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Save, Upload, Image as ImageIcon } from "lucide-react";
+
+import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
+import api from "../../services/api";
+import { AcidentesAPI } from "../../services/acidentes";
+
+const ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/jpg",
+  "image/heic",
+  "image/heif",
+];
+
+function isImageType(type) {
+  return ACCEPTED_TYPES.includes(type);
+}
+
+export default function NovoAcidente() {
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // registrador
+  const [registrador, setRegistrador] = useState(null);
+
+  // colaborador acidentado
+  const [colaborador, setColaborador] = useState(null);
+  const [erroOps, setErroOps] = useState("");
+
+  const [form, setForm] = useState({
+    opsIdColaborador: "",
+    participouIntegracao: "false", // string p/ select
+    tipoOcorrencia: "",
+    dataOcorrencia: "",
+    horarioOcorrencia: "",
+    dataComunicacaoHSE: "",
+    localOcorrencia: "",
+    situacaoGeradora: "",
+    agenteCausador: "",
+    parteCorpoAtingida: "",
+    lateralidade: "",
+    tipoLesao: "",
+    acoesImediatas: "",
+  });
+
+  const [fotos, setFotos] = useState([]); // File[]
+  const fotosCount = fotos.length;
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const me = await AcidentesAPI.me();
+        if (mounted) setRegistrador(me);
+      } catch (err) {
+        // se seu backend não tiver /auth/me, ignora sem quebrar
+        console.warn("Sem /auth/me, registrador ficará vazio.", err);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  // 🔎 busca colaborador ao sair do campo (onBlur) e também se apertar Enter
+  async function buscarColaborador() {
+    const ops = String(form.opsIdColaborador || "").trim();
+    if (!ops) {
+      setColaborador(null);
+      setErroOps("");
+      return;
+    }
+
+    try {
+      const res = await api.get(`/colaboradores/${ops}`);
+      setColaborador(res.data.data);
+      setErroOps("");
+    } catch {
+      setColaborador(null);
+      setErroOps("Colaborador não encontrado");
+    }
+  }
+
+  function handleFotosChange(filesList) {
+    const files = Array.from(filesList || []);
+    if (!files.length) return;
+
+    // valida tipos e limite 5
+    const next = [...fotos, ...files].slice(0, 5);
+
+    const invalid = next.find((f) => !isImageType(f.type));
+    if (invalid) {
+      alert("Envie apenas imagens (JPG/PNG/WEBP/HEIC).");
+      return;
+    }
+
+    setFotos(next);
+  }
+
+  const podeSalvar = useMemo(() => {
+    if (!form.opsIdColaborador.trim()) return false;
+    if (!colaborador) return false;
+    if (colaborador.opsId !== form.opsIdColaborador.trim()) return false;
+    if (!form.tipoOcorrencia) return false;
+    if (!form.dataOcorrencia) return false;
+    if (!form.horarioOcorrencia) return false;
+    if (!form.dataComunicacaoHSE) return false;
+    if (!form.localOcorrencia) return false;
+    if (!form.situacaoGeradora) return false;
+    if (!form.agenteCausador) return false;
+    if (!form.parteCorpoAtingida) return false;
+    if (!form.lateralidade) return false;
+    if (!form.tipoLesao) return false;
+    if (!form.acoesImediatas) return false;
+    if (fotos.length < 1) return false;
+    return true;
+  }, [colaborador, form, fotos.length]);
+
+  async function handleSave() {
+    if (!podeSalvar) {
+      alert("Preencha todos os campos obrigatórios e envie de 1 a 5 fotos.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Log para debug (remova após testar)
+      console.log("Salvando com opsId:", form.opsIdColaborador.trim());
+
+      // 1) Presign + upload de cada foto
+      const uploadedKeys = [];
+
+      for (const file of fotos) {
+        // ✅ CORREÇÃO: Envie como { opsId, files: [{ filename, contentType, size }] }
+        const fileInfo = {
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        };
+
+        const presignBody = {
+          opsId: form.opsIdColaborador.trim(),
+          files: [fileInfo],
+        };
+
+        // Log para debug (remova após testar)
+        console.log("Enviando presign para arquivo:", file.name, "com body:", presignBody);
+
+        const presignResponse = await AcidentesAPI.presignUpload(presignBody);
+
+        const { uploadUrl, key } = presignResponse[0];
+
+        const put = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+
+        if (!put.ok) {
+          console.error("PUT falhou:", put.status, await put.text());
+          alert(`Falha ao enviar imagem: ${file.name}`);
+          return;
+        }
+
+        uploadedKeys.push(key);
+      }
+
+      // 2) cria acidente no backend
+      await AcidentesAPI.criar({
+        opsId: form.opsIdColaborador.trim(),
+        nomeRegistrante: registrador?.name || registrador?.nome || "Sistema",
+        setor: colaborador?.setor?.nomeSetor || "",
+        cargo: colaborador?.cargo?.nomeCargo || "",
+        participouIntegracao: form.participouIntegracao === "true",
+        tipoOcorrencia: form.tipoOcorrencia,
+        dataOcorrencia: form.dataOcorrencia,
+        horarioOcorrencia: form.horarioOcorrencia,
+        dataComunicacaoHSE: form.dataComunicacaoHSE,
+        localOcorrencia: form.localOcorrencia,
+        situacaoGeradora: form.situacaoGeradora,
+        agenteCausador: form.agenteCausador,
+        parteCorpoAtingida: form.parteCorpoAtingida,
+        lateralidade: form.lateralidade,
+        tipoLesao: form.tipoLesao,
+        acoesImediatas: form.acoesImediatas,
+        evidencias: uploadedKeys,
+      });
+
+      navigate("/acidentes");
+    } catch (err) {
+      console.error("Erro completo:", err);
+      // Log mais detalhado para debug
+      if (err.response?.data) {
+        console.error("Resposta do erro:", err.response.data);
+      }
+      alert("Erro ao salvar acidente.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
+
+      <div className="flex-1 lg:ml-64">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+
+        <main className="p-8 max-w-5xl mx-auto space-y-8">
+          {/* HEADER */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 rounded-lg bg-[#1A1A1C] hover:bg-[#2A2A2C]"
+              >
+                <ArrowLeft size={18} />
+              </button>
+
+              <div>
+                <h1 className="text-2xl font-semibold">Novo Acidente</h1>
+                <p className="text-sm text-[#BFBFC3]">
+                  Registro de ocorrência + evidências (1–5 fotos)
+                </p>
+              </div>
+            </div>
+
+            <button
+              disabled={saving || !podeSalvar}
+              onClick={handleSave}
+              className={`
+                flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium
+                ${saving || !podeSalvar ? "bg-[#FA4C00]/50 cursor-not-allowed" : "bg-[#FA4C00] hover:bg-[#ff5a1a]"}
+              `}
+            >
+              <Save size={16} />
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+
+          {/* Seção 1: Identificação */}
+          <Section title="Identificação">
+            <Input
+              label="OPS ID do Colaborador Acidentado *"
+              name="opsIdColaborador"
+              value={form.opsIdColaborador}
+              onChange={(e) => {
+                const value = e.target.value;
+                setForm((p) => ({ ...p, opsIdColaborador: value }));
+                setErroOps("");
+                if (!value.trim()) {
+                  setColaborador(null);
+                }
+              }}
+              onBlur={buscarColaborador}
+              placeholder="Ex: OPS001"
+            />
+
+            {erroOps ? (
+              <div className="md:col-span-2 text-sm text-red-400">{erroOps}</div>
+            ) : null}
+
+            {/* Dados do colaborador acidentado */}
+            {colaborador ? (
+              <div className="md:col-span-2 bg-[#0D0D0D] border border-[#3D3D40] rounded-xl p-4">
+                <p className="text-xs uppercase text-[#BFBFC3]">Dados do colaborador</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                  <Info label="Nome" value={colaborador.nomeCompleto} />
+                  <Info label="Matrícula" value={colaborador.matricula} />
+                  <Info label="Setor" value={colaborador.setor?.nomeSetor} />
+                  <Info label="Cargo" value={colaborador.cargo?.nomeCargo} />
+                  <Info label="Empresa" value={colaborador.empresa?.razaoSocial} />
+                  <Info label="Turno" value={colaborador.turno?.nomeTurno} />
+                </div>
+              </div>
+            ) : form.opsIdColaborador.trim() ? (
+              <div className="md:col-span-2 text-sm text-yellow-400">
+                Carregando dados do colaborador...
+              </div>
+            ) : (
+              <div className="md:col-span-2 text-xs text-[#BFBFC3]">
+                Digite o OPS ID e saia do campo para carregar os dados.
+              </div>
+            )}
+
+            <Select
+              label="Participou da Integração? *"
+              name="participouIntegracao"
+              value={form.participouIntegracao}
+              onChange={handleChange}
+              options={[
+                { value: "false", label: "Não" },
+                { value: "true", label: "Sim" },
+              ]}
+            />
+
+            <Select
+              label="Tipo de Ocorrência *"
+              name="tipoOcorrencia"
+              value={form.tipoOcorrencia}
+              onChange={handleChange}
+              options={[
+                { value: "", label: "Selecione..." },
+                { value: "Ocorrencia Tipica - a servico da empresa", label: "Ocorrência Típica (a serviço da empresa)" },
+                { value: "Ocorrencia de trajeto - de casa para o trabalho ou vice e versa", label: "Ocorrência de Trajeto (casa ↔ trabalho)" },
+              ]}
+            />
+          </Section>
+
+          {/* Seção 2: Dados do evento */}
+          <Section title="Dados do Evento">
+            <Input
+              type="date"
+              label="Data da Ocorrência *"
+              name="dataOcorrencia"
+              value={form.dataOcorrencia}
+              onChange={handleChange}
+            />
+            <Input
+              type="time"
+              label="Horário da Ocorrência *"
+              name="horarioOcorrencia"
+              value={form.horarioOcorrencia}
+              onChange={handleChange}
+            />
+
+            <Input
+              type="date"
+              label="Data de Comunicação ao HSE *"
+              name="dataComunicacaoHSE"
+              value={form.dataComunicacaoHSE}
+              onChange={handleChange}
+            />
+
+            <Input
+              label="Local da Ocorrência *"
+              name="localOcorrencia"
+              value={form.localOcorrencia}
+              onChange={handleChange}
+              placeholder="Ex: Docas, Rua 20, Expedição..."
+            />
+
+            <Input
+              label="Situação Geradora *"
+              name="situacaoGeradora"
+              value={form.situacaoGeradora}
+              onChange={handleChange}
+              placeholder="Ex: Queda ao caminhar, esforço repetitivo..."
+            />
+
+            <Input
+              label="Agente Causador *"
+              name="agenteCausador"
+              value={form.agenteCausador}
+              onChange={handleChange}
+              placeholder="Ex: Piso molhado, gaiola, palete, escada..."
+            />
+          </Section>
+
+          {/* Seção 3: Lesão */}
+          <Section title="Lesão">
+            <Input
+              label="Parte do Corpo Atingida *"
+              name="parteCorpoAtingida"
+              value={form.parteCorpoAtingida}
+              onChange={handleChange}
+              placeholder="Ex: Mão, pé, lombar..."
+            />
+
+            <Select
+              label="Lateralidade *"
+              name="lateralidade"
+              value={form.lateralidade}
+              onChange={handleChange}
+              options={[
+                { value: "", label: "Selecione..." },
+                { value: "Direita", label: "Direita" },
+                { value: "Esquerda", label: "Esquerda" },
+                { value: "Ambas", label: "Ambas" },
+                { value: "Não se aplica", label: "Não se aplica" },
+              ]}
+            />
+
+            <Input
+              label="Tipo da Lesão *"
+              name="tipoLesao"
+              value={form.tipoLesao}
+              onChange={handleChange}
+              placeholder="Ex: Contusão, corte, distensão..."
+            />
+
+            <Textarea
+              label="Descreva ações imediatas *"
+              name="acoesImediatas"
+              value={form.acoesImediatas}
+              onChange={handleChange}
+              placeholder="O que foi feito no momento? (primeiros socorros, comunicação, isolamento, etc.)"
+            />
+          </Section>
+
+          {/* Seção 4: Evidências */}
+          <Section title="Evidências (Fotos)">
+            <div className="md:col-span-2">
+              <label className="text-xs text-[#BFBFC3]">
+                Fotos (1 a 5) * — JPG/PNG/WEBP/HEIC
+              </label>
+
+              <label
+                className="
+                  mt-1 flex items-center gap-3 px-4 py-3
+                  bg-[#2A2A2C] border border-[#3D3D40]
+                  rounded-xl cursor-pointer hover:bg-[#242426]
+                "
+              >
+                <Upload size={16} className="text-[#BFBFC3]" />
+                <span className="text-sm text-white">
+                  {fotosCount ? `${fotosCount} foto(s) selecionada(s)` : "Selecionar fotos"}
+                </span>
+
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleFotosChange(e.target.files)}
+                />
+              </label>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {fotos.map((f, idx) => (
+                  <div
+                    key={`${f.name}-${idx}`}
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-[#0D0D0D] border border-[#3D3D40] rounded-lg"
+                  >
+                    <ImageIcon size={16} className="text-[#BFBFC3]" />
+                    <span className="text-xs text-white">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFotos((prev) => prev.filter((_, i) => i !== idx))}
+                      className="text-xs text-[#BFBFC3] hover:text-white"
+                      title="Remover"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-[#BFBFC3] mt-2">
+                Dica: selecione no máximo 5 fotos. Se passar, o sistema mantém apenas as 5 primeiras.
+              </p>
+            </div>
+          </Section>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/* ================= UI ================= */
+
+function Section({ title, children }) {
+  return (
+    <div className="bg-[#1A1A1C] border border-[#3D3D40] rounded-2xl p-6">
+      <h2 className="text-sm font-semibold text-[#BFBFC3] mb-6 uppercase">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">{children}</div>
+    </div>
+  );
+}
+
+function Input({ label, ...props }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs text-[#BFBFC3]">{label}</label>
+      <input
+        {...props}
+        className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40] rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
+      />
+    </div>
+  );
+}
+
+function Select({ label, options, ...props }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs text-[#BFBFC3]">{label}</label>
+      <select
+        {...props}
+        className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40] rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Textarea({ label, ...props }) {
+  return (
+    <div className="flex flex-col gap-1 md:col-span-2">
+      <label className="text-xs text-[#BFBFC3]">{label}</label>
+      <textarea
+        {...props}
+        rows={4}
+        className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40] rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
+      />
+    </div>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-[#BFBFC3]">{label}</p>
+      <p className="text-sm font-medium text-white">{value || "-"}</p>
+    </div>
+  );
+}

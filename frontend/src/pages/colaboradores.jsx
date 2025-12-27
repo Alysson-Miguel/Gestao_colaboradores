@@ -71,7 +71,7 @@ export default function ColaboradoresPage() {
       <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="p-8 space-y-6">
+        <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
 
           {/* HEADER */}
           <div>

@@ -237,6 +237,7 @@ model Colaborador {
   historicoMovimentacao HistoricoMovimentacao[] @relation("ColaboradorMovimentado")
   atestadosMedicos     AtestadoMedico[]
   medidasDisciplinares  MedidaDisciplinar[]
+  acidentes    AcidenteTrabalho[]
 
   @@index([matricula])
   @@index([status])
@@ -279,8 +280,56 @@ model MedidaDisciplinar {
 
   @@map("medida_disciplinar")
 }
+model AcidenteTrabalho {
+  idAcidente            Int      @id @default(autoincrement())
+  opsIdColaborador      String
+  colaborador           Colaborador @relation(fields: [opsIdColaborador], references: [opsId])
 
+  registradoPor         String   // nome completo de quem registrou
+  setor                 String
+  cargo                 String
 
+  participouIntegracao  Boolean
+
+  tipoOcorrencia        String   // TIPICA | TRAJETO
+  dataOcorrencia        DateTime
+  horarioOcorrencia     DateTime
+  dataComunicacaoHSE    DateTime
+
+  localOcorrencia       String
+  situacaoGeradora      String
+  agenteCausador        String
+  parteCorpoAtingida    String
+  lateralidade          String
+  tipoLesao             String
+
+  acoesImediatas        String
+
+  createdAt             DateTime @default(now())
+
+  evidencias            EvidenciaAcidente[]
+}
+
+model EvidenciaAcidente {
+  idEvidencia   Int    @id @default(autoincrement())
+  idAcidente    Int
+  acidente      AcidenteTrabalho @relation(fields: [idAcidente], references: [idAcidente])
+
+  arquivoUrl    String
+  createdAt     DateTime @default(now())
+}
+
+enum TipoOcorrencia {
+  TIPICA        // a serviço da empresa
+  TRAJETO       // casa ↔ trabalho
+}
+
+enum Lateralidade {
+  DIREITA
+  ESQUERDA
+  BILATERAL
+  NAO_APLICAVEL
+}
 
 enum UserRole {
   USER

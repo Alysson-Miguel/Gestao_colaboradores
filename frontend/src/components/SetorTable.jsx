@@ -39,7 +39,7 @@ export default function SetorTable({ setores, onEdit, onDelete }) {
             </td>
 
             <td className="px-5 py-4 text-white">
-              {s._count?.colaboradores ?? 0} colaboradores
+              {s.totalColaboradores} colaboradores
             </td>
 
             <td className="px-5 py-4">

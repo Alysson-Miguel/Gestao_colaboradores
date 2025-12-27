@@ -60,6 +60,16 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// 🔍 MIDDLEWARE DE DEBUG PARA BODY (TEMPORÁRIO - REMOVA APÓS RESOLVER)
+app.use('/api/acidentes/presign-upload', (req, res, next) => {
+  console.log('🔍 [MIDDLEWARE] Método:', req.method);
+  console.log('🔍 [MIDDLEWARE] Content-Type:', req.get('Content-Type'));
+  console.log('🔍 [MIDDLEWARE] Body cru (antes do controller):', JSON.stringify(req.body, null, 2));
+  console.log('🔍 [MIDDLEWARE] Tipo de req.body:', typeof req.body);
+  console.log('🔍 [MIDDLEWARE] req.body.files é array?', Array.isArray(req.body.files));
+  next();
+});
+
 // Logger HTTP (Morgan)
 if (config.env === 'development') {
   app.use(morgan('dev'));

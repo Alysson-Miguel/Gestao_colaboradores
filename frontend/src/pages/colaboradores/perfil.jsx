@@ -23,17 +23,20 @@ export default function PerfilColaborador() {
 
   const [colaborador, setColaborador] = useState(null);
   const [medidas, setMedidas] = useState([]);
+  const [acidentes, setAcidentes] = useState([]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [colabRes, mdRes] = await Promise.all([
+        const [colabRes, mdRes, acRes] = await Promise.all([
           api.get(`/colaboradores/${opsId}`),
           api.get(`/medidas-disciplinares?opsId=${opsId}`),
+          api.get(`/acidentes/colaborador/${opsId}`),
         ]);
 
         setColaborador(colabRes.data.data);
         setMedidas(mdRes.data.data || []);
+        setAcidentes(acRes.data.data || []);
       } catch (err) {
         console.error(err);
         alert("Erro ao carregar perfil do colaborador");
@@ -224,7 +227,62 @@ export default function PerfilColaborador() {
               ))}
             </div>
           </Section>
+          {/* ACIDENTES DE TRABALHO */}
+          <Section title="Acidentes de Trabalho">
+            <div className="md:col-span-2 space-y-4">
 
+              <Indicator
+                label="Total de Acidentes"
+                value={acidentes.length}
+                color="text-red-400"
+              />
+
+              {acidentes.length === 0 && (
+                <p className="text-sm text-[#BFBFC3]">
+                  Nenhum acidente registrado para este colaborador.
+                </p>
+              )}
+
+              {acidentes.map((acidente) => (
+                <div
+                  key={acidente.idAcidente}
+                  className="flex items-start gap-4 bg-[#0D0D0D] border border-[#3D3D40] rounded-xl p-4"
+                >
+                  <FileText size={18} className="text-red-400 mt-1" />
+
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-semibold">
+                      {acidente.tipoOcorrencia}
+                    </p>
+
+                    <p className="text-xs text-[#BFBFC3]">
+                      Data:{" "}
+                      {new Date(acidente.dataOcorrencia).toLocaleDateString()}
+                    </p>
+
+                    <p className="text-xs text-[#BFBFC3]">
+                      Local: {acidente.localOcorrencia}
+                    </p>
+
+                    <p className="text-sm mt-2">
+                      {acidente.situacaoGeradora}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Badge.Status variant="danger">
+                        {acidente.tipoLesao}
+                      </Badge.Status>
+
+                      <Badge.Status variant="warning">
+                        {acidente.parteCorpoAtingida}
+                      </Badge.Status>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+             
         </main>
       </div>
     </div>
