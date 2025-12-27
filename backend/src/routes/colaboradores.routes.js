@@ -4,45 +4,59 @@ const router = express.Router();
 const controller = require("../controllers/colaborador.controller");
 const { authenticate, authorize } = require("../middlewares/auth.middleware");
 const { asyncHandler } = require("../middlewares/error.middleware");
+const { upload } = require("../middlewares/uploadCsv.middleware");
 
-router.get(
-  "/",
+/* ================= IMPORT CSV (ANTES DE :opsId) ================= */
+router.post(
+  "/import",
   authenticate,
-  asyncHandler(controller.getAllColaboradores)
+  authorize("ADMIN", "MANAGER"),
+  upload.single("file"),
+  asyncHandler(controller.importColaboradores)
 );
-router.get(
-  "/:opsId",
-  authenticate,
-  asyncHandler(controller.getColaboradorById)
-);
+
+/* ================= ROTAS PADRÃO ================= */
+router.get("/", authenticate, asyncHandler(controller.getAllColaboradores));
+
 router.get(
   "/:opsId/stats",
   authenticate,
   asyncHandler(controller.getColaboradorStats)
 );
+
 router.get(
   "/:opsId/historico",
   authenticate,
   asyncHandler(controller.getColaboradorHistorico)
 );
+
+router.get(
+  "/:opsId",
+  authenticate,
+  asyncHandler(controller.getColaboradorById)
+);
+
 router.post(
   "/",
   authenticate,
   authorize("ADMIN", "MANAGER"),
   asyncHandler(controller.createColaborador)
 );
+
 router.put(
   "/:opsId",
   authenticate,
   authorize("ADMIN", "MANAGER"),
   asyncHandler(controller.updateColaborador)
 );
+
 router.post(
   "/:opsId/movimentar",
   authenticate,
   authorize("ADMIN", "MANAGER"),
   asyncHandler(controller.movimentarColaborador)
 );
+
 router.delete(
   "/:opsId",
   authenticate,
