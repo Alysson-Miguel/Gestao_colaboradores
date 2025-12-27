@@ -12,18 +12,22 @@ const {
   paginatedResponse,
 } = require('../utils/response');
 
+/* ================= GET ALL ================= */
 const getAllCargos = async (req, res) => {
   const { page = 1, limit = 10, search, ativo } = req.query;
+
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
 
   const where = {};
+
   if (search) {
     where.OR = [
       { nomeCargo: { contains: search, mode: 'insensitive' } },
       { nivel: { contains: search, mode: 'insensitive' } },
     ];
   }
+
   if (ativo !== undefined) {
     where.ativo = ativo === 'true';
   }
@@ -34,14 +38,23 @@ const getAllCargos = async (req, res) => {
       skip,
       take,
       orderBy: { nomeCargo: 'asc' },
-      include: { _count: { select: { colaboradores: true } } },
+      include: {
+        _count: {
+          select: { colaboradores: true },
+        },
+      },
     }),
     prisma.cargo.count({ where }),
   ]);
 
-  return paginatedResponse(res, cargos, { page: parseInt(page), limit: parseInt(limit), total });
+  return paginatedResponse(res, cargos, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    total,
+  });
 };
 
+/* ================= GET BY ID ================= */
 const getCargoById = async (req, res) => {
   const { id } = req.params;
 
@@ -50,26 +63,42 @@ const getCargoById = async (req, res) => {
     include: {
       colaboradores: {
         where: { status: 'ATIVO' },
-        select: { opsId: true, nomeCompleto: true, matricula: true },
+        select: {
+          opsId: true,
+          nomeCompleto: true,
+          matricula: true,
+        },
       },
-      _count: { select: { colaboradores: true } },
+      _count: {
+        select: { colaboradores: true },
+      },
     },
   });
 
-  if (!cargo) return notFoundResponse(res, 'Cargo não encontrado');
+  if (!cargo) {
+    return notFoundResponse(res, 'Cargo não encontrado');
+  }
+
   return successResponse(res, cargo);
 };
 
+/* ================= CREATE ================= */
 const createCargo = async (req, res) => {
   const { nomeCargo, nivel, descricao, ativo } = req.body;
 
   const cargo = await prisma.cargo.create({
-    data: { nomeCargo, nivel, descricao, ativo: ativo !== undefined ? ativo : true },
+    data: {
+      nomeCargo,
+      nivel,
+      descricao,
+      ativo: ativo !== undefined ? ativo : true,
+    },
   });
 
   return createdResponse(res, cargo, 'Cargo criado com sucesso');
 };
 
+/* ================= UPDATE ================= */
 const updateCargo = async (req, res) => {
   const { id } = req.params;
   const { nomeCargo, nivel, descricao, ativo } = req.body;
@@ -87,9 +116,14 @@ const updateCargo = async (req, res) => {
   return successResponse(res, cargo, 'Cargo atualizado com sucesso');
 };
 
+/* ================= DELETE ================= */
 const deleteCargo = async (req, res) => {
   const { id } = req.params;
-  await prisma.cargo.delete({ where: { idCargo: parseInt(id) } });
+
+  await prisma.cargo.delete({
+    where: { idCargo: parseInt(id) },
+  });
+
   return deletedResponse(res, 'Cargo excluído com sucesso');
 };
 

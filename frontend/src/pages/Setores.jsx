@@ -18,23 +18,26 @@ export default function SetoresPage() {
 
   const navigate = useNavigate();
 
+  /* ================= LOAD ================= */
   const load = useCallback(async () => {
     setLoading(true);
-    const list = await SetoresAPI.listar({
-      limit: 1000,
-      search: query || undefined,
-    });
-    setSetores(Array.isArray(list) ? list : []);
-    setLoading(false);
+    try {
+      const list = await SetoresAPI.listar({
+        limit: 1000,
+        search: query || undefined,
+      });
+      setSetores(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Erro ao carregar setores", err);
+      setSetores([]);
+    } finally {
+      setLoading(false);
+    }
   }, [query]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  const filtered = setores.filter((s) =>
-    s.nomeSetor.toLowerCase().includes(query.toLowerCase())
-  );
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
@@ -47,8 +50,8 @@ export default function SetoresPage() {
       <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="px-8 py-6 space-y-6">
-          {/* PAGE HEADER */}
+        <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
+          {/* HEADER */}
           <section className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Setores</h1>
@@ -74,7 +77,7 @@ export default function SetoresPage() {
             </button>
           </section>
 
-          {/* FILTER */}
+          {/* SEARCH */}
           <div className="relative w-72">
             <Search
               size={16}
@@ -102,9 +105,13 @@ export default function SetoresPage() {
               <div className="p-8 text-center text-[#BFBFC3]">
                 Carregando setores...
               </div>
+            ) : setores.length === 0 ? (
+              <div className="p-8 text-center text-[#BFBFC3]">
+                Nenhum setor encontrado.
+              </div>
             ) : (
               <SetorTable
-                setores={filtered}
+                setores={setores}
                 onEdit={(s) => {
                   setSelected(s);
                   setModalOpen(true);
@@ -120,6 +127,7 @@ export default function SetoresPage() {
         </main>
       </div>
 
+      {/* MODAL */}
       {modalOpen && (
         <SetorModal
           setor={selected}

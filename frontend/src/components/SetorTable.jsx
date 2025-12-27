@@ -15,6 +15,7 @@ export default function SetorTable({ setores, onEdit, onDelete }) {
         <tr className="text-xs uppercase text-[#BFBFC3]">
           <th className="px-5 py-4 text-left font-semibold">Nome</th>
           <th className="px-5 py-4 text-left font-semibold">Descrição</th>
+          <th className="px-5 py-4 text-left font-semibold">Colaboradores</th>
           <th className="px-5 py-4 text-left font-semibold">Status</th>
           <th className="px-5 py-4 text-right font-semibold"></th>
         </tr>
@@ -29,12 +30,16 @@ export default function SetorTable({ setores, onEdit, onDelete }) {
               hover:bg-[#242426] transition
             `}
           >
-            <td className="px-5 py-4 text-white font-medium">
+            <td className="px-5 py-4 font-medium text-white">
               {s.nomeSetor}
             </td>
 
             <td className="px-5 py-4 text-[#BFBFC3]">
               {s.descricao || "-"}
+            </td>
+
+            <td className="px-5 py-4 text-white">
+              {s._count?.colaboradores ?? 0} colaboradores
             </td>
 
             <td className="px-5 py-4">
@@ -48,6 +53,7 @@ export default function SetorTable({ setores, onEdit, onDelete }) {
                 <Button.Secondary size="sm" onClick={() => onEdit(s)}>
                   Editar
                 </Button.Secondary>
+
                 <Button.IconButton
                   size="sm"
                   variant="danger"

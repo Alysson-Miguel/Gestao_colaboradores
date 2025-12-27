@@ -20,12 +20,15 @@ export default function CargosPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const list = await CargosAPI.listar({
-      limit: 1000,
-      search: query || undefined,
-    });
-    setCargos(Array.isArray(list) ? list : []);
-    setLoading(false);
+    try {
+      const list = await CargosAPI.listar({
+        limit: 1000,
+        search: query || undefined,
+      });
+      setCargos(Array.isArray(list) ? list : []);
+    } finally {
+      setLoading(false);
+    }
   }, [query]);
 
   useEffect(() => {
@@ -51,8 +54,8 @@ export default function CargosPage() {
       <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="px-8 py-6 space-y-6">
-          {/* PAGE HEADER */}
+        <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
+          {/* HEADER */}
           <section className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Cargos</h1>
