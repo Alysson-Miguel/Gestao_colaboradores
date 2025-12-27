@@ -21,10 +21,6 @@ export default function EditarColaborador() {
     telefone: "",
     genero: "",
     matricula: "",
-    idEmpresa: "",
-    idSetor: "",
-    idCargo: "",
-    idTurno: "",
     dataAdmissao: "",
     horarioInicioJornada: "",
     status: "ATIVO",
@@ -44,10 +40,6 @@ export default function EditarColaborador() {
           telefone: c.telefone || "",
           genero: c.genero || "",
           matricula: c.matricula || "",
-          idEmpresa: c.idEmpresa ?? "",
-          idSetor: c.idSetor ?? "",
-          idCargo: c.idCargo ?? "",
-          idTurno: c.idTurno ?? "",
           dataAdmissao: c.dataAdmissao
             ? c.dataAdmissao.substring(0, 10)
             : "",
@@ -77,7 +69,6 @@ export default function EditarColaborador() {
     try {
       const payload = { ...form };
 
-      // Normalização para backend
       Object.keys(payload).forEach((k) => {
         if (payload[k] === "") payload[k] = null;
       });
@@ -130,9 +121,17 @@ export default function EditarColaborador() {
               </div>
             </div>
 
+            {/* SALVAR */}
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#FA4C00] hover:bg-[#ff5a1a] rounded-xl font-medium"
+              className="
+                flex items-center gap-2
+                px-5 py-2.5
+                bg-[#FA4C00]
+                hover:bg-[#ff5a1a]
+                rounded-xl
+                font-medium
+              "
             >
               <Save size={16} />
               Salvar alterações
@@ -234,7 +233,14 @@ function Input({ label, ...props }) {
       <label className="text-xs text-[#BFBFC3]">{label}</label>
       <input
         {...props}
-        className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40] rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
+        className="
+          px-4 py-2.5
+          bg-[#2A2A2C]
+          border border-[#3D3D40]
+          rounded-xl
+          outline-none
+          focus:ring-1 focus:ring-[#FA4C00]
+        "
       />
     </div>
   );
@@ -246,7 +252,14 @@ function Select({ label, options, ...props }) {
       <label className="text-xs text-[#BFBFC3]">{label}</label>
       <select
         {...props}
-        className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40] rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
+        className="
+          px-4 py-2.5
+          bg-[#2A2A2C]
+          border border-[#3D3D40]
+          rounded-xl
+          outline-none
+          focus:ring-1 focus:ring-[#FA4C00]
+        "
       >
         <option value="">Selecione</option>
         {options.map((o) => (

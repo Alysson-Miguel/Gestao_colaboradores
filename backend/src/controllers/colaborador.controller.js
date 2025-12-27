@@ -89,10 +89,33 @@ const getColaboradorById = async (req, res) => {
       },
     });
 
-    if (!colaborador)
+    if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
+    }
 
-    return successResponse(res, colaborador);
+    // ================= ATESTADOS (INDICADORES) =================
+    const [totalAtestados, ativos, finalizados] = await Promise.all([
+      prisma.atestadoMedico.count({
+        where: { opsId },
+      }),
+      prisma.atestadoMedico.count({
+        where: { opsId, status: "ATIVO" },
+      }),
+      prisma.atestadoMedico.count({
+        where: { opsId, status: "FINALIZADO" },
+      }),
+    ]);
+
+    return successResponse(res, {
+      ...colaborador,
+      indicadores: {
+        atestados: {
+          total: totalAtestados,
+          ativos,
+          finalizados,
+        },
+      },
+    });
   } catch (err) {
     console.error("❌ ERRO GET BY ID:", err);
     return errorResponse(res, 500, "Erro ao buscar colaborador", err);
@@ -242,6 +265,59 @@ const deleteColaborador = async (req, res) => {
     return errorResponse(res, 500, "Erro ao excluir colaborador", err);
   }
 };
+const movimentarColaborador = async (req, res) => {
+  const { opsId } = req.params;
+  const {
+    idEmpresa,
+    idSetor,
+    idCargo,
+    idTurno,
+    idLider,
+    dataEfetivacao,
+    motivo,
+  } = req.body;
+
+  if (!dataEfetivacao || !motivo)
+    return errorResponse(res, 400, "Data e motivo são obrigatórios");
+
+  const atual = await prisma.colaborador.findUnique({ where: { opsId } });
+  if (!atual) return notFoundResponse(res, "Colaborador não encontrado");
+
+  await prisma.$transaction([
+    prisma.historicoMovimentacao.create({
+      data: {
+        opsId,
+        tipoMovimentacao: "ORGANIZACIONAL",
+        setorAnterior: atual.idSetor,
+        cargoAnterior: atual.idCargo,
+        turnoAnterior: atual.idTurno,
+        liderAnterior: atual.idLider,
+
+        setorNovo: idSetor ? Number(idSetor) : null,
+        cargoNovo: idCargo ? Number(idCargo) : null,
+        turnoNovo: idTurno ? Number(idTurno) : null,
+        liderNovo: idLider || null,
+
+        dataEfetivacao: new Date(dataEfetivacao),
+        motivo,
+      },
+    }),
+
+    prisma.colaborador.update({
+      where: { opsId },
+      data: {
+        idEmpresa: idEmpresa ? Number(idEmpresa) : atual.idEmpresa,
+        idSetor: idSetor ? Number(idSetor) : atual.idSetor,
+        idCargo: idCargo ? Number(idCargo) : atual.idCargo,
+        idTurno: idTurno ? Number(idTurno) : atual.idTurno,
+        idLider: idLider || atual.idLider,
+      },
+    }),
+  ]);
+
+  return successResponse(res, null, "Movimentação realizada com sucesso");
+};
+
 
 module.exports = {
   getAllColaboradores,
@@ -249,4 +325,5 @@ module.exports = {
   createColaborador,
   updateColaborador,
   deleteColaborador,
+  movimentarColaborador,
 };

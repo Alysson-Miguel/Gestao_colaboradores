@@ -9,10 +9,11 @@ import {
   Settings,
   X
 } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-export default function Sidebar({ isOpen, onClose, navigate }) {
+export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
+  const navigate = useNavigate(); // ✅ AQUI É O FIX
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -21,8 +22,9 @@ export default function Sidebar({ isOpen, onClose, navigate }) {
     { icon: Building2, label: "Empresas", path: "/empresas" },
     { icon: Layers, label: "Setores", path: "/setores" },
     { icon: Briefcase, label: "Cargos", path: "/cargos" },
-    { icon: FileText, label: "Relatórios", path: "/relatorios" },
-    { icon: Settings, label: "Configurações", path: "/configuracoes" }
+    { icon: FileText, label: "Atestados Médicos", path: "/atestados" },
+    { icon: Settings, label: "Acidentes", path: "/acidentes" },
+    { icon: Settings, label: "Medidas Disciplinares", path: "/medidas-disciplinares" }
   ];
 
   return (
@@ -61,17 +63,22 @@ export default function Sidebar({ isOpen, onClose, navigate }) {
         {/* Menu */}
         <nav className="px-3 py-4 space-y-1">
           {menuItems.map((item) => {
-            const active = location.pathname === item.path;
+            const isDashboard = item.path === "/";
+            const active = isDashboard
+              ? location.pathname === "/"
+              : location.pathname.startsWith(item.path);
+
 
             return (
               <button
                 key={item.path}
+                type="button"
                 onClick={() => {
-                  navigate(item.path);
+                  navigate(item.path); // ✅ SEMPRE FUNCIONA
                   onClose?.();
                 }}
                 className={`
-                  group w-full flex items-center gap-3
+                  relative group w-full flex items-center gap-3
                   px-4 py-3 rounded-xl
                   transition
                   ${

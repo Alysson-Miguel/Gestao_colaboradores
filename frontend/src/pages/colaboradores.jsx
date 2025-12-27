@@ -16,6 +16,7 @@ export default function ColaboradoresPage() {
 
   const navigate = useNavigate();
 
+  /* ================= LOAD ================= */
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -35,6 +36,7 @@ export default function ColaboradoresPage() {
     load();
   }, [load]);
 
+  /* ================= FILTROS ================= */
   const filtered = employees.filter((e) => {
     if (query) {
       const q = query.toLowerCase();
@@ -43,6 +45,7 @@ export default function ColaboradoresPage() {
         e.email?.toLowerCase().includes(q) ||
         e.cpf?.toLowerCase().includes(q) ||
         String(e.opsId)?.includes(q);
+
       if (!match) return false;
     }
 
@@ -58,6 +61,7 @@ export default function ColaboradoresPage() {
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+      {/* SIDEBAR */}
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -81,6 +85,7 @@ export default function ColaboradoresPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
 
             <div className="flex items-center gap-3 flex-wrap">
+              {/* BUSCA */}
               <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl">
                 <Search size={16} className="text-[#BFBFC3]" />
                 <input
@@ -91,6 +96,7 @@ export default function ColaboradoresPage() {
                 />
               </div>
 
+              {/* TURNO */}
               <select
                 value={turnoSelecionado}
                 onChange={(e) => setTurnoSelecionado(e.target.value)}
@@ -105,12 +111,14 @@ export default function ColaboradoresPage() {
                 "
               >
                 {turnos.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
 
-            {/* BOTÃO CORRETO */}
+            {/* NOVO COLABORADOR */}
             <button
               onClick={() => navigate("/colaboradores/novo")}
               className="
@@ -131,12 +139,14 @@ export default function ColaboradoresPage() {
           {/* LISTA */}
           <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">
             {loading ? (
-              <div className="p-6 text-[#BFBFC3]">Carregando colaboradores…</div>
+              <div className="p-6 text-[#BFBFC3]">
+                Carregando colaboradores…
+              </div>
             ) : (
               <EmployeeTable
                 employees={filtered}
-                onEdit={(emp) =>
-                  navigate(`/colaboradores/${emp.opsId}/editar`)
+                onView={(emp) =>
+                  navigate(`/colaboradores/${emp.opsId}`)
                 }
                 onDelete={async (emp) => {
                   if (!window.confirm(`Excluir ${emp.nomeCompleto}?`)) return;

@@ -1,6 +1,6 @@
 import { Button, Badge } from "../components/UIComponents";
 
-export default function EmployeeTable({ employees = [], onEdit, onDelete }) {
+export default function EmployeeTable({ employees = [], onView, }) {
   return (
     <div className="overflow-x-auto rounded-xl bg-surface">
       <table className="w-full min-w-[900px] text-sm">
@@ -91,18 +91,10 @@ export default function EmployeeTable({ employees = [], onEdit, onDelete }) {
                   <div className="flex justify-end gap-2">
                     <Button.Secondary
                       size="sm"
-                      onClick={() => onEdit(emp)}
+                      onClick={() => onView(emp)}
                     >
-                      Editar
+                      Ver Perfil
                     </Button.Secondary>
-
-                    <Button.IconButton
-                      size="sm"
-                      variant="danger"
-                      onClick={() => onDelete(emp)}
-                    >
-                      Excluir
-                    </Button.IconButton>
                   </div>
                 </td>
               </tr>

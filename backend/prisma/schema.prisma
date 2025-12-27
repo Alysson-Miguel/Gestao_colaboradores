@@ -235,6 +235,8 @@ model Colaborador {
   turno                 Turno?                  @relation(fields: [idTurno], references: [idTurno])
   frequencias           Frequencia[]
   historicoMovimentacao HistoricoMovimentacao[] @relation("ColaboradorMovimentado")
+  atestadosMedicos     AtestadoMedico[]
+
 
   @@index([matricula])
   @@index([status])
@@ -242,6 +244,27 @@ model Colaborador {
   @@index([idLider])
   @@index([dataAdmissao])
   @@map("colaborador")
+}
+model AtestadoMedico {
+  idAtestado      Int            @id @default(autoincrement()) @map("id_atestado")
+  opsId           String         @map("ops_id") @db.VarChar(50)
+
+  dataInicio      DateTime       @map("data_inicio") @db.Date
+  dataFim         DateTime       @map("data_fim") @db.Date
+  diasAfastamento Int            @map("dias_afastamento")
+
+  cid             String?        @db.VarChar(10)
+  observacao      String?
+  documentoAnexo  String?        @map("documento_anexo") @db.VarChar(500)
+
+  status          StatusAtestado @default(ATIVO)
+  dataRegistro    DateTime       @default(now()) @map("data_registro")
+
+  colaborador     Colaborador    @relation(fields: [opsId], references: [opsId])
+
+  @@index([opsId])
+  @@index([dataInicio, dataFim])
+  @@map("atestado_medico")
 }
 
 enum UserRole {
@@ -258,6 +281,11 @@ enum StatusColaborador {
 }
 
 enum StatusAusencia {
+  ATIVO
+  FINALIZADO
+  CANCELADO
+}
+enum StatusAtestado {
   ATIVO
   FINALIZADO
   CANCELADO
