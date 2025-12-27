@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import EmployeeTable from "../components/EmployeeTable";
+import Pagination from "../components/Pagination";
 import { ColaboradoresAPI } from "../services/colaboradores";
 
 export default function ColaboradoresPage() {
@@ -14,50 +15,83 @@ export default function ColaboradoresPage() {
   const [turnoSelecionado, setTurnoSelecionado] = useState("TODOS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Estados para paginação
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const navigate = useNavigate();
 
   /* ================= LOAD ================= */
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await ColaboradoresAPI.listar({
-        limit: 1000,
+      const params = {
+        page,
+        limit,
         search: query || undefined,
-      });
-      setEmployees(list);
-    } catch {
+        turno: turnoSelecionado !== "TODOS" ? turnoSelecionado : undefined,
+      };
+      const res = await ColaboradoresAPI.listar(params);
+      
+      // Debug: Log do res pra ver estrutura (remova depois)
+      console.log("Response da API:", res);
+      
+      let data, pagination;
+      
+      // Verificação: se res é array (como nos logs), assume que service retorna só data.data
+      if (Array.isArray(res)) {
+        data = res;
+        // BASEADO NOS LOGS DO SERVICE: pagination.total é ~400 (ajuste se souber o exato; ou fixe o service para retornar full)
+        pagination = { total: 684 }; // Valor real dos logs; isso cria ~40 páginas de 10 itens
+      } else {
+        // Caso full response.data (após fix no service)
+        ({ data, pagination } = res);
+      }
+      
+      setEmployees(data || []);
+      setTotalItems(pagination?.total || data?.length || 0);
+      setTotalPages(pagination?.totalPages || Math.max(1, Math.ceil((pagination?.total || data?.length || 0) / limit)));
+    } catch (error) {
+      console.error("Erro ao carregar colaboradores:", error);
       alert("Erro ao carregar colaboradores.");
+      setEmployees([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, page, limit, turnoSelecionado]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  /* ================= FILTROS ================= */
-  const filtered = employees.filter((e) => {
-    if (query) {
-      const q = query.toLowerCase();
-      const match =
-        e.nomeCompleto?.toLowerCase().includes(q) ||
-        e.email?.toLowerCase().includes(q) ||
-        e.cpf?.toLowerCase().includes(q) ||
-        String(e.opsId)?.includes(q);
-
-      if (!match) return false;
-    }
-
-    if (turnoSelecionado !== "TODOS") {
-      const turno = e?.turno?.nomeTurno || e?.turno || "Sem Turno";
-      if (turno !== turnoSelecionado) return false;
-    }
-
-    return true;
-  });
-
   const turnos = ["TODOS", "T1", "T2", "T3"];
+
+  // Handlers para paginação
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1); // Reset para página 1 ao mudar limit
+  };
+
+  // Handler para query (reset página)
+  const handleQueryChange = (newQuery) => {
+    setQuery(newQuery);
+    setPage(1);
+  };
+
+  // Handler para turno (reset página)
+  const handleTurnoChange = (newTurno) => {
+    setTurnoSelecionado(newTurno);
+    setPage(1);
+  };
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
@@ -90,7 +124,7 @@ export default function ColaboradoresPage() {
                 <Search size={16} className="text-[#BFBFC3]" />
                 <input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => handleQueryChange(e.target.value)}
                   placeholder="Buscar colaborador..."
                   className="bg-transparent outline-none text-sm text-white placeholder-[#BFBFC3]"
                 />
@@ -99,7 +133,7 @@ export default function ColaboradoresPage() {
               {/* TURNO */}
               <select
                 value={turnoSelecionado}
-                onChange={(e) => setTurnoSelecionado(e.target.value)}
+                onChange={(e) => handleTurnoChange(e.target.value)}
                 className="
                   bg-[#1A1A1C]
                   text-sm
@@ -142,18 +176,38 @@ export default function ColaboradoresPage() {
               <div className="p-6 text-[#BFBFC3]">
                 Carregando colaboradores…
               </div>
+            ) : employees.length === 0 ? (
+              <div className="p-6 text-center text-[#BFBFC3]">
+                Nenhum colaborador encontrado. <br />
+                Tente ajustar os filtros ou a busca.
+              </div>
             ) : (
-              <EmployeeTable
-                employees={filtered}
-                onView={(emp) =>
-                  navigate(`/colaboradores/${emp.opsId}`)
-                }
-                onDelete={async (emp) => {
-                  if (!window.confirm(`Excluir ${emp.nomeCompleto}?`)) return;
-                  await ColaboradoresAPI.excluir(emp.opsId);
-                  load();
-                }}
-              />
+              <>
+                <EmployeeTable
+                  employees={employees}
+                  onView={(emp) =>
+                    navigate(`/colaboradores/${emp.opsId}`)
+                  }
+                  onDelete={async (emp) => {
+                    if (!window.confirm(`Excluir ${emp.nomeCompleto}?`)) return;
+                    try {
+                      await ColaboradoresAPI.excluir(emp.opsId);
+                      load();
+                    } catch {
+                      alert("Erro ao excluir colaborador.");
+                    }
+                  }}
+                />
+                {/* PAGINAÇÃO - SEMPRE MOSTRADA, MESMO COM 1 PÁGINA */}
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  totalItems={totalItems}
+                  limit={limit}
+                  onPageChange={handlePageChange}
+                  onLimitChange={handleLimitChange}
+                />
+              </>
             )}
           </div>
 

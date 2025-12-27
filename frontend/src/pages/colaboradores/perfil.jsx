@@ -28,6 +28,8 @@ export default function PerfilColaborador() {
   useEffect(() => {
     async function load() {
       try {
+        setLoading(true);
+
         const [colabRes, mdRes, acRes] = await Promise.all([
           api.get(`/colaboradores/${opsId}`),
           api.get(`/medidas-disciplinares?opsId=${opsId}`),
@@ -38,15 +40,16 @@ export default function PerfilColaborador() {
         setMedidas(mdRes.data.data || []);
         setAcidentes(acRes.data.data || []);
       } catch (err) {
-        console.error(err);
-        alert("Erro ao carregar perfil do colaborador");
+        console.error("Erro perfil colaborador:", err);
         navigate("/colaboradores");
       } finally {
         setLoading(false);
       }
     }
 
-    load();
+    if (opsId) {
+      load();
+    }
   }, [opsId, navigate]);
 
   async function handleDelete() {
@@ -63,7 +66,15 @@ export default function PerfilColaborador() {
     );
   }
 
-  const indicadoresAtestado = colaborador.indicadores?.atestados || {
+  if (!colaborador) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0D0D0D] text-[#BFBFC3]">
+        Colaborador não encontrado
+      </div>
+    );
+  }
+
+  const indicadoresAtestado = colaborador?.indicadores?.atestados || {
     total: 0,
     ativos: 0,
     finalizados: 0,
@@ -81,7 +92,6 @@ export default function PerfilColaborador() {
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-8 max-w-6xl mx-auto space-y-8">
-
           {/* HEADER PERFIL */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -192,7 +202,6 @@ export default function PerfilColaborador() {
           {/* MEDIDAS DISCIPLINARES */}
           <Section title="Medidas Disciplinares">
             <div className="md:col-span-2 space-y-4">
-
               <Indicator
                 label="Total de Medidas"
                 value={medidas.length}
@@ -227,10 +236,10 @@ export default function PerfilColaborador() {
               ))}
             </div>
           </Section>
+
           {/* ACIDENTES DE TRABALHO */}
           <Section title="Acidentes de Trabalho">
             <div className="md:col-span-2 space-y-4">
-
               <Indicator
                 label="Total de Acidentes"
                 value={acidentes.length}
@@ -282,7 +291,6 @@ export default function PerfilColaborador() {
               ))}
             </div>
           </Section>
-             
         </main>
       </div>
     </div>

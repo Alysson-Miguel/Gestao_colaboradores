@@ -3,7 +3,7 @@ import axios from "axios";
 // Cria instância do Axios
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL + "/api", // exemplo: http://localhost:3000
-  timeout: 10000,
+  timeout: 600000, // Aumentado para 5 minutos (para imports longos como CSV grande)
   headers: {
     "Content-Type": "application/json",
   },

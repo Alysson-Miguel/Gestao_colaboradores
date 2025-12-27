@@ -9,6 +9,7 @@ import NovoColaborador from "./pages/colaboradores/novo";
 import EditarColaborador from "./pages/colaboradores/editar";
 import MovimentarColaborador from "./pages/colaboradores/movimentar";
 import PerfilColaborador from "./pages/colaboradores/perfil";
+import ImportarColaboradores from "./pages/colaboradores/import"; // ← ADICIONE ESTE IMPORT (crie a página se não existir)
 
 import EmpresasPage from "./pages/empresas";
 import SetoresPage from "./pages/Setores";
@@ -62,6 +63,16 @@ export default function App() {
         }
       />
 
+      {/* ← ADICIONE ESTA ROTA AQUI: ESPECÍFICA ANTES DA DINÂMICA /:opsId */}
+      <Route
+        path="/colaboradores/import"
+        element={
+          <ProtectedRoute>
+            <ImportarColaboradores />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/colaboradores/:opsId/editar"
         element={
@@ -80,6 +91,7 @@ export default function App() {
         }
       />
 
+      {/* ← A DINÂMICA FICA DEPOIS: Agora /import não vaza mais pro Perfil */}
       <Route
         path="/colaboradores/:opsId"
         element={

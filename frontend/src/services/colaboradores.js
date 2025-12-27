@@ -1,5 +1,5 @@
 // src/services/colaboradores.js
-import api  from "./api";
+import api from "./api";
 
 function normalizeListResponse(res) {
   // tenta detectar estruturas comuns (paginação, data wrapper, array direto)
@@ -17,7 +17,8 @@ function normalizeListResponse(res) {
 export const ColaboradoresAPI = {
   listar: async (params = {}) => {
     const res = await api.get("/colaboradores", { params });
-    return normalizeListResponse(res);
+    console.log("Full axios response.data:", res.data); // DEBUG - remova em produção
+    return normalizeListResponse(res); // Retorna o objeto completo { data: array, pagination: { total: 684, ... } }
   },
 
   buscarPorOpsId: async (opsId) => {

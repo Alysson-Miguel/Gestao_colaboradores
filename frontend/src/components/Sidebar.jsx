@@ -7,6 +7,7 @@ import {
   Layers,
   FileText,
   Settings,
+  Upload,
   X
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -24,7 +25,8 @@ export default function Sidebar({ isOpen, onClose }) {
     { icon: Briefcase, label: "Cargos", path: "/cargos" },
     { icon: FileText, label: "Atestados Médicos", path: "/atestados" },
     { icon: Settings, label: "Acidentes", path: "/acidentes" },
-    { icon: FileText, label: "Medidas Disciplinares", path: "/medidas-disciplinares" }
+    { icon: FileText, label: "Medidas Disciplinares", path: "/medidas-disciplinares" },
+    { icon: Upload, label: "Importar colaboradores", path: "/colaboradores/import" },
   ];
 
   return (
