@@ -31,6 +31,7 @@ model Frequencia {
   horaSaida        DateTime?     @map("hora_saida") @db.Time(6)
   horasTrabalhadas Decimal?      @map("horas_trabalhadas") @db.Decimal(4, 2)
   observacao       String?
+  manual           Boolean       @default(false)
   justificativa    String?
   documentoAnexo   String?       @map("documento_anexo") @db.VarChar(500)
   dataRegistro     DateTime      @default(now()) @map("data_registro")
@@ -223,6 +224,8 @@ model Colaborador {
   dataNascimento        DateTime?               @map("data_nascimento")
   email                 String?                 @unique @db.VarChar(200)
   telefone              String?                 @db.VarChar(20)
+  acidentes             AcidenteTrabalho[]
+  atestadosMedicos      AtestadoMedico[]
   ausencias             Ausencia[]
   cargo                 Cargo?                  @relation(fields: [idCargo], references: [idCargo])
   contrato              Contrato?               @relation(fields: [idContrato], references: [idContrato])
@@ -235,9 +238,7 @@ model Colaborador {
   turno                 Turno?                  @relation(fields: [idTurno], references: [idTurno])
   frequencias           Frequencia[]
   historicoMovimentacao HistoricoMovimentacao[] @relation("ColaboradorMovimentado")
-  atestadosMedicos     AtestadoMedico[]
   medidasDisciplinares  MedidaDisciplinar[]
-  acidentes    AcidenteTrabalho[]
 
   @@index([matricula])
   @@index([status])
@@ -246,81 +247,72 @@ model Colaborador {
   @@index([dataAdmissao])
   @@map("colaborador")
 }
+
 model AtestadoMedico {
   idAtestado      Int            @id @default(autoincrement()) @map("id_atestado")
   opsId           String         @map("ops_id") @db.VarChar(50)
-
   dataInicio      DateTime       @map("data_inicio") @db.Date
   dataFim         DateTime       @map("data_fim") @db.Date
   diasAfastamento Int            @map("dias_afastamento")
-
   cid             String?        @db.VarChar(10)
   observacao      String?
   documentoAnexo  String?        @map("documento_anexo") @db.VarChar(500)
-
   status          StatusAtestado @default(ATIVO)
   dataRegistro    DateTime       @default(now()) @map("data_registro")
-
   colaborador     Colaborador    @relation(fields: [opsId], references: [opsId])
 
   @@index([opsId])
   @@index([dataInicio, dataFim])
   @@map("atestado_medico")
 }
-model MedidaDisciplinar {
-  idMedida        Int      @id @default(autoincrement()) @map("id_medida")
-  opsId           String   @map("ops_id")
-  tipoMedida      String   @map("tipo_medida")
-  motivo          String
-  dataAplicacao   DateTime @map("data_aplicacao")
-  documentoAnexo  String   @map("documento_anexo")
-  dataRegistro    DateTime @default(now()) @map("data_registro")
 
-  colaborador     Colaborador @relation(fields: [opsId], references: [opsId])
+model MedidaDisciplinar {
+  idMedida       Int         @id @default(autoincrement()) @map("id_medida")
+  opsId          String      @map("ops_id")
+  dataAplicacao  DateTime    @map("data_aplicacao")
+  tipoMedida     String      @map("tipo_medida")
+  motivo         String
+  documentoAnexo String      @map("documento_anexo")
+  dataRegistro   DateTime    @default(now()) @map("data_registro")
+  colaborador    Colaborador @relation(fields: [opsId], references: [opsId])
 
   @@map("medida_disciplinar")
 }
+
 model AcidenteTrabalho {
-  idAcidente            Int      @id @default(autoincrement())
-  opsIdColaborador      String
-  colaborador           Colaborador @relation(fields: [opsIdColaborador], references: [opsId])
-
-  registradoPor         String   // nome completo de quem registrou
-  setor                 String
-  cargo                 String
-
-  participouIntegracao  Boolean
-
-  tipoOcorrencia        String   // TIPICA | TRAJETO
-  dataOcorrencia        DateTime
-  horarioOcorrencia     DateTime
-  dataComunicacaoHSE    DateTime
-
-  localOcorrencia       String
-  situacaoGeradora      String
-  agenteCausador        String
-  parteCorpoAtingida    String
-  lateralidade          String
-  tipoLesao             String
-
-  acoesImediatas        String
-
-  createdAt             DateTime @default(now())
-
-  evidencias            EvidenciaAcidente[]
+  idAcidente           Int                 @id @default(autoincrement())
+  opsIdColaborador     String
+  registradoPor        String
+  setor                String
+  cargo                String
+  participouIntegracao Boolean
+  tipoOcorrencia       String
+  dataOcorrencia       DateTime
+  horarioOcorrencia    DateTime
+  dataComunicacaoHSE   DateTime
+  localOcorrencia      String
+  situacaoGeradora     String
+  agenteCausador       String
+  parteCorpoAtingida   String
+  lateralidade         String
+  tipoLesao            String
+  acoesImediatas       String
+  createdAt            DateTime            @default(now())
+  colaborador          Colaborador         @relation(fields: [opsIdColaborador], references: [opsId])
+  evidencias           EvidenciaAcidente[]
 }
 
 model EvidenciaAcidente {
-  idEvidencia   Int    @id @default(autoincrement())
-  idAcidente    Int
-  acidente      AcidenteTrabalho @relation(fields: [idAcidente], references: [idAcidente])
-
-  arquivoUrl    String
-  createdAt     DateTime @default(now())
+  idEvidencia Int              @id @default(autoincrement())
+  idAcidente  Int
+  arquivoUrl  String
+  createdAt   DateTime         @default(now())
+  acidente    AcidenteTrabalho @relation(fields: [idAcidente], references: [idAcidente])
 }
+
 enum TipoOcorrencia {
-  TIPICA        // a serviço da empresa
-  TRAJETO       // casa ↔ trabalho
+  TIPICA
+  TRAJETO
 }
 
 enum Lateralidade {
@@ -348,11 +340,13 @@ enum StatusAusencia {
   FINALIZADO
   CANCELADO
 }
+
 enum StatusAtestado {
   ATIVO
   FINALIZADO
   CANCELADO
 }
+
 enum TipoMedida {
   ADVERTENCIA
   SUSPENSAO

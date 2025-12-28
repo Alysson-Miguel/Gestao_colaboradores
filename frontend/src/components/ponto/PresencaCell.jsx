@@ -3,14 +3,21 @@ import clsx from "clsx";
 import PresencaTooltip from "./PresencaTooltip";
 
 const STATUS_CONFIG = {
-  P:   { label: "Presente",   short: "P",   bg: "bg-emerald-600/20", text: "text-emerald-400" },
-  F:   { label: "Falta",      short: "F",   bg: "bg-red-600/20",     text: "text-red-400" },
-  DSR: { label: "DSR",        short: "DSR", bg: "bg-zinc-600/20",    text: "text-zinc-400" },
-  ATM: { label: "Atestado",   short: "ATM", bg: "bg-blue-600/20",    text: "text-blue-400" },
-  FER: { label: "Férias",     short: "FER", bg: "bg-purple-600/20",  text: "text-purple-400" },
-  AFA: { label: "Afastado",   short: "AFA", bg: "bg-orange-600/20",  text: "text-orange-400" },
-  BH:  { label: "Banco Horas",short: "BH",  bg: "bg-yellow-600/20",  text: "text-yellow-400" },
+  P:   { label: "Presente", short: "P", bg: "bg-emerald-600/20", text: "text-emerald-400" },
+  F:   { label: "Falta", short: "F", bg: "bg-red-600/20", text: "text-red-400" },
+  DSR: { label: "DSR", short: "DSR", bg: "bg-zinc-600/20", text: "text-zinc-400" },
+  AM:  { label: "Atestado Médico", short: "AM", bg: "bg-blue-600/20", text: "text-blue-400" },
+  AA:  { label: "Atest. Acompanh.", short: "AA", bg: "bg-cyan-600/20", text: "text-cyan-400" },
+  FE:  { label: "Férias", short: "FE", bg: "bg-purple-600/20", text: "text-purple-400" },
+  LM:  { label: "Lic. Maternidade", short: "LM", bg: "bg-pink-600/20", text: "text-pink-400" },
+  LP:  { label: "Lic. Paternidade", short: "LP", bg: "bg-indigo-600/20", text: "text-indigo-400" },
+  AFA: { label: "Afastado", short: "AFA", bg: "bg-orange-600/20", text: "text-orange-400" },
+  BH:  { label: "Banco de Horas", short: "BH", bg: "bg-yellow-600/20", text: "text-yellow-400" },
+  FO:  { label: "Folga", short: "FO", bg: "bg-slate-600/20", text: "text-slate-400" },
+  T:   { label: "Transferido", short: "T", bg: "bg-neutral-600/20", text: "text-neutral-400" },
+  S1:  { label: "Sinergia", short: "S1", bg: "bg-lime-600/20", text: "text-lime-400" },
 };
+
 
 function fmtHora(iso) {
   if (!iso) return null;

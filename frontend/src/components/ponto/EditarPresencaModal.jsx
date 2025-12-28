@@ -3,13 +3,20 @@ import { useState } from "react";
 
 const STATUS_OPTIONS = [
   { code: "P", label: "Presente" },
-  { code: "F", label: "Falta" },
-  { code: "DSR", label: "DSR (Trabalho autorizado)" },
-  { code: "ATM", label: "Atestado Médico" },
-  { code: "FER", label: "Férias" },
-  { code: "AFA", label: "Afastado" },
-  { code: "BH", label: "Banco de Horas" },
+  { code: "F", label: "Falta não justificada" },
+  { code: "DSR", label: "DSR (trabalho autorizado)" },
+  { code: "AM", label: "Atestado médico" },
+  { code: "AA", label: "Atestado acompanhamento" },
+  { code: "FE", label: "Férias" },
+  { code: "LM", label: "Licença maternidade" },
+  { code: "LP", label: "Licença paternidade" },
+  { code: "AFA", label: "Afastamento" },
+  { code: "BH", label: "Banco de horas" },
+  { code: "FO", label: "Folga" },
+  { code: "T", label: "Transferido" },
+  { code: "S1", label: "Sinergia enviada" },
 ];
+
 
 export default function PresencaModal({
   open,

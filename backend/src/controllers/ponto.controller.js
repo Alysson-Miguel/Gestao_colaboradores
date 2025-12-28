@@ -312,7 +312,7 @@ const getControlePresenca = async (req, res) => {
           entrada: f.horaEntrada,
           saida: f.horaSaida,
           validado: f.validado,
-          manual: false,
+          manual: f.manual ?? false, // ✅ CORRETO
         };
       }
 
@@ -356,17 +356,20 @@ const ajusteManualPresenca = async (req, res) => {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
 
-    const dataRef = new Date(dataReferencia);
-    dataRef.setHours(0, 0, 0, 0);
-
-    // busca tipo de ausência / status
-    const tipo = await prisma.tipoAusencia.findFirst({
-      where: { codigo: status },
+    const tipo = await prisma.tipoAusencia.findUnique({
+      where: { codigo: status }, // 🔑 agora bate com seed
     });
 
     if (!tipo) {
-      return errorResponse(res, "Status inválido", 400);
+      return errorResponse(
+        res,
+        `Status inválido: ${status}`,
+        400
+      );
     }
+
+    const dataRef = new Date(dataReferencia);
+    dataRef.setHours(0, 0, 0, 0);
 
     const registro = await prisma.frequencia.upsert({
       where: {
@@ -379,7 +382,7 @@ const ajusteManualPresenca = async (req, res) => {
         idTipoAusencia: tipo.idTipoAusencia,
         justificativa,
         manual: true,
-        registradoPor: "GESTAO", // depois trocar pelo usuário logado
+        registradoPor: "GESTAO",
       },
       create: {
         opsId,
@@ -394,12 +397,7 @@ const ajusteManualPresenca = async (req, res) => {
     return successResponse(res, registro, "Ajuste manual realizado com sucesso");
   } catch (err) {
     console.error("❌ ERRO ajuste manual:", err);
-    return errorResponse(
-      res,
-      "Erro ao realizar ajuste manual",
-      500,
-      err.message
-    );
+    return errorResponse(res, "Erro ao realizar ajuste manual", 500);
   }
 };
 module.exports = {

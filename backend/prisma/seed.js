@@ -3,44 +3,34 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Rodando seed de Escalas...");
+  console.log("🌱 Iniciando seed TipoAusencia...");
 
-  await prisma.escala.createMany({
-    data: [
-      {
-        nomeEscala: "A",
-        tipoEscala: "FIXA",
-        diasTrabalhados: 5,
-        diasFolga: 2,
-        descricao: "Folga: Quarta e Domingo",
-        ativo: true,
-      },
-      {
-        nomeEscala: "B",
-        tipoEscala: "FIXA",
-        diasTrabalhados: 5,
-        diasFolga: 2,
-        descricao: "Folga: Segunda e Terça",
-        ativo: true,
-      },
-      {
-        nomeEscala: "C",
-        tipoEscala: "FIXA",
-        diasTrabalhados: 5,
-        diasFolga: 2,
-        descricao: "Folga: Quinta e Sexta",
-        ativo: true,
-      },
-    ],
+  await prisma.tipoAusencia.createMany({
     skipDuplicates: true,
+    data: [
+      { codigo: "P", descricao: "Presença" },
+      { codigo: "F", descricao: "Falta não justificada" },
+      { codigo: "DSR", descricao: "Descanso Semanal Remunerado" },
+      { codigo: "AM", descricao: "Atestado Médico" },
+      { codigo: "FE", descricao: "Férias" },
+      { codigo: "AFA", descricao: "Afastamento" },
+      { codigo: "BH", descricao: "Banco de Horas" },
+      { codigo: "S1", descricao: "Sinergia Enviada" },
+      { codigo: "FO", descricao: "Folga" },
+      { codigo: "LM", descricao: "Licença Maternidade" },
+      { codigo: "LP", descricao: "Licença Paternidade" },
+      { codigo: "AF", descricao: "Afastado" },
+      { codigo: "AA", descricao: "Atestado de Acompanhamento" },
+      { codigo: "T", descricao: "Transferido" },
+    ],
   });
 
-  console.log("✅ Seed de Escalas concluído");
+  console.log("✅ Seed TipoAusencia finalizado!");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Erro no seed:", e);
+    console.error("❌ Erro ao rodar seed:", e);
     process.exit(1);
   })
   .finally(async () => {
