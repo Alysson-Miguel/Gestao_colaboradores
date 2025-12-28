@@ -13,6 +13,7 @@ export default function EditarColaborador() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [escalas, setEscalas] = useState([]);
 
   const [form, setForm] = useState({
     nomeCompleto: "",
@@ -21,44 +22,52 @@ export default function EditarColaborador() {
     telefone: "",
     genero: "",
     matricula: "",
+    idEscala: "",
     dataAdmissao: "",
     horarioInicioJornada: "",
     status: "ATIVO",
   });
 
   /* ================= LOAD ================= */
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await api.get(`/colaboradores/${opsId}`);
-        const c = res.data.data;
+useEffect(() => {
+  async function load() {
+    try {
+      const [resColab, resEscalas] = await Promise.all([
+        api.get(`/colaboradores/${opsId}`),
+        api.get("/escalas"),
+      ]);
 
-        setForm({
-          nomeCompleto: c.nomeCompleto || "",
-          cpf: c.cpf || "",
-          email: c.email || "",
-          telefone: c.telefone || "",
-          genero: c.genero || "",
-          matricula: c.matricula || "",
-          dataAdmissao: c.dataAdmissao
-            ? c.dataAdmissao.substring(0, 10)
-            : "",
-          horarioInicioJornada: c.horarioInicioJornada
-            ? c.horarioInicioJornada.substring(11, 16)
-            : "",
-          status: c.status || "ATIVO",
-        });
-      } catch (err) {
-        console.error(err);
-        alert("Erro ao carregar colaborador");
-        navigate("/colaboradores");
-      } finally {
-        setLoading(false);
-      }
+      const c = resColab.data.data;
+
+      setEscalas(resEscalas.data || []);
+
+      setForm({
+        nomeCompleto: c.nomeCompleto || "",
+        cpf: c.cpf || "",
+        email: c.email || "",
+        telefone: c.telefone || "",
+        genero: c.genero || "",
+        matricula: c.matricula || "",
+        idEscala: c.escala?.idEscala || "", // 🔑 AQUI ESTAVA O PROBLEMA
+        dataAdmissao: c.dataAdmissao
+          ? c.dataAdmissao.substring(0, 10)
+          : "",
+        horarioInicioJornada: c.horarioInicioJornada
+          ? c.horarioInicioJornada.substring(11, 16)
+          : "",
+        status: c.status || "ATIVO",
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao carregar colaborador");
+      navigate("/colaboradores");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    load();
-  }, [opsId, navigate]);
+  load();
+}, [opsId, navigate]);
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -180,6 +189,23 @@ export default function EditarColaborador() {
               options={["Masculino", "Feminino"]}
             />
           </Section>
+          <Section title="Vínculo Organizacional">
+            <Select
+              label="Escala *"
+              name="idEscala"
+              value={form.idEscala}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  idEscala: Number(e.target.value), // garante número
+                }))
+              }
+              options={escalas.map((e) => ({
+                value: e.idEscala,
+                label: `${e.nomeEscala} — ${e.descricao}`,
+              }))}
+            />
+          </Section>
 
           <Section title="Jornada">
             <Input
@@ -262,12 +288,19 @@ function Select({ label, options, ...props }) {
         "
       >
         <option value="">Selecione</option>
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
+        {options.map((o) =>
+          typeof o === "string" ? (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ) : (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          )
+        )}
       </select>
     </div>
   );
 }
+

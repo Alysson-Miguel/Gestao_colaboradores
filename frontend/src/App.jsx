@@ -9,7 +9,9 @@ import NovoColaborador from "./pages/colaboradores/novo";
 import EditarColaborador from "./pages/colaboradores/editar";
 import MovimentarColaborador from "./pages/colaboradores/movimentar";
 import PerfilColaborador from "./pages/colaboradores/perfil";
-import ImportarColaboradores from "./pages/colaboradores/import"; // ← ADICIONE ESTE IMPORT (crie a página se não existir)
+import ImportarColaboradores from "./pages/colaboradores/import";
+import ControlePresenca from "./pages/ponto/ControlePresenca";
+
 
 import EmpresasPage from "./pages/empresas";
 import SetoresPage from "./pages/Setores";
@@ -193,6 +195,17 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/ponto/controle"
+        element={
+          <ProtectedRoute>
+            <ControlePresenca />
+          </ProtectedRoute>
+        }
+      />
+
+      
 
       {/* ================= FALLBACK ================= */}
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,8 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const { registrarPontoCPF } = require("../controllers/ponto.controller");
 
-// ATENÇÃO: ponto não exige login do colaborador
+const {
+  registrarPontoCPF,
+  getControlePresenca,
+  ajusteManualPresenca,
+} = require("../controllers/ponto.controller");
+
+// colaborador
 router.post("/registrar", registrarPontoCPF);
+
+// gestão
+router.get("/controle", getControlePresenca);
+router.post("/ajuste-manual", ajusteManualPresenca);
 
 module.exports = router;

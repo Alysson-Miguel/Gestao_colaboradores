@@ -13,6 +13,7 @@ export default function ColaboradoresPage() {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [turnoSelecionado, setTurnoSelecionado] = useState("TODOS");
+  const [escalaSelecionada, setEscalaSelecionada] = useState("TODOS");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Estados para paginação
@@ -20,6 +21,8 @@ export default function ColaboradoresPage() {
   const [limit, setLimit] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+
+
 
   const navigate = useNavigate();
 
@@ -32,7 +35,9 @@ export default function ColaboradoresPage() {
       limit,
       search: query || undefined,
       turno: turnoSelecionado !== "TODOS" ? turnoSelecionado : undefined,
+      escala: escalaSelecionada !== "TODOS" ? escalaSelecionada : undefined, // 👈 AQUI
     };
+
 
     const res = await ColaboradoresAPI.listar(params);
 
@@ -49,14 +54,14 @@ export default function ColaboradoresPage() {
   } finally {
     setLoading(false);
   }
-}, [page, limit, query, turnoSelecionado]);
+}, [page, limit, query, turnoSelecionado, escalaSelecionada]);
 
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const turnos = ["TODOS", "T1", "T2", "T3"];
+  const turnos = ["Turnos", "T1", "T2", "T3"];
 
   // Handlers para paginação
   const handlePageChange = (newPage) => {
@@ -79,6 +84,11 @@ export default function ColaboradoresPage() {
   const handleTurnoChange = (newTurno) => {
     setTurnoSelecionado(newTurno);
     setPage(1);
+  };
+
+  const handleEscalaChange = (newEscala) => {
+  setEscalaSelecionada(newEscala);
+  setPage(1);
   };
 
   return (
@@ -137,6 +147,25 @@ export default function ColaboradoresPage() {
                     {t}
                   </option>
                 ))}
+              </select>
+              {/* ESCALA */}
+              <select
+                value={escalaSelecionada}
+                onChange={(e) => handleEscalaChange(e.target.value)}
+                className="
+                  bg-[#1A1A1C]
+                  text-sm
+                  px-4 py-2
+                  rounded-xl
+                  text-[#BFBFC3]
+                  outline-none
+                  hover:bg-[#2A2A2C]
+                "
+              >
+                <option value="TODOS">Escalas</option>
+                <option value="A">Escala A</option>
+                <option value="B">Escala B</option>
+                <option value="C">Escala C</option>
               </select>
             </div>
 

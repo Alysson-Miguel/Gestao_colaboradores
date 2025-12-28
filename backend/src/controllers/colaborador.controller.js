@@ -27,6 +27,7 @@ const getAllColaboradores = async (req, res) => {
     idCargo,
     idEmpresa,
     idLider,
+    escala,
   } = req.query;
 
   const skip = (Number(page) - 1) * Number(limit);
@@ -46,6 +47,8 @@ const getAllColaboradores = async (req, res) => {
   if (idCargo) where.idCargo = Number(idCargo);
   if (idEmpresa) where.idEmpresa = Number(idEmpresa);
   if (idLider) where.idLider = idLider;
+  if (escala) { where.escala = { nomeEscala: escala};} // A | B | C
+
 
   try {
     const [data, total] = await Promise.all([
@@ -59,7 +62,15 @@ const getAllColaboradores = async (req, res) => {
           cargo: true,
           setor: true,
           turno: true,
+          escala: {
+            select: {
+              idEscala: true,
+              nomeEscala: true,
+              descricao: true,
+            },
+          },
         },
+
       }),
       prisma.colaborador.count({ where }),
     ]);
@@ -92,6 +103,7 @@ const getColaboradorById = async (req, res) => {
         cargo: true,
         setor: true,
         turno: true,
+        escala: true,
       },
     });
 
@@ -145,6 +157,7 @@ const createColaborador = async (req, res) => {
       idSetor,
       idCargo,
       idTurno,
+      idEscala,
       status,
     } = req.body;
 
@@ -156,6 +169,10 @@ const createColaborador = async (req, res) => {
         400
       );
     }
+    if (!idEscala) {
+      return errorResponse(res, "Escala é obrigatória", 400);
+}
+
 
     /* ===== DATA ADMISSÃO ===== */
     let dataAdmissaoDate = null;
@@ -199,6 +216,8 @@ const createColaborador = async (req, res) => {
       ...(idSetor ? { setor: { connect: { idSetor: Number(idSetor) } } } : {}),
       ...(idCargo ? { cargo: { connect: { idCargo: Number(idCargo) } } } : {}),
       ...(idTurno ? { turno: { connect: { idTurno: Number(idTurno) } } } : {}),
+      ...(idEscala ? { escala: { connect: { idEscala: Number(idEscala) } } } : {}),
+
     };
 
     const colaborador = await prisma.colaborador.create({
@@ -229,74 +248,93 @@ const updateColaborador = async (req, res) => {
 
     /* ===== HORÁRIO ===== */
     if (inputData.horarioInicioJornada !== undefined) {
-      if (inputData.horarioInicioJornada && !HORARIOS_PERMITIDOS.includes(inputData.horarioInicioJornada)) {
+      if (
+        inputData.horarioInicioJornada &&
+        !HORARIOS_PERMITIDOS.includes(inputData.horarioInicioJornada)
+      ) {
         return errorResponse(
           res,
           `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`,
           400
         );
       }
+
       inputData.horarioInicioJornada = inputData.horarioInicioJornada
         ? new Date(`1970-01-01T${inputData.horarioInicioJornada}:00Z`)
-        : new Date(`1970-01-01T05:25:00Z`); // Default se vazio
+        : new Date(`1970-01-01T05:25:00Z`);
     }
 
-    // Prepare data com nested relations
+    /* ===== DATA BASE ===== */
     const data = {
       ...inputData,
-      // Converte vazios pra null/omit
       ...(inputData.genero === "" ? { genero: null } : {}),
       ...(inputData.cpf === "" ? { cpf: null } : {}),
       ...(inputData.email === "" ? { email: null } : {}),
       ...(inputData.telefone === "" ? { telefone: null } : {}),
     };
 
-    // Remove IDs diretos e usa connect/disconnect
-    const { idEmpresa, idSetor, idCargo, idTurno } = inputData;
+    /* ===== RELAÇÕES ===== */
+    const { idEmpresa, idSetor, idCargo, idTurno, idEscala } = inputData;
+
     if (idEmpresa !== undefined) {
-      if (idEmpresa === "" || idEmpresa === null) {
-        data.empresa = { disconnect: true };
-      } else {
-        data.empresa = { connect: { idEmpresa: Number(idEmpresa) } };
-      }
+      data.empresa =
+        idEmpresa === "" || idEmpresa === null
+          ? { disconnect: true }
+          : { connect: { idEmpresa: Number(idEmpresa) } };
       delete data.idEmpresa;
     }
+
     if (idSetor !== undefined) {
-      if (idSetor === "" || idSetor === null) {
-        data.setor = { disconnect: true };
-      } else {
-        data.setor = { connect: { idSetor: Number(idSetor) } };
-      }
+      data.setor =
+        idSetor === "" || idSetor === null
+          ? { disconnect: true }
+          : { connect: { idSetor: Number(idSetor) } };
       delete data.idSetor;
     }
+
     if (idCargo !== undefined) {
-      if (idCargo === "" || idCargo === null) {
-        data.cargo = { disconnect: true };
-      } else {
-        data.cargo = { connect: { idCargo: Number(idCargo) } };
-      }
+      data.cargo =
+        idCargo === "" || idCargo === null
+          ? { disconnect: true }
+          : { connect: { idCargo: Number(idCargo) } };
       delete data.idCargo;
     }
+
     if (idTurno !== undefined) {
-      if (idTurno === "" || idTurno === null) {
-        data.turno = { disconnect: true };
-      } else {
-        data.turno = { connect: { idTurno: Number(idTurno) } };
-      }
+      data.turno =
+        idTurno === "" || idTurno === null
+          ? { disconnect: true }
+          : { connect: { idTurno: Number(idTurno) } };
       delete data.idTurno;
     }
+
+    /* ===== ESCALA (AQUI ESTAVA FALTANDO) ===== */
+    if (idEscala !== undefined) {
+      if (idEscala === "" || idEscala === null) {
+        data.escala = { disconnect: true };
+      } else {
+        data.escala = { connect: { idEscala: Number(idEscala) } };
+      }
+      delete data.idEscala;
+    }
+
 
     const colaborador = await prisma.colaborador.update({
       where: { opsId },
       data,
     });
 
-    return successResponse(res, colaborador, "Colaborador atualizado com sucesso");
+    return successResponse(
+      res,
+      colaborador,
+      "Colaborador atualizado com sucesso"
+    );
   } catch (err) {
     console.error("❌ ERRO UPDATE:", err);
     return errorResponse(res, "Erro ao atualizar colaborador", 500, err);
   }
 };
+
 
 /* ================= DELETE ================= */
 const deleteColaborador = async (req, res) => {

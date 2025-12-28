@@ -318,7 +318,6 @@ model EvidenciaAcidente {
   arquivoUrl    String
   createdAt     DateTime @default(now())
 }
-
 enum TipoOcorrencia {
   TIPICA        // a serviço da empresa
   TRAJETO       // casa ↔ trabalho

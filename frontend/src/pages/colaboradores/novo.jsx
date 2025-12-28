@@ -23,6 +23,7 @@ export default function NovoColaborador() {
     idSetor: "",
     idCargo: "",
     idTurno: "",
+    idEscala: "",
     dataAdmissao: "",
     horarioInicioJornada: "",
     status: "ATIVO",
@@ -32,22 +33,26 @@ export default function NovoColaborador() {
   const [setores, setSetores] = useState([]);
   const [cargos, setCargos] = useState([]);
   const [turnos, setTurnos] = useState([]);
+  const [escalas, setEscalas] = useState([]);
+
 
   /* ================= LOAD SELECTS ================= */
   useEffect(() => {
     async function loadData() {
       try {
-        const [e, s, c, t] = await Promise.all([
+        const [e, s, c, t, esc] = await Promise.all([
           api.get("/empresas"),
           api.get("/setores"),
           api.get("/cargos"),
           api.get("/turnos"),
+          api.get("/escalas")
         ]);
 
         setEmpresas(e.data.data || []);
         setSetores(s.data.data || []);
         setCargos(c.data.data || []);
         setTurnos(t.data.data || []);
+        setEscalas(esc.data || []);
       } catch (err) {
         console.error(err);
         alert("Erro ao carregar dados auxiliares");
@@ -64,14 +69,20 @@ export default function NovoColaborador() {
   }
 
   async function handleSave() {
-    try {
-      await api.post("/colaboradores", form);
-      navigate("/colaboradores");
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao salvar colaborador");
-    }
+  if (!form.idEscala) {
+    alert("Selecione uma escala");
+    return;
   }
+
+  try {
+    await api.post("/colaboradores", form);
+    navigate("/colaboradores");
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao salvar colaborador");
+  }
+}
+
 
   /* ================= UI ================= */
   return (
@@ -172,8 +183,25 @@ export default function NovoColaborador() {
                 label: t.nomeTurno,
               }))}
             />
-          </Section>
 
+            <Select
+              label="Escala *"
+              name="idEscala"
+              value={form.idEscala}
+              onChange={(e) =>
+                setForm(prev => ({
+                  ...prev,
+                  idEscala: Number(e.target.value), // 🔑 garante número
+                }))
+              }
+              options={escalas.map((e) => ({
+                value: e.idEscala,
+                label: `${e.nomeEscala} — ${e.descricao}`,
+              }))}
+            />
+
+          </Section>
+          
           {/* ================= JORNADA ================= */}
           <Section title="Jornada">
             <Input
