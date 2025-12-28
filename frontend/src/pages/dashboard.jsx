@@ -1,35 +1,45 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Clock, TrendingUp, Building2 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend,
-} from "recharts";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+
+import DashboardHeader from "../components/dashboard/DashboardHeader";
+import TurnoSelector from "../components/dashboard/TurnoSelector";
+import KpiCardsRow from "../components/dashboard/KpiCardsRow";
+import EmpresasSection from "../components/dashboard/EmpresasSection";
+import DistribuicaoGeneroChart from "../components/dashboard/DistribuicaoGeneroChart";
+import StatusColaboradoresSection from "../components/dashboard/StatusColaboradoresSection";
+import AusentesHojeTable from "../components/dashboard/AusentesHojeTable";
+import SetorDistribuicaoSection from "../components/dashboard/SetorDistribuicaoSection";
+
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 
 export default function Dashboard() {
+  /* =====================================================
+     STATES
+     ===================================================== */
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dados, setDados] = useState(null);
-  const [turno, setTurno] = useState("T1");
+  const [turno, setTurno] = useState(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
 
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
 
+  /* =====================================================
+     LOAD DASHBOARD
+     ===================================================== */
   useEffect(() => {
     async function load() {
       try {
         const res = await api.get("/dashboard");
-        setDados(res.data.data);
+        const payload = res.data.data;
+
+        setDados(payload);
+        setTurno(payload.turnoAtual || "T1");
       } catch (e) {
         if (e.response?.status === 401) {
           logout();
@@ -44,60 +54,97 @@ export default function Dashboard() {
     load();
   }, [logout, navigate]);
 
-  if (loading)
+/* =====================================================
+   🔑 DADOS DO TURNO SELECIONADO (FONTE ÚNICA)
+   ===================================================== */
+const turnoData = useMemo(() => {
+  if (!dados || !dados.distribuicaoTurnoSetor || !turno) {
+    return {
+      totalEscalados: 0,
+      presentes: 0,
+      ausentes: 0,
+      setores: [],
+    };
+  }
+
+  return (
+    dados.distribuicaoTurnoSetor.find(
+      (t) => t.turno === turno
+    ) || {
+      totalEscalados: 0,
+      presentes: 0,
+      ausentes: 0,
+      setores: [],
+    }
+  );
+}, [dados, turno]);
+
+/* =====================================================
+   📊 KPIs
+   ===================================================== */
+const totalColaboradores = turnoData.totalEscalados;
+const presentes = turnoData.presentes;
+const ausentes = turnoData.ausentes;
+
+const absenteismo = useMemo(() => {
+  if (!totalColaboradores) return "0.0";
+  return ((ausentes / totalColaboradores) * 100).toFixed(1);
+}, [ausentes, totalColaboradores]);
+
+/* =====================================================
+   📌 STATUS POR TURNO
+   ===================================================== */
+const statusData = useMemo(() => {
+  return dados?.statusColaboradoresPorTurno?.[turno] || [];
+}, [dados, turno]);
+
+/* =====================================================
+   🚨 AUSENTES DO TURNO
+   ===================================================== */
+const ausentesTurno = useMemo(() => {
+  if (!dados || !turno) return [];
+  return dados.ausenciasHoje.filter(
+    (a) => a.turno === turno
+  );
+}, [dados, turno]);
+
+/* =====================================================
+   🏢 EMPRESAS (INSTITUCIONAL)
+   ===================================================== */
+const empresas = useMemo(() => {
+  return dados?.empresas || [];
+}, [dados]);
+
+/* =====================================================
+   🧭 SETORES (SOMENTE PRESENTES)
+   ===================================================== */
+const setores = useMemo(() => {
+  return turnoData.setores;
+}, [turnoData]);
+
+// 🏢 Quantidade por empresa (ESCALADOS POR TURNO)
+const empresasPorTurno = useMemo(() => {
+  return dados?.empresaPorTurno?.[turno] || [];
+}, [dados, turno]);
+
+
+  if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-[#BFBFC3]">
         Carregando…
       </div>
     );
+  }
 
-  if (erro)
+  if (erro) {
     return (
       <div className="h-screen flex items-center justify-center text-[#FF453A]">
         {erro}
       </div>
     );
+  }
 
-  /* ================= DADOS ================= */
-
-  const colaboradores = (dados.colaboradores || []).filter(
-    (c) => (c.turno || "T1") === turno
-  );
-
-  const idsAusentes = new Set(
-    (dados.ausenciasHoje || []).map((a) => a.colaboradorId)
-  );
-
-  const ausentes = colaboradores.filter((c) =>
-    idsAusentes.has(c.id)
-  ).length;
-
-  const presentes = colaboradores.length - ausentes;
-
-  const absenteismo = colaboradores.length
-    ? ((ausentes / colaboradores.length) * 100).toFixed(1)
-    : "0";
-
-  const empresas = (dados.empresas || []).map((e) => ({
-    nome: e.nome,
-    qtd: colaboradores.filter((c) => c.empresa === e.nome).length,
-  }));
-
-  const generoData = Object.entries(
-    colaboradores.reduce((acc, c) => {
-      acc[c.genero || "N/I"] = (acc[c.genero || "N/I"] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([name, value]) => ({ name, value }));
-
-  const listaAusentes = dados.ausenciasHoje || [];
-
-  const COLORS = ["#FA4C00", "#0A84FF", "#34C759", "#FFD60A"];
-
-  const renderPercentLabel = ({ percent }) =>
-    `${(percent * 100).toFixed(0)}%`;
-
-  /* ================= UI ================= */
+  if (!dados) return null;
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
@@ -111,185 +158,47 @@ export default function Dashboard() {
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-8 space-y-10">
-          {/* TURNO */}
-          <div className="flex gap-2">
-            {["T1", "T2", "T3"].map((t) => (
-              <button
-                key={t}
-                onClick={() => setTurno(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition
-                  ${
-                    turno === t
-                      ? "bg-[#FA4C00] text-white"
-                      : "bg-[#1A1A1C] text-[#BFBFC3] hover:bg-[#2A2A2C]"
-                  }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          {/* HEADER */}
+          <DashboardHeader
+            dataOperacional={dados.dataOperacional}
+            turnoAtual={dados.turnoAtual}
+          />
+
+          {/* SELETOR DE TURNO */}
+          <TurnoSelector turno={turno} onChange={setTurno} />
 
           {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-[#1A1A1C] rounded-2xl p-6">
-            <KPI icon={Users} label="Colaboradores" value={colaboradores.length} />
-            <KPI icon={Clock} label="Presentes Hoje" value={presentes} />
-            <KPI
-              icon={TrendingUp}
-              label="Absenteísmo"
-              value={`${absenteismo}%`}
-              color={absenteismo > 10 ? "#FF453A" : "#34C759"}
-            />
-            <KPI icon={Building2} label="Empresas" value={empresas.length} />
-          </div>
+          <KpiCardsRow
+            total={totalColaboradores}
+            presentes={presentes}
+            absenteismo={absenteismo}
+            empresasCount={empresas.length}
+          />
 
           {/* EMPRESAS */}
-          <section className="space-y-4">
-            <h2 className="text-sm font-semibold text-[#BFBFC3] uppercase">
-              Quantidade por Empresa
-            </h2>
+          <EmpresasSection empresas={empresasPorTurno} />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {empresas.map((e) => (
-                <div
-                  key={e.nome}
-                  className="bg-[#1A1A1C] rounded-xl px-5 py-4"
-                >
-                  <p className="text-[#BFBFC3] text-sm">{e.nome}</p>
-                  <p className="text-2xl font-semibold">{e.qtd}</p>
-                </div>
-              ))}
-            </div>
-          </section>
 
-          {/* DISTRIBUIÇÃO */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* GÊNERO */}
-            <div className="bg-[#1A1A1C] rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-[#BFBFC3] mb-4 uppercase">
-                Distribuição por Gênero
-              </h2>
+          {/* DISTRIBUIÇÕES */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <DistribuicaoGeneroChart
+              data={dados.generoPorTurno?.[turno] || []}
+            />
+            <StatusColaboradoresSection status={statusData} />
+          </div>
 
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart>
-                  <Pie
-                    data={generoData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    label={renderPercentLabel}
-                    labelLine={false}
-                  >
-                    {generoData.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={COLORS[i % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-
-                  <Tooltip
-                    formatter={(value, name) => {
-                      const total = generoData.reduce(
-                        (acc, cur) => acc + cur.value,
-                        0
-                      );
-                      const percent = ((value / total) * 100).toFixed(1);
-                      return [`${value} (${percent}%)`, name];
-                    }}
-                    contentStyle={{
-                      backgroundColor: "#1A1A1C",
-                      border: "1px solid #3D3D40",
-                      borderRadius: "8px",
-                      color: "#FFFFFF",
-                    }}
-                  />
-
-                  <Legend
-                    verticalAlign="bottom"
-                    iconType="circle"
-                    formatter={(value) => (
-                      <span className="text-[#BFBFC3] text-xs">
-                        {value}
-                      </span>
-                    )}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* STATUS */}
-            <div className="bg-[#1A1A1C] rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-[#BFBFC3] mb-4 uppercase">
-                Status dos Colaboradores
-              </h2>
-
-              <div className="flex justify-between items-center">
-                <span className="text-[#BFBFC3]">ATIVO</span>
-                <span className="text-2xl font-semibold">
-                  {colaboradores.length}
-                </span>
-              </div>
-            </div>
-          </section>
+          {/* SETORES */}
+          <SetorDistribuicaoSection setores={setores} />
 
           {/* AUSENTES */}
           <section className="space-y-4">
             <h2 className="text-sm font-semibold text-[#BFBFC3] uppercase">
-              Ausentes Hoje
+              Ausentes Hoje — {turno}
             </h2>
 
-            <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-[#2A2A2C] text-[#BFBFC3]">
-                  <tr>
-                    <th className="px-6 py-4 text-left">Colaborador</th>
-                    <th className="px-6 py-4 text-left">Motivo</th>
-                    <th className="px-6 py-4 text-left">Turno</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {listaAusentes.map((a, i) => (
-                    <tr
-                      key={i}
-                      className="border-t border-[#3D3D40]"
-                    >
-                      <td className="px-6 py-4">{a.nome}</td>
-                      <td className="px-6 py-4 text-[#BFBFC3]">
-                        {a.motivo || "Sem registro"}
-                      </td>
-                      <td className="px-6 py-4 text-[#BFBFC3]">
-                        {a.turno || "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <AusentesHojeTable ausentes={ausentesTurno} />
           </section>
         </main>
-      </div>
-    </div>
-  );
-}
-
-/* ================= KPI ================= */
-
-function KPI({ icon: Icon, label, value, color = "#FFFFFF" }) {
-  return (
-    <div className="flex items-center gap-4">
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center"
-        style={{ backgroundColor: "#2A2A2C", color }}
-      >
-        <Icon size={20} />
-      </div>
-      <div>
-        <p className="text-sm text-[#BFBFC3]">{label}</p>
-        <p className="text-2xl font-semibold" style={{ color }}>
-          {value}
-        </p>
       </div>
     </div>
   );

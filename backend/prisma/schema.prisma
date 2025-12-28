@@ -23,29 +23,35 @@ model TipoAusencia {
 }
 
 model Frequencia {
-  idFrequencia     Int           @id @default(autoincrement()) @map("id_frequencia")
-  opsId            String        @map("ops_id") @db.VarChar(50)
-  dataReferencia   DateTime      @map("data_referencia") @db.Date
-  idTipoAusencia   Int?          @map("id_tipo_ausencia")
-  horaEntrada      DateTime?     @map("hora_entrada") @db.Time(6)
-  horaSaida        DateTime?     @map("hora_saida") @db.Time(6)
-  horasTrabalhadas Decimal?      @map("horas_trabalhadas") @db.Decimal(4, 2)
+  idFrequencia     Int       @id @default(autoincrement()) @map("id_frequencia")
+  opsId            String    @map("ops_id") @db.VarChar(50)
+  dataReferencia   DateTime  @map("data_referencia") @db.Date
+  idTipoAusencia   Int?      @map("id_tipo_ausencia")
+  idSetor          Int?      @map("id_setor")
+  horaEntrada      DateTime? @map("hora_entrada") @db.Time(6)
+  horaSaida        DateTime? @map("hora_saida") @db.Time(6)
+  horasTrabalhadas Decimal?  @map("horas_trabalhadas") @db.Decimal(4, 2)
   observacao       String?
-  manual           Boolean       @default(false)
+  manual           Boolean   @default(false)
   justificativa    String?
-  documentoAnexo   String?       @map("documento_anexo") @db.VarChar(500)
-  dataRegistro     DateTime      @default(now()) @map("data_registro")
-  registradoPor    String?       @map("registrado_por") @db.VarChar(50)
-  validado         Boolean       @default(false)
-  validadoPor      String?       @map("validado_por") @db.VarChar(50)
-  dataValidacao    DateTime?     @map("data_validacao")
-  tipoAusencia     TipoAusencia? @relation(fields: [idTipoAusencia], references: [idTipoAusencia])
-  colaborador      Colaborador   @relation(fields: [opsId], references: [opsId])
-  historico        FrequenciaHistorico[]
+  documentoAnexo   String?   @map("documento_anexo") @db.VarChar(500)
+  dataRegistro     DateTime  @default(now()) @map("data_registro")
+  registradoPor    String?   @map("registrado_por") @db.VarChar(50)
+  validado         Boolean   @default(false)
+  validadoPor      String?   @map("validado_por") @db.VarChar(50)
+  dataValidacao    DateTime? @map("data_validacao")
+
+  tipoAusencia TipoAusencia?         @relation(fields: [idTipoAusencia], references: [idTipoAusencia])
+  colaborador  Colaborador           @relation(fields: [opsId], references: [opsId])
+  setor        Setor?                @relation(fields: [idSetor], references: [idSetor])
+  historico    FrequenciaHistorico[]
+
   @@unique([opsId, dataReferencia])
   @@index([opsId])
   @@index([dataReferencia])
   @@index([idTipoAusencia])
+  @@index([idSetor])
+  @@index([dataReferencia, idSetor])
   @@map("frequencia")
 }
 
@@ -126,12 +132,14 @@ model Empresa {
 }
 
 model Setor {
-  idSetor       Int           @id @default(autoincrement()) @map("id_setor")
-  nomeSetor     String        @unique @map("nome_setor") @db.VarChar(100)
-  descricao     String?
-  ativo         Boolean       @default(true)
-  dataCriacao   DateTime      @default(now()) @map("data_criacao")
+  idSetor     Int      @id @default(autoincrement()) @map("id_setor")
+  nomeSetor   String   @unique @map("nome_setor") @db.VarChar(100)
+  descricao   String?
+  ativo       Boolean  @default(true)
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
   colaboradores Colaborador[]
+  frequencias   Frequencia[]
 
   @@map("setor")
 }
@@ -309,6 +317,7 @@ model EvidenciaAcidente {
   createdAt   DateTime         @default(now())
   acidente    AcidenteTrabalho @relation(fields: [idAcidente], references: [idAcidente])
 }
+
 model FrequenciaHistorico {
   idFrequenciaHistorico Int      @id @default(autoincrement()) @map("id_frequencia_historico")
   idFrequencia          Int      @map("id_frequencia")
@@ -323,7 +332,6 @@ model FrequenciaHistorico {
   @@index([idFrequencia])
   @@map("frequencia_historico")
 }
-
 
 enum TipoOcorrencia {
   TIPICA
