@@ -95,6 +95,9 @@ const registrarPontoCPF = async (req, res) => {
 
     const agora = new Date();
 
+    /* ==========================================
+       BUSCA COLABORADOR
+    ========================================== */
     const colaborador = await prisma.colaborador.findFirst({
       where: { cpf },
       include: {
@@ -118,51 +121,60 @@ const registrarPontoCPF = async (req, res) => {
       },
     });
 
-    if (!colaborador) {
-      console.warn(`[${reqId}] cpf não encontrado`);
+    if (!colaborador)
       return notFoundResponse(res, "Colaborador não encontrado");
-    }
 
-    if (colaborador.status !== "ATIVO") {
-      console.warn(`[${reqId}] colaborador não ativo:`, colaborador.status);
+    if (colaborador.status !== "ATIVO")
       return errorResponse(res, "Colaborador não está ativo", 400);
-    }
 
-    // dia operacional considerando o turno do colaborador
-    const dataReferencia = getDataOperacionalPorTurno(agora, colaborador.turno);
+    /* ==========================================
+       DIA OPERACIONAL (POR TURNO)
+    ========================================== */
+    const dataReferencia = getDataOperacionalPorTurno(
+      agora,
+      colaborador.turno
+    );
 
-    console.log(`[${reqId}] opsId=${colaborador.opsId} turno=${colaborador.turno?.nomeTurno} escala=${colaborador.escala?.nomeEscala}`);
-    console.log(`[${reqId}] agora=${agora.toISOString()} dataReferencia=${dataReferencia.toISOString()} (${ymd(dataReferencia)})`);
+    console.log(
+      `[${reqId}] opsId=${colaborador.opsId} turno=${colaborador.turno?.nomeTurno}`
+    );
+    console.log(
+      `[${reqId}] agora=${agora.toISOString()} dataReferencia=${ymd(
+        dataReferencia
+      )}`
+    );
 
-    // bloqueia DSR (a não ser ajuste manual pelo líder)
+    /* ==========================================
+       BLOQUEIOS (DSR / AUSÊNCIA / ATESTADO)
+    ========================================== */
     if (isDiaDSR(dataReferencia, colaborador.escala?.nomeEscala)) {
-      console.warn(`[${reqId}] tentativa de bater ponto em DSR`);
       return errorResponse(
         res,
-        "Hoje é DSR. Se for hora extra, solicite ajuste manual ao líder.",
+        "Hoje é DSR. Se for hora extra, solicite ajuste manual.",
         400
       );
     }
 
-    // bloqueia por ausência ativa
     if (colaborador.ausencias?.length > 0) {
       const cod = colaborador.ausencias[0]?.tipoAusencia?.codigo || "AUS";
-      console.warn(`[${reqId}] possui ausência ativa:`, cod);
-      return errorResponse(res, `Colaborador possui ausência ativa (${cod})`, 400);
+      return errorResponse(
+        res,
+        `Colaborador possui ausência ativa (${cod})`,
+        400
+      );
     }
 
-    // bloqueia por atestado ativo
     if (colaborador.atestadosMedicos?.length > 0) {
-      console.warn(`[${reqId}] possui atestado ativo`);
-      return errorResponse(res, "Colaborador possui atestado médico ativo", 400);
+      return errorResponse(
+        res,
+        "Colaborador possui atestado médico ativo",
+        400
+      );
     }
 
-    // tipo de presença (se existir)
-    const tipoPresenca = await prisma.tipoAusencia.findFirst({
-      where: { codigo: "P" },
-    });
-
-    // tenta achar frequência do dia
+    /* ==========================================
+       BUSCA FREQUÊNCIA DO DIA
+    ========================================== */
     const existente = await prisma.frequencia.findFirst({
       where: {
         opsId: colaborador.opsId,
@@ -170,40 +182,74 @@ const registrarPontoCPF = async (req, res) => {
       },
     });
 
-    // se já tem entrada registrada, não duplica
-    if (existente?.horaEntrada) {
-      console.log(`[${reqId}] já tinha entrada registrada`, { idFrequencia: existente.idFrequencia });
-      return successResponse(res, existente, "Presença já registrada hoje");
-    }
+    const horaAgora = toTimeOnly(agora);
 
-    const horaEntrada = toTimeOnly(agora);
+    /* ==========================================
+       1ª BATIDA → ENTRADA
+    ========================================== */
+    if (!existente) {
+      const tipoPresenca = await prisma.tipoAusencia.findFirst({
+        where: { codigo: "P" },
+      });
 
-    const registro = await prisma.frequencia.upsert({
-      where: {
-        opsId_dataReferencia: {
+      const registro = await prisma.frequencia.create({
+        data: {
           opsId: colaborador.opsId,
           dataReferencia,
+          horaEntrada: horaAgora,
+          idTipoAusencia: tipoPresenca?.idTipoAusencia ?? null,
+          registradoPor: colaborador.opsId,
+          validado: false,
         },
-      },
-      update: {
-        horaEntrada,
-        idTipoAusencia: tipoPresenca?.idTipoAusencia ?? null,
-        registradoPor: colaborador.opsId,
-        validado: false,
-      },
-      create: {
-        opsId: colaborador.opsId,
-        dataReferencia,
-        horaEntrada,
-        idTipoAusencia: tipoPresenca?.idTipoAusencia ?? null,
-        registradoPor: colaborador.opsId,
-        validado: false,
-      },
-    });
+      });
 
-    console.log(`[${reqId}] presença registrada`, { idFrequencia: registro.idFrequencia });
+      console.log(`[${reqId}] ENTRADA registrada`, registro.idFrequencia);
 
-    return createdResponse(res, registro, "Ponto registrado com sucesso!");
+      return createdResponse(res, registro, "Entrada registrada com sucesso");
+    }
+
+    /* ==========================================
+       2ª BATIDA → SAÍDA
+    ========================================== */
+    if (existente.horaEntrada && !existente.horaSaida) {
+      const entradaMin = timeToMinutes(existente.horaEntrada);
+      const saidaMin = nowToMinutes(agora);
+
+      let minutosTrabalhados = saidaMin - entradaMin;
+      if (minutosTrabalhados < 0) {
+        // virou o dia (T3)
+        minutosTrabalhados += 24 * 60;
+      }
+
+      const horasTrabalhadas = Number(
+        (minutosTrabalhados / 60).toFixed(2)
+      );
+
+      const atualizado = await prisma.frequencia.update({
+        where: { idFrequencia: existente.idFrequencia },
+        data: {
+          horaSaida: horaAgora,
+          horasTrabalhadas,
+        },
+      });
+
+      console.log(`[${reqId}] SAÍDA registrada`, atualizado.idFrequencia);
+
+      return successResponse(
+        res,
+        atualizado,
+        "Saída registrada com sucesso"
+      );
+    }
+
+    /* ==========================================
+       3ª BATIDA → BLOQUEIO
+    ========================================== */
+    return errorResponse(
+      res,
+      "Ponto do dia já está completo (entrada e saída)",
+      409
+    );
   } catch (err) {
     console.error(`[${reqId}] ❌ ERRO registrarPontoCPF:`, err);
     return errorResponse(
@@ -214,6 +260,7 @@ const registrarPontoCPF = async (req, res) => {
     );
   }
 };
+
 
 /* =====================================================
    GET /ponto/controle?mes=YYYY-MM&turno=T1&escala=A
