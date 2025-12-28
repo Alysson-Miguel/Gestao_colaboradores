@@ -357,18 +357,16 @@ const ajusteManualPresenca = async (req, res) => {
     }
 
     const tipo = await prisma.tipoAusencia.findUnique({
-      where: { codigo: status }, // 🔑 agora bate com seed
+      where: { codigo: status },
     });
 
     if (!tipo) {
-      return errorResponse(
-        res,
-        `Status inválido: ${status}`,
-        400
-      );
+      return errorResponse(res, `Status inválido: ${status}`, 400);
     }
 
-    const dataRef = new Date(dataReferencia);
+    // ✅ FIX DE DATA (SEM UTC)
+    const [y, m, d] = dataReferencia.split("-").map(Number);
+    const dataRef = new Date(y, m - 1, d);
     dataRef.setHours(0, 0, 0, 0);
 
     const registro = await prisma.frequencia.upsert({
@@ -400,6 +398,7 @@ const ajusteManualPresenca = async (req, res) => {
     return errorResponse(res, "Erro ao realizar ajuste manual", 500);
   }
 };
+
 module.exports = {
   registrarPontoCPF,
   getControlePresenca,

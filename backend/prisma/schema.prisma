@@ -41,7 +41,7 @@ model Frequencia {
   dataValidacao    DateTime?     @map("data_validacao")
   tipoAusencia     TipoAusencia? @relation(fields: [idTipoAusencia], references: [idTipoAusencia])
   colaborador      Colaborador   @relation(fields: [opsId], references: [opsId])
-
+  historico        FrequenciaHistorico[]
   @@unique([opsId, dataReferencia])
   @@index([opsId])
   @@index([dataReferencia])
@@ -309,6 +309,21 @@ model EvidenciaAcidente {
   createdAt   DateTime         @default(now())
   acidente    AcidenteTrabalho @relation(fields: [idAcidente], references: [idAcidente])
 }
+model FrequenciaHistorico {
+  idFrequenciaHistorico Int      @id @default(autoincrement()) @map("id_frequencia_historico")
+  idFrequencia          Int      @map("id_frequencia")
+  statusAnterior        String?  @map("status_anterior")
+  statusNovo            String?  @map("status_novo")
+  justificativa         String?
+  alteradoPor           String?  @map("alterado_por")
+  dataAlteracao         DateTime @default(now()) @map("data_alteracao")
+
+  frequencia Frequencia @relation(fields: [idFrequencia], references: [idFrequencia])
+
+  @@index([idFrequencia])
+  @@map("frequencia_historico")
+}
+
 
 enum TipoOcorrencia {
   TIPICA

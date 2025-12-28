@@ -4,7 +4,7 @@ import { useState } from "react";
 const STATUS_OPTIONS = [
   { code: "P", label: "Presente" },
   { code: "F", label: "Falta não justificada" },
-  { code: "DSR", label: "DSR (trabalho autorizado)" },
+  { code: "DSR", label: "DSR (Descanso Semanal Remunerado)" },
   { code: "AM", label: "Atestado médico" },
   { code: "AA", label: "Atestado acompanhamento" },
   { code: "FE", label: "Férias" },

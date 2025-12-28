@@ -17,18 +17,25 @@ export default function PresencaRow({
       </td>
 
       {/* DIAS */}
-      {dias.map((dia) => {
-        // 🔑 monta data ISO corretamente
-        const dataISO = `${colaborador.ano}-${String(colaborador.mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+      {dias.map((diaNumero) => {
+        /**
+         * 🔑 Encontra a data ISO REAL vinda do backend
+         * Ex: "2025-12-28"
+         */
+        const dataISO = Object.keys(colaborador.dias).find(
+          (d) => d.endsWith(`-${String(diaNumero).padStart(2, "0")}`)
+        );
 
-        const registro = colaborador.dias[dataISO];
+        const registro = dataISO
+          ? colaborador.dias[dataISO]
+          : null;
 
         return (
           <PresencaCell
-            key={`${colaborador.opsId}-${dataISO}`} // ✅ key correta
+            key={`${colaborador.opsId}-${dataISO || diaNumero}`}
             dia={{
               date: dataISO,
-              label: `${dia}`,
+              label: String(diaNumero),
             }}
             registro={registro}
             colaborador={colaborador}
