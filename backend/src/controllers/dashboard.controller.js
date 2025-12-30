@@ -1,7 +1,21 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-function getContextoOperacional(baseDate = new Date()) {
+/* =====================================================
+   ⏰ TIMEZONE FIXO — BRASIL
+===================================================== */
+function agoraBrasil() {
+  const now = new Date();
+  const spString = now.toLocaleString("en-US", {
+    timeZone: "America/Sao_Paulo",
+  });
+  return new Date(spString);
+}
+
+/* =====================================================
+   📅 CONTEXTO OPERACIONAL
+===================================================== */
+function getContextoOperacional(baseDate) {
   const d = new Date(baseDate);
   const minutos = d.getHours() * 60 + d.getMinutes();
 
@@ -27,6 +41,7 @@ function getContextoOperacional(baseDate = new Date()) {
   return {
     turnoAtual: turno,
     dataOperacional: diaOperacional,
+    dataOperacionalStr: diaOperacional.toISOString().slice(0, 10), // ✅ STRING SEGURA
   };
 }
 
@@ -92,32 +107,37 @@ const initTurnoMap = () => ({
 ===================================================== */
 const carregarDashboard = async (req, res) => {
   try {
-      const agora = new Date();
-      const { dataOperacional, turnoAtual } =
-        getContextoOperacional(agora);
+    const agora = agoraBrasil();
+    const {
+      dataOperacional,
+      dataOperacionalStr,
+      turnoAtual,
+    } = getContextoOperacional(agora);
 
+    const [
+      colaboradores,
+      empresas,
+      turnos,
+      escalasAtivas,
+      frequenciasHoje,
+    ] = await Promise.all([
+      prisma.colaborador.findMany({
+        include: { empresa: true, turno: true, setor: true },
+      }),
+      prisma.empresa.findMany(),
+      prisma.turno.findMany(),
+      prisma.escala.findMany({ where: { ativo: true } }),
+      prisma.frequencia.findMany({
+        where: { dataReferencia: dataOperacional },
+        include: {
+          colaborador: { include: { turno: true, setor: true } },
+          tipoAusencia: true,
+          setor: true,
+        },
+      }),
+    ]);
 
-    const [colaboradores, empresas, turnos, escalasAtivas, frequenciasHoje] =
-      await Promise.all([
-        prisma.colaborador.findMany({
-          include: { empresa: true, turno: true, setor: true },
-        }),
-        prisma.empresa.findMany(),
-        prisma.turno.findMany(),
-        prisma.escala.findMany({ where: { ativo: true } }),
-        prisma.frequencia.findMany({
-          where: { dataReferencia: dataOperacional },
-          include: {
-            colaborador: { include: { turno: true, setor: true } },
-            tipoAusencia: true,
-            setor: true,
-          },
-        }),
-      ]);
-
-    const freqMap = new Map(
-      frequenciasHoje.map((f) => [f.opsId, f])
-    );
+    const freqMap = new Map(frequenciasHoje.map((f) => [f.opsId, f]));
 
     const turnoSetorAgg = {};
     const generoPorTurno = initTurnoMap();
@@ -131,15 +151,12 @@ const carregarDashboard = async (req, res) => {
       const genero = normalize(c.genero) || "N/I";
       const empresa = normalize(c.empresa?.razaoSocial) || "Sem empresa";
 
-      /* ===== GÊNERO (ESCALADOS) ===== */
       generoPorTurno[turno][genero] =
         (generoPorTurno[turno][genero] || 0) + 1;
 
-      /* ===== EMPRESA (ESCALADOS) ===== */
       empresaPorTurno[turno][empresa] =
         (empresaPorTurno[turno][empresa] || 0) + 1;
 
-      /* ===== TURNO BASE ===== */
       if (!turnoSetorAgg[turno]) {
         turnoSetorAgg[turno] = {
           turno,
@@ -152,12 +169,10 @@ const carregarDashboard = async (req, res) => {
 
       turnoSetorAgg[turno].totalEscalados++;
 
-      /* ===== SETOR (ESCALADOS) ===== */
       const setor = getSetor(registro, c);
       turnoSetorAgg[turno].setores[setor] =
         (turnoSetorAgg[turno].setores[setor] || 0) + 1;
 
-      /* ===== STATUS ===== */
       const { status, origem } = getStatusDoDia(registro);
       statusPorTurno[turno][status] =
         (statusPorTurno[turno][status] || 0) + 1;
@@ -184,7 +199,7 @@ const carregarDashboard = async (req, res) => {
     return res.json({
       success: true,
       data: {
-        dataOperacional,
+        dataOperacional: dataOperacionalStr, // ✅ STRING
         turnoAtual,
 
         distribuicaoTurnoSetor: Object.values(turnoSetorAgg).map((t) => ({
