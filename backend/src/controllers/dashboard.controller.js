@@ -1,30 +1,33 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-/* =====================================================
-   DIA OPERACIONAL (cutoff 05:25)
-===================================================== */
-function getDiaOperacionalRef(baseDate = new Date()) {
+function getContextoOperacional(baseDate = new Date()) {
   const d = new Date(baseDate);
-  const beforeCutoff =
-    d.getHours() < 5 || (d.getHours() === 5 && d.getMinutes() < 25);
+  const minutos = d.getHours() * 60 + d.getMinutes();
 
-  if (beforeCutoff) d.setDate(d.getDate() - 1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+  const inRange = (s, e) =>
+    s <= e ? minutos >= s && minutos <= e : minutos >= s || minutos <= e;
 
-/* =====================================================
-   TURNO ATUAL (prioridade T3 > T2 > T1)
-===================================================== */
-function getTurnoAtual(baseDate = new Date()) {
-  const t = baseDate.getHours() * 60 + baseDate.getMinutes();
-  const inRange = (s, e) => (s <= e ? t >= s && t <= e : t >= s || t <= e);
+  let turno;
+  let diaOperacional = new Date(d);
 
-  if (inRange(21 * 60, 5 * 60 + 48)) return "T3";
-  if (inRange(13 * 60 + 20, 23 * 60)) return "T2";
-  if (inRange(5 * 60 + 25, 15 * 60 + 5)) return "T1";
-  return "T1";
+  if (inRange(21 * 60, 5 * 60 + 48)) {
+    turno = "T3";
+    diaOperacional.setDate(diaOperacional.getDate() - 1);
+  } else if (inRange(13 * 60 + 20, 23 * 60)) {
+    turno = "T2";
+  } else if (inRange(5 * 60 + 25, 15 * 60 + 5)) {
+    turno = "T1";
+  } else {
+    turno = "T1";
+  }
+
+  diaOperacional.setHours(0, 0, 0, 0);
+
+  return {
+    turnoAtual: turno,
+    dataOperacional: diaOperacional,
+  };
 }
 
 /* =====================================================
@@ -89,9 +92,10 @@ const initTurnoMap = () => ({
 ===================================================== */
 const carregarDashboard = async (req, res) => {
   try {
-    const agora = new Date();
-    const dataOperacional = getDiaOperacionalRef(agora);
-    const turnoAtual = getTurnoAtual(agora);
+      const agora = new Date();
+      const { dataOperacional, turnoAtual } =
+        getContextoOperacional(agora);
+
 
     const [colaboradores, empresas, turnos, escalasAtivas, frequenciasHoje] =
       await Promise.all([
