@@ -279,11 +279,24 @@ function buildEmpresasResumo({
 const carregarDashboardAdmin = async (req, res) => {
   try {
     const { inicio, fim } = getPeriodoFiltro(req.query);
-
+    const { turno } = req.query;
+    
     const colaboradores = await prisma.colaborador.findMany({
-      where: { status: "ATIVO" },
-      include: { empresa: true, setor: true },
+      where: {
+        status: "ATIVO",
+        ...(turno && turno !== "ALL" && {
+          turno: {
+            nomeTurno: turno,
+          },
+        }),
+      },
+      include: {
+        empresa: true,
+        setor: true,
+        turno: true,
+      },
     });
+
 
     const opsIds = colaboradores.map((c) => c.opsId);
 
