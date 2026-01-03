@@ -127,7 +127,7 @@ model Empresa {
   dataAtualizacao DateTime      @default(now()) @updatedAt @map("data_atualizacao")
   colaboradores   Colaborador[]
   contratos       Contrato[]
-
+  desligamentos Desligamento[]
   @@map("empresa")
 }
 
@@ -247,7 +247,7 @@ model Colaborador {
   frequencias           Frequencia[]
   historicoMovimentacao HistoricoMovimentacao[] @relation("ColaboradorMovimentado")
   medidasDisciplinares  MedidaDisciplinar[]
-  desligamento     Desligamento?
+  desligamentos Desligamento[]
 
   @@index([matricula])
   @@index([status])
