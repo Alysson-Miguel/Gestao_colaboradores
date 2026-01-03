@@ -1,23 +1,31 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
+/* ================= AUTH ================= */
 import Login from "./pages/login";
 import Register from "./pages/register";
-import Dashboard from "./pages/dashboard";
 
+/* ================= DASHBOARDS ================= */
+import DashboardOperacional from "./pages/dashboards/dashboardOperacional";
+import DashboardAdmin from "./pages/dashboards/dashboardAdmin";
+
+/* ================= COLABORADORES ================= */
 import ColaboradoresPage from "./pages/colaboradores";
 import NovoColaborador from "./pages/colaboradores/novo";
 import EditarColaborador from "./pages/colaboradores/editar";
 import MovimentarColaborador from "./pages/colaboradores/movimentar";
 import PerfilColaborador from "./pages/colaboradores/perfil";
 import ImportarColaboradores from "./pages/colaboradores/import";
+
+/* ================= PONTO ================= */
+import PontoPage from "./pages/Ponto";
 import ControlePresenca from "./pages/ponto/ControlePresenca";
 
-
+/* ================= ESTRUTURA ================= */
 import EmpresasPage from "./pages/empresas";
 import SetoresPage from "./pages/Setores";
 import CargosPage from "./pages/cargos";
-import PontoPage from "./pages/Ponto";
 
+/* ================= RH ================= */
 import AtestadosPage from "./pages/atestados";
 import NovoAtestado from "./pages/atestados/novo";
 
@@ -27,6 +35,7 @@ import NovaMedidaDisciplinar from "./pages/medidas-disciplinares/novo";
 import AcidentesPage from "./pages/acidentes";
 import NovoAcidente from "./pages/acidentes/novo";
 
+/* ================= PROTEÇÃO ================= */
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 export default function App() {
@@ -36,12 +45,27 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* ================= DASHBOARD ================= */}
+      {/* ================= DASHBOARDS ================= */}
+      {/* Redireciona / para o dashboard padrão */}
       <Route
         path="/"
+        element={<Navigate to="/dashboard/operacional" replace />}
+      />
+
+      <Route
+        path="/dashboard/operacional"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <DashboardOperacional />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/admin"
+        element={
+          <ProtectedRoute>
+            <DashboardAdmin />
           </ProtectedRoute>
         }
       />
@@ -65,7 +89,7 @@ export default function App() {
         }
       />
 
-      {/* ← ADICIONE ESTA ROTA AQUI: ESPECÍFICA ANTES DA DINÂMICA /:opsId */}
+      {/* ⚠️ IMPORT precisa vir antes da rota dinâmica */}
       <Route
         path="/colaboradores/import"
         element={
@@ -93,7 +117,6 @@ export default function App() {
         }
       />
 
-      {/* ← A DINÂMICA FICA DEPOIS: Agora /import não vaza mais pro Perfil */}
       <Route
         path="/colaboradores/:opsId"
         element={
@@ -103,7 +126,7 @@ export default function App() {
         }
       />
 
-      {/* ================= ATESTADOS ================= */}
+      {/* ================= RH ================= */}
       <Route
         path="/atestados"
         element={
@@ -122,7 +145,6 @@ export default function App() {
         }
       />
 
-      {/* ================= MEDIDAS DISCIPLINARES ================= */}
       <Route
         path="/medidas-disciplinares"
         element={
@@ -140,7 +162,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      {/* ================= ACIDENTES ================= */}
+
       <Route
         path="/acidentes"
         element={
@@ -159,7 +181,7 @@ export default function App() {
         }
       />
 
-      {/* ================= OUTRAS PÁGINAS ================= */}
+      {/* ================= ESTRUTURA ================= */}
       <Route
         path="/empresas"
         element={
@@ -187,6 +209,7 @@ export default function App() {
         }
       />
 
+      {/* ================= PONTO ================= */}
       <Route
         path="/ponto"
         element={
@@ -205,10 +228,11 @@ export default function App() {
         }
       />
 
-      
-
       {/* ================= FALLBACK ================= */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route
+        path="*"
+        element={<Navigate to="/dashboard/operacional" replace />}
+      />
     </Routes>
   );
 }

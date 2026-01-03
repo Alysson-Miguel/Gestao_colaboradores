@@ -247,6 +247,7 @@ model Colaborador {
   frequencias           Frequencia[]
   historicoMovimentacao HistoricoMovimentacao[] @relation("ColaboradorMovimentado")
   medidasDisciplinares  MedidaDisciplinar[]
+  desligamento     Desligamento?
 
   @@index([matricula])
   @@index([status])
@@ -332,6 +333,25 @@ model FrequenciaHistorico {
   @@index([idFrequencia])
   @@map("frequencia_historico")
 }
+model Desligamento {
+  idDesligamento   Int               @id @default(autoincrement())
+  opsId            String            @map("ops_id") @db.VarChar(50)
+  idEmpresa        Int?              @map("id_empresa")
+  dataDesligamento DateTime          @map("data_desligamento") @db.Date
+  tipo             TipoDesligamento
+  motivo           MotivoDesligamento
+  observacao       String?
+  registradoPor    String?           @map("registrado_por") @db.VarChar(50)
+  dataRegistro     DateTime          @default(now()) @map("data_registro")
+
+  colaborador Colaborador @relation(fields: [opsId], references: [opsId])
+  empresa     Empresa?    @relation(fields: [idEmpresa], references: [idEmpresa])
+
+  @@index([opsId])
+  @@index([idEmpresa])
+  @@index([dataDesligamento])
+  @@map("desligamento")
+}
 
 enum TipoOcorrencia {
   TIPICA
@@ -376,3 +396,16 @@ enum TipoMedida {
   ORIENTACAO
   OUTRA
 }
+enum TipoDesligamento {
+  VOLUNTARIO
+  INVOLUNTARIO
+}
+enum MotivoDesligamento {
+  PEDIDO_COLABORADOR
+  JUSTA_CAUSA
+  SEM_JUSTA_CAUSA
+  TERMINO_CONTRATO
+  PERFORMANCE
+  OUTRO
+}
+

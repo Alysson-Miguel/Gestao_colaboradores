@@ -1,29 +1,49 @@
-export default function SetorDistribuicaoSection({ setores }) {
-  if (!setores.length) return null;
+export default function SetorDistribuicaoSection({
+  title = "Distribuição",
+  items = [],              // [{ label, value }]
+  barColor = "#FA4C00",
+  emptyMessage = null,
+}) {
+  if (!items || items.length === 0) {
+    return emptyMessage ? (
+      <div className="text-sm text-[#BFBFC3]">
+        {emptyMessage}
+      </div>
+    ) : null;
+  }
 
-  const max = Math.max(...setores.map((s) => s.quantidade));
+  const max = Math.max(...items.map((i) => i.value));
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold text-[#BFBFC3] uppercase">
-        Presença por Setor
-      </h2>
+      {title && (
+        <h2 className="text-sm font-semibold text-[#BFBFC3] uppercase">
+          {title}
+        </h2>
+      )}
 
       <div className="bg-[#1A1A1C] rounded-2xl p-6 space-y-4">
-        {setores.map((s) => (
-          <div key={s.setor} className="space-y-1">
+        {items.map((item, i) => (
+          <div
+            key={`${item.label}-${i}`}
+            className="space-y-1"
+          >
             <div className="flex justify-between text-sm">
-              <span>{s.setor}</span>
+              <span>{item.label}</span>
               <span className="text-[#BFBFC3]">
-                {s.quantidade}
+                {item.value}
               </span>
             </div>
 
             <div className="w-full h-2 bg-[#2A2A2C] rounded">
               <div
-                className="h-2 bg-[#FA4C00] rounded"
+                className="h-2 rounded"
                 style={{
-                  width: `${(s.quantidade / max) * 100}%`,
+                  backgroundColor: barColor,
+                  width:
+                    max > 0
+                      ? `${(item.value / max) * 100}%`
+                      : "0%",
                 }}
               />
             </div>

@@ -17,26 +17,48 @@ import { useState } from "react";
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
+
+  /* =====================
+     SUBMENUS
+  ===================== */
+  const [dashboardsOpen, setDashboardsOpen] = useState(
+    location.pathname.startsWith("/dashboard")
+  );
+
   const [pontoOpen, setPontoOpen] = useState(
     location.pathname.startsWith("/ponto")
   );
 
+  /* =====================
+     MENU PRINCIPAL
+  ===================== */
   const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
     { icon: Users, label: "Colaboradores", path: "/colaboradores" },
     { icon: Building2, label: "Empresas", path: "/empresas" },
     { icon: Layers, label: "Setores", path: "/setores" },
     { icon: Briefcase, label: "Cargos", path: "/cargos" },
     { icon: FileText, label: "Atestados Médicos", path: "/atestados" },
     { icon: Settings, label: "Acidentes", path: "/acidentes" },
-    { icon: FileText, label: "Medidas Disciplinares", path: "/medidas-disciplinares" },
-    { icon: Upload, label: "Importar colaboradores", path: "/colaboradores/import" },
+    {
+      icon: FileText,
+      label: "Medidas Disciplinares",
+      path: "/medidas-disciplinares",
+    },
+    {
+      icon: Upload,
+      label: "Importar colaboradores",
+      path: "/colaboradores/import",
+    },
   ];
 
   const isActive = (path) =>
-    path === "/"
-      ? location.pathname === "/"
-      : location.pathname.startsWith(path);
+    location.pathname === path ||
+    location.pathname.startsWith(path + "/");
+
+  const go = (path) => {
+    navigate(path);
+    onClose?.();
+  };
 
   return (
     <>
@@ -73,16 +95,70 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Menu */}
         <nav className="px-3 py-4 space-y-1">
+          {/* =====================
+              DASHBOARDS (SUBMENU)
+          ===================== */}
+          <div>
+            <button
+              onClick={() => setDashboardsOpen(!dashboardsOpen)}
+              className={`
+                w-full flex items-center justify-between
+                px-4 py-3 rounded-xl
+                text-sm font-medium transition
+                ${
+                  location.pathname.startsWith("/dashboard")
+                    ? "bg-[#2A2A2C] text-white"
+                    : "text-[#BFBFC3] hover:bg-[#242426]"
+                }
+              `}
+            >
+              <div className="flex items-center gap-3">
+                <LayoutDashboard
+                  size={18}
+                  className={
+                    location.pathname.startsWith("/dashboard")
+                      ? "text-[#FA4C00]"
+                      : "text-[#BFBFC3]"
+                  }
+                />
+                Dashboards
+              </div>
+
+              <ChevronDown
+                size={16}
+                className={`transition ${
+                  dashboardsOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {dashboardsOpen && (
+              <div className="ml-8 mt-1 space-y-1">
+                <SidebarSubItem
+                  label="Operacional"
+                  active={isActive("/dashboard/operacional")}
+                  onClick={() => go("/dashboard/operacional")}
+                />
+
+                <SidebarSubItem
+                  label="Administrativo"
+                  active={isActive("/dashboard/admin")}
+                  onClick={() => go("/dashboard/admin")}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* =====================
+              MENU PRINCIPAL
+          ===================== */}
           {menuItems.map((item) => {
             const active = isActive(item.path);
 
             return (
               <button
                 key={item.path}
-                onClick={() => {
-                  navigate(item.path);
-                  onClose?.();
-                }}
+                onClick={() => go(item.path)}
                 className={`
                   relative w-full flex items-center gap-3
                   px-4 py-3 rounded-xl transition
@@ -107,15 +183,16 @@ export default function Sidebar({ isOpen, onClose }) {
             );
           })}
 
-          {/* ===== PONTO (SUBMENU) ===== */}
+          {/* =====================
+              PONTO (SUBMENU)
+          ===================== */}
           <div className="mt-2">
             <button
               onClick={() => setPontoOpen(!pontoOpen)}
               className={`
                 w-full flex items-center justify-between
                 px-4 py-3 rounded-xl
-                text-sm font-medium
-                transition
+                text-sm font-medium transition
                 ${
                   location.pathname.startsWith("/ponto")
                     ? "bg-[#2A2A2C] text-white"
@@ -134,6 +211,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 />
                 Ponto
               </div>
+
               <ChevronDown
                 size={16}
                 className={`transition ${
@@ -144,44 +222,43 @@ export default function Sidebar({ isOpen, onClose }) {
 
             {pontoOpen && (
               <div className="ml-8 mt-1 space-y-1">
-                <button
-                  onClick={() => {
-                    navigate("/ponto");
-                    onClose?.();
-                  }}
-                  className={`
-                    w-full text-left px-4 py-2 rounded-lg text-sm
-                    ${
-                      location.pathname === "/ponto"
-                        ? "bg-[#242426] text-white"
-                        : "text-[#BFBFC3] hover:bg-[#242426]"
-                    }
-                  `}
-                >
-                  Registrar Ponto
-                </button>
+                <SidebarSubItem
+                  label="Registrar Ponto"
+                  active={location.pathname === "/ponto"}
+                  onClick={() => go("/ponto")}
+                />
 
-                <button
-                  onClick={() => {
-                    navigate("/ponto/controle");
-                    onClose?.();
-                  }}
-                  className={`
-                    w-full text-left px-4 py-2 rounded-lg text-sm
-                    ${
-                      location.pathname === "/ponto/controle"
-                        ? "bg-[#242426] text-white"
-                        : "text-[#BFBFC3] hover:bg-[#242426]"
-                    }
-                  `}
-                >
-                  Controle de Presença
-                </button>
+                <SidebarSubItem
+                  label="Controle de Presença"
+                  active={location.pathname === "/ponto/controle"}
+                  onClick={() => go("/ponto/controle")}
+                />
               </div>
             )}
           </div>
         </nav>
       </aside>
     </>
+  );
+}
+
+/* =====================
+   SUB ITEM
+===================== */
+function SidebarSubItem({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        w-full text-left px-4 py-2 rounded-lg text-sm transition
+        ${
+          active
+            ? "bg-[#242426] text-white"
+            : "text-[#BFBFC3] hover:bg-[#242426]"
+        }
+      `}
+    >
+      {label}
+    </button>
   );
 }
