@@ -22,9 +22,12 @@ export default function Login() {
   useEffect(() => {
     if (location.state?.success) {
       setSuccess(location.state.success);
-      window.history.replaceState({}, document.title);
+
+      // limpa o state sem recarregar a página
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state]);
+  }, [location, navigate]);
+
 
   /* =====================================================
      LOGIN
@@ -52,7 +55,14 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify(user));
 
       login(user, token);
-      navigate("/");
+
+      // 🔥 REDIRECIONAMENTO POR ROLE
+      if (user.role === "OPERACAO") {
+        navigate("/ponto", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+
     } catch (err) {
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
