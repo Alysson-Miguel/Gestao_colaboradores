@@ -6,6 +6,8 @@
 const express = require('express');
 const router = express.Router();
 
+const { authenticate } = require('../middlewares/auth.middleware');
+const blockOperacao = require('../middlewares/blockOperacao');
 // Importar todas as rotas
 const authRoutes = require('./auth.routes');
 const empresaRoutes = require('./empresa.routes');
@@ -37,7 +39,10 @@ router.get('/health', (req, res) => {
 });
 
 // Montar rotas com seus prefixos
+
 router.use('/auth', authRoutes);
+router.use(authenticate);
+router.use(blockOperacao);
 router.use('/empresas', empresaRoutes);
 router.use('/setores', setorRoutes);
 router.use('/cargos', cargoRoutes);

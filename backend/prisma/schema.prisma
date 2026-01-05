@@ -109,7 +109,7 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      UserRole @default(USER)
+  role      UserRole @default(OPERACAO)
   avatar    String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -117,6 +117,7 @@ model User {
 
   @@map("users")
 }
+
 
 model Empresa {
   idEmpresa       Int           @id @default(autoincrement()) @map("id_empresa")
@@ -382,9 +383,10 @@ enum Lateralidade {
 }
 
 enum UserRole {
-  USER
   ADMIN
-  MANAGER
+  GESTAO
+  LIDERANCA
+  OPERACAO
 }
 
 enum StatusColaborador {
