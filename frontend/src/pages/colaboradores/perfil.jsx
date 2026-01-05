@@ -173,6 +173,11 @@ export default function PerfilColaborador() {
           {/* JORNADA */}
           <Section title="Jornada">
             <Info
+              label="Escala"
+              value={vinculo.escala || colaborador.escala?.nomeEscala}
+            />
+
+            <Info
               label="Data de Admissão"
               value={
                 colaborador.dataAdmissao
@@ -180,6 +185,7 @@ export default function PerfilColaborador() {
                   : "-"
               }
             />
+
             <Info
               label="Início da Jornada"
               value={
@@ -189,6 +195,7 @@ export default function PerfilColaborador() {
               }
             />
           </Section>
+
 
           {/* INDICADORES DE SAÚDE */}
           <Section title="Indicadores de Saúde">

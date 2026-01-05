@@ -254,93 +254,92 @@ const createColaborador = async (req, res) => {
   }
 };
 
-/* ================= UPDATE ================= */
 const updateColaborador = async (req, res) => {
   const { opsId } = req.params;
-  const inputData = { ...req.body };
+
+  console.log("🔍 UPDATE COLABORADOR");
+  console.log("opsId:", opsId);
+  console.log("body:", req.body);
+
+  if (!opsId || typeof opsId !== "string") {
+    return errorResponse(res, "Ops ID inválido", 400);
+  }
 
   try {
-    /* ===== DATA ADMISSÃO ===== */
-    if (inputData.dataAdmissao) {
-      const dt = new Date(`${inputData.dataAdmissao}T00:00:00`);
-      if (isNaN(dt.getTime())) {
-        return errorResponse(res, "Data de admissão inválida", 400);
-      }
-      inputData.dataAdmissao = dt;
-    }
+    const {
+      nomeCompleto,
+      cpf,
+      email,
+      telefone,
+      genero,
+      matricula,
+      status,
+      idEscala,
+      dataAdmissao,
+      horarioInicioJornada,
+    } = req.body;
 
-    /* ===== HORÁRIO ===== */
-    if (inputData.horarioInicioJornada !== undefined) {
-      if (
-        inputData.horarioInicioJornada &&
-        !HORARIOS_PERMITIDOS.includes(inputData.horarioInicioJornada)
-      ) {
-        return errorResponse(
-          res,
-          `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`,
-          400
-        );
-      }
+    const data = {};
 
-      inputData.horarioInicioJornada = inputData.horarioInicioJornada
-        ? new Date(`1970-01-01T${inputData.horarioInicioJornada}:00Z`)
-        : new Date(`1970-01-01T05:25:00Z`);
-    }
+    /* ===== CAMPOS SIMPLES ===== */
+    if (nomeCompleto !== undefined) data.nomeCompleto = nomeCompleto;
+    if (cpf !== undefined) data.cpf = cpf || null;
+    if (email !== undefined) data.email = email || null;
+    if (telefone !== undefined) data.telefone = telefone || null;
+    if (genero !== undefined) data.genero = genero || null;
+    if (matricula !== undefined) data.matricula = matricula;
+    if (status !== undefined) data.status = status;
 
-    /* ===== DATA BASE ===== */
-    const data = {
-      ...inputData,
-      ...(inputData.genero === "" ? { genero: null } : {}),
-      ...(inputData.cpf === "" ? { cpf: null } : {}),
-      ...(inputData.email === "" ? { email: null } : {}),
-      ...(inputData.telefone === "" ? { telefone: null } : {}),
-    };
-
-    /* ===== RELAÇÕES ===== */
-    const { idEmpresa, idSetor, idCargo, idTurno, idEscala } = inputData;
-
-    if (idEmpresa !== undefined) {
-      data.empresa =
-        idEmpresa === "" || idEmpresa === null
-          ? { disconnect: true }
-          : { connect: { idEmpresa: Number(idEmpresa) } };
-      delete data.idEmpresa;
-    }
-
-    if (idSetor !== undefined) {
-      data.setor =
-        idSetor === "" || idSetor === null
-          ? { disconnect: true }
-          : { connect: { idSetor: Number(idSetor) } };
-      delete data.idSetor;
-    }
-
-    if (idCargo !== undefined) {
-      data.cargo =
-        idCargo === "" || idCargo === null
-          ? { disconnect: true }
-          : { connect: { idCargo: Number(idCargo) } };
-      delete data.idCargo;
-    }
-
-    if (idTurno !== undefined) {
-      data.turno =
-        idTurno === "" || idTurno === null
-          ? { disconnect: true }
-          : { connect: { idTurno: Number(idTurno) } };
-      delete data.idTurno;
-    }
-
-    /* ===== ESCALA (AQUI ESTAVA FALTANDO) ===== */
+    /* ===== ESCALA ===== */
     if (idEscala !== undefined) {
-      if (idEscala === "" || idEscala === null) {
-        data.escala = { disconnect: true };
-      } else {
-        data.escala = { connect: { idEscala: Number(idEscala) } };
+      const parsed = idEscala === null || idEscala === "" ? null : Number(idEscala);
+      if (parsed !== null && isNaN(parsed)) {
+        return errorResponse(res, "Escala inválida", 400);
       }
-      delete data.idEscala;
+      data.idEscala = parsed;
     }
 
+    /* ===== DATA ADMISSÃO (ACEITA ISO OU YYYY-MM-DD) ===== */
+    if (dataAdmissao !== undefined) {
+      let dt = null;
+
+      if (dataAdmissao) {
+        dt = new Date(dataAdmissao);
+        if (isNaN(dt.getTime())) {
+          return errorResponse(res, "Data de admissão inválida", 400);
+        }
+      }
+
+      data.dataAdmissao = dt;
+    }
+
+    /* ===== HORÁRIO (ACEITA ISO OU HH:mm) ===== */
+    if (horarioInicioJornada !== undefined) {
+      let time = null;
+
+      if (horarioInicioJornada) {
+        if (horarioInicioJornada.includes("T")) {
+          // ISO → extrai HH:mm
+          const d = new Date(horarioInicioJornada);
+          if (isNaN(d.getTime())) {
+            return errorResponse(res, "Horário inválido", 400);
+          }
+          const hh = String(d.getHours()).padStart(2, "0");
+          const mm = String(d.getMinutes()).padStart(2, "0");
+          time = new Date(`1970-01-01T${hh}:${mm}:00`);
+        } else {
+          // HH:mm
+          time = new Date(`1970-01-01T${horarioInicioJornada}:00`);
+          if (isNaN(time.getTime())) {
+            return errorResponse(res, "Horário inválido", 400);
+          }
+        }
+      }
+
+      data.horarioInicioJornada = time;
+    }
+
+    console.log("📦 DATA FINAL:", data);
 
     const colaborador = await prisma.colaborador.update({
       where: { opsId },
@@ -353,10 +352,12 @@ const updateColaborador = async (req, res) => {
       "Colaborador atualizado com sucesso"
     );
   } catch (err) {
-    console.error("❌ ERRO UPDATE:", err);
-    return errorResponse(res, "Erro ao atualizar colaborador", 500, err);
+    console.error("❌ ERRO UPDATE COLABORADOR:", err);
+    return errorResponse(res, "Erro ao atualizar colaborador", 400, err);
   }
 };
+
+
 
 
 /* ================= DELETE ================= */
@@ -428,7 +429,7 @@ const movimentarColaborador = async (req, res) => {
   return successResponse(res, null, "Movimentação realizada com sucesso");
 };
 
-/* ================= IMPORT CSV ================= */
+/* ================= IMPORT CSV (ASYNC) ================= */
 const importColaboradores = async (req, res) => {
   if (!req.file) {
     return errorResponse(res, "Arquivo CSV não enviado", 400);
@@ -438,218 +439,233 @@ const importColaboradores = async (req, res) => {
     const csvString = req.file.buffer.toString("utf-8");
     const rows = await csv({ delimiter: "," }).fromString(csvString);
 
-    if (!rows || rows.length === 0) {
-      return errorResponse(res, "CSV vazio ou inválido", 400);
+    if (!rows.length) {
+      return errorResponse(res, "CSV vazio", 400);
     }
 
-    let criados = 0;
-    let atualizados = 0;
-    let skipped = 0;
-    const errors = [];
+    // ✅ RESPONDE IMEDIATAMENTE
+    res.json({
+      success: true,
+      message: "Importação iniciada em segundo plano",
+      totalLinhas: rows.length,
+    });
 
-    // Cache para lookups (otimiza se nomes repetem)
-    const cache = {
-      empresas: new Map(),
-      setores: new Map(),
-      cargos: new Map(),
-      turnos: new Map(),
-    };
+    /* ================= PROCESSAMENTO EM BACKGROUND ================= */
+    setImmediate(async () => {
+      console.log(`🚀 Import CSV iniciado (${rows.length} linhas)`);
 
-    const getOrFetch = async (model, keyField, value, cacheMap) => {
-      if (cacheMap.has(value)) return cacheMap.get(value);
-      const result = await prisma[model].findUnique({
-        where: { [keyField]: value },
-        select: { [`id${model.charAt(0).toUpperCase() + model.slice(1)}`]: true },
-      });
-      cacheMap.set(value, result);
-      return result;
-    };
+      let criados = 0;
+      let atualizados = 0;
+      let skipped = 0;
+      const errors = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      let opsId = null; // Declarar fora do try para scope no catch
+      const cache = {
+        empresa: new Map(),
+        setor: new Map(),
+        cargo: new Map(),
+        turno: new Map(),
+        escala: new Map(),
+        estacao: new Map(),
+      };
 
-      try {
-        /* ================= OPS ID ================= */
-        opsId = String(
-          row["Ops ID"] ||
-          row["Ops ID "] ||
-          row["OpsId"] ||
-          ""
-        ).trim();
+      /* ================= HELPERS ================= */
 
-        if (!opsId) {
-          skipped++;
-          errors.push(`Linha ${i + 1}: Ops ID obrigatório`);
-          continue;
-        }
+      const parseDateBR = (v) => {
+        if (!v) return null;
+        const [d, m, y] = String(v).trim().split("/");
+        if (!d || !m || !y) return null;
+        const date = new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T00:00:00`);
+        return isNaN(date.getTime()) ? null : date;
+      };
 
-        /* ================= CAMPOS OBRIGATÓRIOS ================= */
-        let nomeCompleto = String(
-          row["Nome do Funcionário"] || row["Nome"] || ""
-        ).trim();
+      const parseHorario = (v) => {
+        if (!v) return null;
+        const h = String(v).trim();
+        if (!/^\d{2}:\d{2}$/.test(h)) return null;
+        return new Date(`1970-01-01T${h}:00`);
+      };
 
-        let matricula = String(
-          row["Matrícula"] || row["Matricula"] || ""
-        ).trim();
+      const getOrCreate = async (model, uniqueField, value, createData, idField, cacheMap) => {
+        const key = value?.trim();
+        if (!key) return null;
 
-        if (!nomeCompleto || !matricula) {
-          skipped++;
-          errors.push(`Linha ${i + 1} (Ops ID ${opsId}): Nome ou matrícula ausente`);
-          continue;
-        }
+        if (cacheMap.has(key)) return cacheMap.get(key);
 
-        // Limitar comprimento para evitar erros de DB (ajuste baseado no schema Prisma)
-        nomeCompleto = nomeCompleto.slice(0, 255); // Assumindo varchar(255) para nomeCompleto
-        matricula = matricula.slice(0, 50); // Assumindo limite razoável
-
-        /* ================= CAMPOS BÁSICOS ================= */
-        let cpf = row["CPF"]
-          ? String(row["CPF"]).replace(/\D/g, "").slice(0, 11) // Limita a 11 dígitos
-          : null;
-
-        let genero =
-          row["Sexo"]?.toString().toUpperCase().includes("MASCULIN")
-            ? "MASCULINO"
-            : row["Sexo"]?.toString().toUpperCase().includes("FEMININ")
-            ? "FEMININO"
-            : null;
-
-        let email = (row["E-mail"] || "").toString().trim().slice(0, 255) || null; // Limita email
-        let telefone = (row["Celular"] || "").toString().trim().slice(0, 20) || null; // Limita telefone
-
-        /* ================= DATAS (dd/mm/yyyy) ================= */
-        const parseDateBR = (value) => {
-          if (!value) return null;
-          const valStr = String(value).trim();
-          const [d, m, y] = valStr.split("/");
-          if (!d || !m || !y) return null;
-          const date = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`);
-          return isNaN(date.getTime()) ? null : date;
-        };
-
-        const dataNascimento = parseDateBR(row["Data de Nascimento"]);
-        const dataAdmissao = parseDateBR(row["Data de admissão"]);
-
-        if (!dataAdmissao) {
-          skipped++;
-          errors.push(`Linha ${i + 1} (Ops ID ${opsId}): Data de admissão ausente ou inválida`);
-          continue;
-        }
-
-        /* ================= RELAÇÕES (com cache) ================= */
-        const empresaValue = (row["Empresa"] || "").toString().trim();
-        const setorValue = (row["Setor"] || "").toString().trim().slice(0, 100); // Limita nomeSetor
-        const cargoValue = (row["Cargo"] || "").toString().trim().slice(0, 100); // Limita nomeCargo
-        const jornadaValue = (row["Jornada"] || "").toString().trim().slice(0, 50); // Limita nomeTurno
-
-        const [empresa, setor, cargo, turno] = await Promise.all([
-          empresaValue ? getOrFetch('empresa', 'razaoSocial', empresaValue.slice(0, 255), cache.empresas) : null, // Limita razaoSocial
-          setorValue ? getOrFetch('setor', 'nomeSetor', setorValue, cache.setores) : null,
-          cargoValue ? getOrFetch('cargo', 'nomeCargo', cargoValue, cache.cargos) : null,
-          jornadaValue ? getOrFetch('turno', 'nomeTurno', jornadaValue, cache.turnos) : null,
-        ]);
-
-        /* ================= HORÁRIO JORNADA ================= */
-        let horarioInicioJornada = null;
-        const escalaStr = (row["Escala de trabalho"] || "").toString().trim();
-
-        if (escalaStr) {
-          // Extrai horário inicial de strings como "13:20 Às 22:59 - 5X2"
-          const match = escalaStr.match(/(\d{2}:\d{2})\s*(?:Às|A\s*às)\s*/i);
-          const clean = match ? match[1] : null;
-          if (clean && HORARIOS_PERMITIDOS.includes(clean)) {
-            horarioInicioJornada = new Date(`1970-01-01T${clean}:00`);
-          } else if (clean) {
-            skipped++;
-            errors.push(
-              `Linha ${i + 1} (Ops ID ${opsId}): Horário inválido (${clean})`
-            );
-            continue;
-          }
-        }
-
-        // Default se não extraído
-        if (!horarioInicioJornada) {
-          horarioInicioJornada = new Date(`1970-01-01T05:25:00`); // T1 default
-        }
-
-        let status = "ATIVO";
-        const statusStr = (row["Status HC"] || "").toString().trim();
-        if (statusStr && statusStr.toLowerCase().includes("ativo")) {
-          status = "ATIVO";
-        } else if (statusStr && statusStr.toLowerCase().includes("inativo")) {
-          status = "INATIVO";
-        }
-
-        /* ================= DATA (USANDO NESTED RELATIONS) ================= */
-        const data = {
-          opsId,
-          nomeCompleto,
-          cpf,
-          matricula,
-          genero,
-          dataNascimento,
-          dataAdmissao,
-          email,
-          telefone,
-          status,
-          horarioInicioJornada,
-          // Relações nested
-          ...(empresa ? { empresa: { connect: { idEmpresa: empresa.idEmpresa } } } : {}),
-          ...(setor ? { setor: { connect: { idSetor: setor.idSetor } } } : {}),
-          ...(cargo ? { cargo: { connect: { idCargo: cargo.idCargo } } } : {}),
-          ...(turno ? { turno: { connect: { idTurno: turno.idTurno } } } : {}),
-        };
-
-        /* ================= UPSERT (ATÔMICO) ================= */
-        const result = await prisma.colaborador.upsert({
-          where: { opsId },
-          update: data,
-          create: data,
+        const found = await prisma[model].findUnique({
+          where: { [uniqueField]: key },
+          select: { [idField]: true },
         });
 
-        // Determina se foi create ou update baseado no ID (ou adicione select para dataCriacao)
-        if (result.dataCriacao.getTime() === new Date().getTime() || !existing) { // Aproximação, ou use count prévio
-          criados++;
-        } else {
-          atualizados++;
+        if (found) {
+          cacheMap.set(key, found);
+          return found;
         }
-      } catch (rowErr) {
-        console.error(`Erro linha ${i + 1}:`, rowErr);
-        skipped++;
-        // Se for duplicate matricula (P2002), log como skipped por duplicata
-        if (rowErr.code === 'P2002' && rowErr.meta.target.includes('matricula')) {
-          errors.push(`Linha ${i + 1} (Ops ID ${opsId || 'N/A'}): Matrícula duplicada, pulada`);
-        } else {
-          errors.push(`Linha ${i + 1} (Ops ID ${opsId || 'N/A'}): ${rowErr.message}`);
+
+        const created = await prisma[model].create({
+          data: createData,
+          select: { [idField]: true },
+        });
+
+        cacheMap.set(key, created);
+        return created;
+      };
+
+      const getOnly = async (model, uniqueField, value, idField, cacheMap) => {
+        const key = value?.trim();
+        if (!key) return null;
+
+        if (cacheMap.has(key)) return cacheMap.get(key);
+
+        const found = await prisma[model].findUnique({
+          where: { [uniqueField]: key },
+          select: { [idField]: true },
+        });
+
+        cacheMap.set(key, found || null);
+        return found;
+      };
+
+      /* ================= LOOP CSV ================= */
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        let opsId = null;
+
+        try {
+          opsId = String(row["Ops ID"] || "").trim();
+          if (!opsId) {
+            skipped++;
+            continue;
+          }
+
+          const nomeCompleto = String(
+            row["Nome do Funcionário"] || row["Nome"] || ""
+          ).trim();
+
+          const matricula = String(
+            row["Matrícula"] || row["Matricula"] || ""
+          ).trim();
+
+          if (!nomeCompleto || !matricula) {
+            skipped++;
+            continue;
+          }
+
+          const dataAdmissao = parseDateBR(row["Data de admissão"]);
+          if (!dataAdmissao) {
+            skipped++;
+            continue;
+          }
+
+          /* ================= ORGANIZAÇÃO ================= */
+
+          const empresa = await getOrCreate(
+            "empresa",
+            "razaoSocial",
+            row["Empresa"],
+            { razaoSocial: row["Empresa"], ativo: true },
+            "idEmpresa",
+            cache.empresa
+          );
+
+          const setor = await getOrCreate(
+            "setor",
+            "nomeSetor",
+            row["Setor"],
+            { nomeSetor: row["Setor"], ativo: true },
+            "idSetor",
+            cache.setor
+          );
+
+          const cargo = await getOrCreate(
+            "cargo",
+            "nomeCargo",
+            row["Cargo"],
+            { nomeCargo: row["Cargo"], ativo: true },
+            "idCargo",
+            cache.cargo
+          );
+
+          // ❗ NÃO CRIA TURNO
+          const turno = await getOnly(
+            "turno",
+            "nomeTurno",
+            row["Turno"],
+            "idTurno",
+            cache.turno
+          );
+
+          // ❗ NÃO CRIA ESCALA
+          const escala = await getOnly(
+            "escala",
+            "nomeEscala",
+            row["Escala de trabalho"],
+            "idEscala",
+            cache.escala
+          );
+
+          // ❗ NÃO CRIA ESTAÇÃO
+          const estacao = await getOnly(
+            "estacao",
+            "nomeEstacao",
+            row["Estação"],
+            "idEstacao",
+            cache.estacao
+          );
+
+          const horarioInicioJornada =
+            parseHorario(row["Início da jornada"]) ||
+            new Date("1970-01-01T05:25:00");
+
+          const existing = await prisma.colaborador.findUnique({
+            where: { opsId },
+            select: { opsId: true },
+          });
+
+          /* ================= DATA SAFE ================= */
+          const data = {
+            opsId,
+            nomeCompleto,
+            matricula,
+            dataAdmissao,
+            horarioInicioJornada,
+            status: "ATIVO",
+
+            ...(empresa && { idEmpresa: empresa.idEmpresa }),
+            ...(setor && { idSetor: setor.idSetor }),
+            ...(cargo && { idCargo: cargo.idCargo }),
+            ...(turno && { idTurno: turno.idTurno }),
+            ...(escala && { idEscala: escala.idEscala }),
+            ...(estacao && { idEstacao: estacao.idEstacao }),
+          };
+
+          await prisma.colaborador.upsert({
+            where: { opsId },
+            update: data,
+            create: data,
+          });
+
+          existing ? atualizados++ : criados++;
+        } catch (err) {
+          skipped++;
+          errors.push(`Linha ${i + 1} (Ops ${opsId || "N/A"}): ${err.message}`);
         }
       }
-    }
 
-    return successResponse(
-      res,
-      {
-        resumo: {
-          totalLinhas: rows.length,
-          criados,
-          atualizados,
-          skipped,
-        },
-        erros: errors.length ? errors : null,
-      },
-      "Importação concluída com sucesso"
-    );
+      console.log("✅ Import CSV finalizado", {
+        total: rows.length,
+        criados,
+        atualizados,
+        skipped,
+        erros: errors.length,
+      });
+    });
   } catch (err) {
     console.error("❌ ERRO IMPORT CSV:", err);
-    return errorResponse(
-      res,
-      "Erro ao processar CSV",
-      500,
-      err
-    );
+    return errorResponse(res, "Erro ao iniciar importação", 500, err);
   }
 };
+
+
 
 
 /* ================= GET BY OPS ID (DUPLICADO - MANTER SE NECESSÁRIO) ================= */
