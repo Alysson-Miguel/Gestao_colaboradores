@@ -144,13 +144,25 @@ export default function Sidebar({ isOpen, onClose }) {
                   active={isActive("/dashboard/operacional")}
                   onClick={() => go("/dashboard/operacional")}
                 />
+
                 <SidebarSubItem
                   label="Administrativo"
                   active={isActive("/dashboard/admin")}
                   onClick={() => go("/dashboard/admin")}
                 />
+
+                {/* FUTUROS */}
+                <SidebarSubItem
+                  label="Dashboard Colaboradores (em breve)"
+                  disabled
+                />
+                <SidebarSubItem
+                  label="Dashboard Indicadores (em breve)"
+                  disabled
+                />
               </div>
             )}
+
           </div>
 
           {/* =====================
@@ -305,6 +317,30 @@ export default function Sidebar({ isOpen, onClose }) {
               </div>
             )}
           </div>
+          {/* =====================
+              GESTÃO & DESENVOLVIMENTO (FUTURO)
+          ===================== */}
+          <div className="mt-2">
+            <div
+              className="
+                w-full flex items-center gap-3
+                px-4 py-3 rounded-xl
+                text-sm font-medium
+                text-[#6F6F73]
+                cursor-not-allowed
+              "
+            >
+              <Layers size={18} />
+              Gestão & Desenvolvimento
+            </div>
+
+            <div className="ml-8 mt-1 space-y-1">
+              <SidebarSubItem label="Recrutamento (em breve)" disabled />
+              <SidebarSubItem label="Treinamento (em breve)" disabled />
+              <SidebarSubItem label="SPI (em breve)" disabled />
+            </div>
+          </div>
+
         </nav>
       </aside>
     </>
@@ -314,14 +350,17 @@ export default function Sidebar({ isOpen, onClose }) {
 /* =====================
    SUB ITEM
 ===================== */
-function SidebarSubItem({ label, active, onClick }) {
+function SidebarSubItem({ label, active, onClick, disabled }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`
         w-full text-left px-4 py-2 rounded-lg text-sm transition
         ${
-          active
+          disabled
+            ? "text-[#6F6F73] cursor-not-allowed"
+            : active
             ? "bg-[#242426] text-white"
             : "text-[#BFBFC3] hover:bg-[#242426]"
         }
@@ -331,3 +370,4 @@ function SidebarSubItem({ label, active, onClick }) {
     </button>
   );
 }
+
