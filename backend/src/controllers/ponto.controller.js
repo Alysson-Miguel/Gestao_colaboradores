@@ -179,6 +179,7 @@ const registrarPontoCPF = async (req, res) => {
       where: {
         opsId: colaborador.opsId,
         dataReferencia,
+        horaSaida: null,
       },
     });
 
@@ -209,26 +210,36 @@ const registrarPontoCPF = async (req, res) => {
     }
 
     /* ==========================================
-       2ª BATIDA → SAÍDA
+      2ª BATIDA → SAÍDA (com bloqueio mínimo de 1h)
     ========================================== */
     if (existente.horaEntrada && !existente.horaSaida) {
       const entradaMin = timeToMinutes(existente.horaEntrada);
-      const saidaMin = nowToMinutes(agora);
+      const agoraMin = nowToMinutes(agora);
 
-      let minutosTrabalhados = saidaMin - entradaMin;
-      if (minutosTrabalhados < 0) {
+      let minutosDecorridos = agoraMin - entradaMin;
+      if (minutosDecorridos < 0) {
         // virou o dia (T3)
-        minutosTrabalhados += 24 * 60;
+        minutosDecorridos += 24 * 60;
+      }
+
+      // 🔒 BLOQUEIO: mínimo 60 minutos
+      if (minutosDecorridos < 60) {
+        const faltam = 60 - minutosDecorridos;
+        return errorResponse(
+          res,
+          `Saída permitida somente após 1h da entrada. Aguarde mais ${faltam} min.`,
+          409
+        );
       }
 
       const horasTrabalhadas = Number(
-        (minutosTrabalhados / 60).toFixed(2)
+        (minutosDecorridos / 60).toFixed(2)
       );
 
       const atualizado = await prisma.frequencia.update({
         where: { idFrequencia: existente.idFrequencia },
         data: {
-          horaSaida: horaAgora,
+          horaSaida: toTimeOnly(agora),
           horasTrabalhadas,
         },
       });
@@ -247,7 +258,7 @@ const registrarPontoCPF = async (req, res) => {
     ========================================== */
     return errorResponse(
       res,
-      "Ponto do dia já está completo (entrada e saída)",
+      "Já existe uma jornada finalizada para este dia operacional",
       409
     );
   } catch (err) {
