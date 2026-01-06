@@ -160,7 +160,7 @@ export default function NovoColaborador() {
               onChange={handleChange}
               options={setores.map(s => ({
                 value: s.idSetor,
-                label: s.nome,
+                label: s.nomeSetor,
               }))}
             />
 
@@ -170,7 +170,7 @@ export default function NovoColaborador() {
               onChange={handleChange}
               options={cargos.map(c => ({
                 value: c.idCargo,
-                label: c.nome,
+                label: c.nomeCargo,
               }))}
             />
 
