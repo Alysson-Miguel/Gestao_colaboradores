@@ -4,7 +4,8 @@ import {
   XCircle,
   Download
 } from "lucide-react";
-import { Badge, Button } from "./UIComponents";
+import { Badge, Button } from   "./UIComponents";
+import { formatDateBR } from "../utils/date";
 
 export default function AtestadoCard({
   atestado,
@@ -27,10 +28,11 @@ export default function AtestadoCard({
           </p>
 
           <p className="text-xs text-[#BFBFC3]">
-            {new Date(atestado.dataInicio).toLocaleDateString()} →{" "}
-            {new Date(atestado.dataFim).toLocaleDateString()} •{" "}
+            {formatDateBR(atestado.dataInicio)} →{" "}
+            {formatDateBR(atestado.dataFim)} •{" "}
             {atestado.diasAfastamento} dias
           </p>
+
         </div>
       </div>
 

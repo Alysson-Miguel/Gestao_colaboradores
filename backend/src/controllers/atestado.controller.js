@@ -25,10 +25,12 @@ const BUCKET = process.env.R2_BUCKET_NAME;
 
 function dateOnlyBrasil(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setHours(0, 0, 0, 0);
-  return date;
+
+  // ⛔ nunca usar meia-noite
+  // ✅ meio-dia elimina qualquer shift de timezone
+  return new Date(y, m - 1, d, 12, 0, 0);
 }
+
 
 function calcDias(dataInicio, dataFim) {
   const ini = dateOnlyBrasil(dataInicio);
@@ -276,7 +278,7 @@ module.exports = {
   presignUpload,
   presignDownload,
   createAtestado,
-  getAllAtestados,
+  getAllAtestados,  
   getAtestadoById,
   updateAtestado,
   finalizarAtestado,
