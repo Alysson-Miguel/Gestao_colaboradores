@@ -5,10 +5,13 @@ export default function PresencaToolbar({
   turno,
   escala,
   busca,
+  lider,
+  lideres = [],
   onMesChange,
   onTurnoChange,
   onEscalaChange,
   onBuscaChange,
+  onLiderChange,
 }) {
   const turnos = ["TODOS", "T1", "T2", "T3"];
 
@@ -71,6 +74,28 @@ export default function PresencaToolbar({
           <option value="A">Escala A</option>
           <option value="B">Escala B</option>
           <option value="C">Escala C</option>
+        </select>
+
+        {/* LÍDER */}
+        <select
+          value={lider}
+          onChange={(e) => onLiderChange(e.target.value)}
+          className="
+            bg-[#1A1A1C]
+            text-sm
+            px-4 py-2
+            rounded-xl
+            text-[#BFBFC3]
+            outline-none
+            hover:bg-[#2A2A2C]
+          "
+        >
+          <option value="TODOS">Líder • Todos</option>
+          {lideres.map((l) => (
+            <option key={l.opsId} value={l.opsId}>
+              {l.nomeCompleto}
+            </option>
+          ))}
         </select>
       </div>
 

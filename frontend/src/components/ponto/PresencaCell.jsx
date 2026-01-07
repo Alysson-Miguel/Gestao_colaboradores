@@ -15,22 +15,30 @@ const STATUS_CONFIG = {
   AFA: { label: "Afastado", short: "AFA", bg: "bg-orange-600/20", text: "text-orange-400" },
   BH:  { label: "Banco de Horas", short: "BH", bg: "bg-yellow-600/20", text: "text-yellow-400" },
   FO:  { label: "Folga", short: "FO", bg: "bg-slate-600/20", text: "text-slate-400" },
-  T:   { label: "Transferido", short: "T", bg: "bg-neutral-600/20", text: "text-neutral-400" },
+  TR:   { label: "Transferido", short: "TR", bg: "bg-neutral-600/20", text: "text-neutral-400" },
   S1:  { label: "Sinergia", short: "S1", bg: "bg-lime-600/20", text: "text-lime-400" },
 };
 
 /* ================= HELPERS ================= */
 function fmtHora(iso) {
   if (!iso) return null;
+
   try {
-    return new Date(iso).toLocaleTimeString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const d = new Date(iso);
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const mm = String(d.getUTCMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
   } catch {
     return null;
   }
+}
+
+
+function isWeekend(dateISO) {
+  if (!dateISO) return false;
+  const d = new Date(`${dateISO}T00:00:00`);
+  const day = d.getDay();
+  return day === 0 || day === 6;
 }
 
 
@@ -59,6 +67,7 @@ export default function PresencaCell({
   canEdit = false,
 }) {
   const [hover, setHover] = useState(false);
+  const weekend = isWeekend(dia?.date);
 
   /* ================= STATUS ================= */
   const status = useMemo(() => {
@@ -84,6 +93,7 @@ export default function PresencaCell({
 
   const horaEntrada = fmtHora(registro?.horaEntrada);
   const horaSaida = fmtHora(registro?.horaSaida);
+  const showTooltip = hover && (canEdit || registro);
 
   return (
     <td className="border-r border-[#2A2A2C]">
@@ -92,6 +102,7 @@ export default function PresencaCell({
           "relative px-2 py-2 text-center cursor-pointer select-none transition",
           cfg.bg,
           cfg.text,
+          weekend && "bg-[#141416]",
           disabled && "opacity-40 cursor-not-allowed",
           canEdit && "hover:ring-1 hover:ring-[#FA4C00]"
         )}
@@ -101,7 +112,7 @@ export default function PresencaCell({
       >
         <span className="text-xs font-semibold">{cfg.short}</span>
 
-        <PresencaTooltip open={hover}>
+        <PresencaTooltip open={showTooltip}>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold">{cfg.label}</span>

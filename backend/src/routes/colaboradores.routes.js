@@ -5,6 +5,7 @@ const controller = require("../controllers/colaborador.controller");
 const { authenticate, authorize } = require("../middlewares/auth.middleware");
 const { asyncHandler } = require("../middlewares/error.middleware");
 const { upload } = require("../middlewares/uploadCsv.middleware");
+const { listarLideres } = require("../controllers/colaborador.controller")
 
 /* ================= IMPORT CSV (ANTES DE :opsId) ================= */
 router.post(
@@ -15,6 +16,11 @@ router.post(
   asyncHandler(controller.importColaboradores)
 );
 
+router.get("/lideres",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(controller.listarLideres))
+  
 /* ================= ROTAS PADRÃO ================= */
 router.get("/", authenticate, asyncHandler(controller.getAllColaboradores));
 

@@ -37,4 +37,10 @@ export const ColaboradoresAPI = {
     const res = await api.delete(`/colaboradores/${encodeURIComponent(opsId)}`);
     return res.data;
   },
+  listarLideres: async () => {
+    const res = await api.get("/colaboradores/lideres");
+
+    // padrão successResponse { success, data }
+    return res.data?.data || [];
+  },
 };

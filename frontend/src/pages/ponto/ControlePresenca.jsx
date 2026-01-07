@@ -18,6 +18,7 @@ export default function ControlePresenca() {
   const [turno, setTurno] = useState("TODOS");
   const [escala, setEscala] = useState("TODOS");
   const [busca, setBusca] = useState("");
+  const [lider, setLider] = useState("TODOS");
 
   /* ================== DADOS ================== */
   const [dias, setDias] = useState([]);
@@ -26,6 +27,7 @@ export default function ControlePresenca() {
   /* ================== ESTADOS ================== */
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lideres, setLideres] = useState([]);
 
   /* ================== MODAL ================== */
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,6 +51,7 @@ export default function ControlePresenca() {
         mes,
         ...(turno !== "TODOS" ? { turno } : {}),
         ...(escala !== "TODOS" ? { escala } : {}),
+        ...(lider !== "TODOS" ? { lider } : {}),
       };
 
       const res = await api.get("/ponto/controle", { params });
@@ -81,11 +84,26 @@ export default function ControlePresenca() {
     } finally {
       setLoading(false);
     }
-  }, [mes, turno, escala, busca]);
+  }, [mes, turno, escala, busca, lider]);
 
-  useEffect(() => {
-    loadPresenca();
-  }, [loadPresenca]);
+useEffect(() => {
+  loadPresenca();
+}, [loadPresenca]);
+
+ useEffect(() => {
+  async function loadLideres() {
+    try {
+      const res = await api.get("/colaboradores/lideres");
+      setLideres(res.data?.data || []);
+    } catch (err) {
+      console.error("Erro ao carregar líderes", err);
+      setLideres([]);
+    }
+  }
+
+  loadLideres();
+}, []);
+
 
   /* ================== UI ================== */
   return (
@@ -110,11 +128,15 @@ export default function ControlePresenca() {
             turno={turno}
             escala={escala}
             busca={busca}
+            lider={lider}
+            lideres={lideres}
             onMesChange={setMes}
             onTurnoChange={setTurno}
             onEscalaChange={setEscala}
             onBuscaChange={setBusca}
+            onLiderChange={setLider}
           />
+
 
           {/* GRID */}
           <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">

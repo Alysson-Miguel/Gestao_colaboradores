@@ -399,6 +399,28 @@ const deleteColaborador = async (req, res) => {
   }
 };
 
+const listarLideres = async (req, res) => {
+  try {
+    const lideres = await prisma.colaborador.findMany({
+      where: {
+        status: "ATIVO",
+        subordinados: {
+          some: {}, // tem pelo menos 1 subordinado
+        },
+      },
+      select: {
+        opsId: true,
+        nomeCompleto: true,
+      },
+      orderBy: { nomeCompleto: "asc" },
+    });
+
+    return successResponse(res, lideres);
+  } catch (err) {
+    return errorResponse(res, "Erro ao listar líderes", 500);
+  }
+};
+
 /* ================= MOVIMENTAR ================= */
 const movimentarColaborador = async (req, res) => {
   const { opsId } = req.params;
@@ -722,4 +744,5 @@ module.exports = {
   deleteColaborador,
   movimentarColaborador,
   importColaboradores,
+  listarLideres,
 };

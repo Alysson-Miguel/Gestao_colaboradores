@@ -19,6 +19,39 @@ function agoraBrasil() {
   return new Date(spString);
 }
 
+function startOfDay(dateObj) {
+  const d = new Date(dateObj);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getStatusAdministrativo(c, dataCalendario) {
+  // 🏥 ATESTADO MÉDICO
+  const atestado = c.atestadosMedicos?.find(
+    (a) =>
+      dataCalendario >= startOfDay(a.dataInicio) &&
+      dataCalendario <= startOfDay(a.dataFim)
+  );
+  if (atestado) {
+    return { status: "AM", origem: "atestado" };
+  }
+
+  // 📄 OUTRAS AUSÊNCIAS
+  const ausencia = c.ausencias?.find(
+    (a) =>
+      dataCalendario >= startOfDay(a.dataInicio) &&
+      dataCalendario <= startOfDay(a.dataFim)
+  );
+  if (ausencia) {
+    return {
+      status: ausencia.tipoAusencia?.codigo || "AUS",
+      origem: "ausencia",
+    };
+  }
+
+  return null;
+}
+
 // "âncora" pra salvar time-only no Postgres (campo @db.Time)
 function toTimeOnly(dateObj) {
   const d = new Date(dateObj);
@@ -26,12 +59,6 @@ function toTimeOnly(dateObj) {
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
   return new Date(`1970-01-01T${hh}:${mm}:${ss}.000Z`);
-}
-
-function startOfDay(dateObj) {
-  const d = new Date(dateObj);
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 function ymd(dateObj) {
@@ -268,7 +295,7 @@ const getControlePresenca = async (req, res) => {
   const reqId = `CTRL-${Date.now()}`;
 
   try {
-    const { mes, turno, escala, search } = req.query;
+    const { mes, turno, escala, search, lider } = req.query;
 
     console.log(`[${reqId}] /ponto/controle query:`, req.query);
 
@@ -287,16 +314,36 @@ const getControlePresenca = async (req, res) => {
     // filtros (no front você manda "TODOS", então aqui trate bem)
     const whereColaborador = {
       status: "ATIVO",
+      dataDesligamento: null,
       ...(turno && turno !== "TODOS" ? { turno: { nomeTurno: turno } } : {}),
       ...(escala && escala !== "TODOS" ? { escala: { nomeEscala: escala } } : {}),
+      ...(lider && lider !== "TODOS" ? { idlider: lider } : {}),
       ...(search
         ? { nomeCompleto: { contains: String(search), mode: "insensitive" } }
         : {}),
     };
-
+    
     const colaboradores = await prisma.colaborador.findMany({
       where: whereColaborador,
-      include: { turno: true, escala: true },
+      include: { 
+        turno: true, 
+        escala: true,
+        ausencias: {
+          where: {
+            status: "ATIVO",
+            dataInicio: {lte: fimMes},
+            dataFim: {gte: inicioMes},
+          },
+          include: { tipoAusencia: true},
+        },
+        atestadosMedicos: {
+          where: {
+            status: "ATIVO",
+            dataInicio: {lte: fimMes},
+            dataFim: { gte: inicioMes},
+          },
+        },
+      },
       orderBy: { nomeCompleto: "asc" },
     });
 
@@ -340,22 +387,45 @@ const getControlePresenca = async (req, res) => {
       const dataISO = ymd(dataCalendario);
       const key = `${c.opsId}_${dataISO}`;
 
-      if (!freqMap[key]) {
+      // 1️⃣ Status administrativo tem prioridade
+      const statusAdmin = getStatusAdministrativo(c, dataCalendario);
+      if (statusAdmin) {
         diasMap[dataISO] = {
-          status: isDiaDSR(dataCalendario, c.escala?.nomeEscala) ? "DSR" : "F",
-          manual: false,
+          status: statusAdmin.status,
+          origem: statusAdmin.origem,
+          manual: true,
         };
         continue;
       }
 
+      // 2️⃣ Frequência
+      if (freqMap[key]) {
         const f = freqMap[key];
         diasMap[dataISO] = {
           status: f.tipoAusencia?.codigo || "P",
           entrada: f.horaEntrada,
           saida: f.horaSaida,
           validado: f.validado,
-          manual: f.manual ?? false, // ✅ CORRETO
+          manual: f.manual ?? false,
         };
+        continue;
+      }
+
+      // 3️⃣ DSR
+      if (isDiaDSR(dataCalendario, c.escala?.nomeEscala)) {
+        diasMap[dataISO] = {
+          status: "DSR",
+          manual: false,
+        };
+        continue;
+      }
+
+      // 4️⃣ FALTA
+      diasMap[dataISO] = {
+        status: "F",
+        manual: false,
+      };
+
       }
 
       return {
@@ -380,7 +450,14 @@ const getControlePresenca = async (req, res) => {
 };
 const ajusteManualPresenca = async (req, res) => {
   try {
-    const { opsId, dataReferencia, status, justificativa } = req.body;
+    const {
+      opsId,
+      dataReferencia,
+      status,
+      justificativa,
+      horaEntrada,
+      horaSaida,
+    } = req.body;
 
     if (!opsId || !dataReferencia || !status || !justificativa) {
       return errorResponse(
@@ -390,14 +467,63 @@ const ajusteManualPresenca = async (req, res) => {
       );
     }
 
+    const JUSTIFICATIVAS_PERMITIDAS = [
+      "ESQUECIMENTO_MARCACAO",
+      "ALTERACAO_PONTO",
+      "MARCACAO_INDEVIDA",
+      "ATESTADO_MEDICO",
+      "SINERGIA_ENVIADA",
+      "LICENCA",
+    ];
+
+    if (!JUSTIFICATIVAS_PERMITIDAS.includes(justificativa)) {
+      return errorResponse(res, "Justificativa inválida", 400);
+    }
+
+    // 🔒 Colaborador válido
     const colaborador = await prisma.colaborador.findFirst({
-      where: { opsId },
+      where: {
+        opsId,
+        status: "ATIVO",
+        dataDesligamento: null,
+      },
     });
 
     if (!colaborador) {
-      return notFoundResponse(res, "Colaborador não encontrado");
+      return notFoundResponse(res, "Colaborador não encontrado ou inativo");
     }
 
+    // 🔒 Regra de jornada
+    if (horaSaida && !horaEntrada) {
+      return errorResponse(
+        res,
+        "Hora de saída não pode existir sem hora de entrada",
+        400
+      );
+    }
+    if (horaEntrada && horaSaida) {
+    const [hE, mE] = horaEntrada.split(":").map(Number);
+    const [hS, mS] = horaSaida.split(":").map(Number);
+
+    const entradaMin = hE * 60 + mE;
+    const saidaMin = hS * 60 + mS;
+
+    if (saidaMin < entradaMin) {
+      return errorResponse(
+        res,
+        "Hora de saída não pode ser menor que a hora de entrada",
+        400
+      );
+    }
+  }
+
+
+    // ✅ Data sem UTC
+    const [y, m, d] = dataReferencia.split("-").map(Number);
+    const dataRef = new Date(y, m - 1, d);
+    dataRef.setHours(0, 0, 0, 0);
+
+    // 🔍 Tipo de ausência
     const tipo = await prisma.tipoAusencia.findUnique({
       where: { codigo: status },
     });
@@ -406,10 +532,9 @@ const ajusteManualPresenca = async (req, res) => {
       return errorResponse(res, `Status inválido: ${status}`, 400);
     }
 
-    // ✅ FIX DE DATA (SEM UTC)
-    const [y, m, d] = dataReferencia.split("-").map(Number);
-    const dataRef = new Date(y, m - 1, d);
-    dataRef.setHours(0, 0, 0, 0);
+    // ⏰ Time-only
+    const toTime = (t) =>
+      t ? new Date(`1970-01-01T${t}:00.000Z`) : null;
 
     const registro = await prisma.frequencia.upsert({
       where: {
@@ -420,26 +545,38 @@ const ajusteManualPresenca = async (req, res) => {
       },
       update: {
         idTipoAusencia: tipo.idTipoAusencia,
+        horaEntrada: toTime(horaEntrada),
+        horaSaida: toTime(horaSaida),
         justificativa,
         manual: true,
-        registradoPor: "GESTAO",
+        validado: true, // ✅ sempre válido por enquanto
+        registradoPor: req.user?.id || "GESTAO",
       },
       create: {
         opsId,
         dataReferencia: dataRef,
         idTipoAusencia: tipo.idTipoAusencia,
+        horaEntrada: toTime(horaEntrada),
+        horaSaida: toTime(horaSaida),
         justificativa,
         manual: true,
-        registradoPor: "GESTAO",
+        validado: true,
+        registradoPor: req.user?.id || "GESTAO",
       },
     });
 
-    return successResponse(res, registro, "Ajuste manual realizado com sucesso");
+    return successResponse(
+      res,
+      registro,
+      "Ajuste manual realizado com sucesso"
+    );
   } catch (err) {
     console.error("❌ ERRO ajuste manual:", err);
     return errorResponse(res, "Erro ao realizar ajuste manual", 500);
   }
 };
+
+
 
 module.exports = {
   registrarPontoCPF,

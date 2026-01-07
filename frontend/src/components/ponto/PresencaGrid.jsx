@@ -10,7 +10,11 @@ export default function PresencaGrid({
   return (
     <div className="overflow-auto rounded-2xl border border-[#2A2A2C]">
       <table className="min-w-full text-sm border-collapse">
-        <PresencaHeader dias={dias} />
+        <PresencaHeader
+         dias={dias}
+         ano={colaboradores[0]?.ano}
+         mes={colaboradores[0]?.mes}
+         />
 
         <tbody>
           {colaboradores.map((col) => (
