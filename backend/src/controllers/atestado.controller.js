@@ -74,19 +74,27 @@ const getAtestadoById = async (req, res) => {
 ===================================================== */
 const presignUpload = async (req, res) => {
   try {
-    const { opsId } = req.body;
+    const { cpf } = req.body;
 
-    if (!opsId) {
-      return errorResponse(res, "opsId é obrigatório", 400);
+    if (!cpf) {
+      return errorResponse(res, "CPF é obrigatório", 400);
     }
 
+    const cpfLimpo = cpf.replace(/\D/g, "");
+
+    if (cpfLimpo.length !== 11) {
+      return errorResponse(res, 400, "CPF inválido");
+    }
+
+
     const colaborador = await prisma.colaborador.findUnique({
-      where: { opsId },
+      where: { cpf: cpfLimpo },
     });
 
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
+    const opsId = colaborador.opsId;
 
     if (!process.env.R2_WORKER_UPLOAD_URL) {
       return errorResponse(
@@ -150,7 +158,7 @@ const presignDownload = async (req, res) => {
 const createAtestado = async (req, res) => {
   try {
     const {
-      opsId,
+      cpf,
       dataInicio,
       dataFim,
       cid,
@@ -159,21 +167,29 @@ const createAtestado = async (req, res) => {
       diasAfastamento,
     } = req.body;
 
-    if (!opsId || !dataInicio || !dataFim || !documentoKey) {
+    if (!cpf || !dataInicio || !dataFim || !documentoKey) {
       return errorResponse(
         res,
-        "opsId, datas e documento PDF são obrigatórios",
+        "CPF, datas e documento PDF são obrigatórios",
         400
       );
     }
 
+    const cpfLimpo = cpf.replace(/\D/g, "");
+
+    if (cpfLimpo.length !== 11) {
+      return errorResponse(res, 400, "CPF inválido");
+    }
+
+
     const colaborador = await prisma.colaborador.findUnique({
-      where: { opsId },
+      where: { cpf: cpfLimpo },
     });
 
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
+    const opsId = colaborador.opsId
 
     const dias =
       diasAfastamento && Number(diasAfastamento) > 0
@@ -205,10 +221,25 @@ const createAtestado = async (req, res) => {
 ===================================================== */
 const getAllAtestados = async (req, res) => {
   try {
-    const { opsId } = req.query;
+    const { opsId, cpf } = req.query;
+
+    let where = {};
+    if(opsId) where.opsId = opsId;
+    
+    if (cpf) {
+      const cpfLimpo = cpf.replace(/\D/g, "");
+
+      if (cpfLimpo.length !== 11) {
+        return errorResponse(res, 400, "CPF inválido");
+      }
+
+      const colab = await prisma.colaborador.findUnique({ where: { cpf: cpfLimpo }, });
+      if (!colab) return successResponse(res, []);
+      where.opsId = colab.opsId;
+    }
 
     const atestados = await prisma.atestadoMedico.findMany({
-      where: opsId ? { opsId } : {},
+      where,
       orderBy: { dataInicio: "desc" },
       include: {
         colaborador: {
@@ -220,7 +251,6 @@ const getAllAtestados = async (req, res) => {
         },
       },
     });
-
     return successResponse(res, atestados);
   } catch (err) {
     console.error("❌ GET ATESTADOS:", err);

@@ -31,59 +31,44 @@ function normalizeTimeOnly(timeStr) {
 /* ================= PRESIGN UPLOAD ================= */
 const presignUpload = async (req, res) => {
   try {
-    console.log("🔍 Body recebido no presignUpload:", req.body); // DEBUG: Log do body inteiro
-    console.log("🔍 Tipo de req.body:", typeof req.body); // DEBUG: Verifica se é object
-    console.log("🔍 req.body.opsId:", req.body.opsId, "tipo:", typeof req.body.opsId); // DEBUG
-    console.log("🔍 req.body.files:", req.body.files, "é array?", Array.isArray(req.body.files)); // DEBUG
+    const { cpf, files } = req.body;
 
-    const { opsId, files } = req.body;
-
-    if (!opsId) {
-      console.log("❌ Erro: opsId ausente ou falsy"); // DEBUG
-      return errorResponse(res, "OPS ID não informado", 400);
+    if (!cpf) {
+      return errorResponse(res, "CPF não informado", 400);
     }
 
-    if (!Array.isArray(files)) {
-      console.log("❌ Erro: files não é um array válido"); // DEBUG
-      return errorResponse(res, "Files não é um array válido", 400);
-    }
-
-    if (files.length === 0) {
-      console.log("❌ Erro: Nenhum arquivo no array files"); // DEBUG
+    if (!Array.isArray(files) || files.length === 0) {
       return errorResponse(res, "Nenhum arquivo informado", 400);
     }
 
     if (files.length > 5) {
-      console.log("❌ Erro: Mais de 5 arquivos"); // DEBUG
       return errorResponse(res, "Máximo de 5 fotos permitido", 400);
     }
 
+    const cpfLimpo = cpf.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) {
+      return errorResponse(res, 400, "CPF inválido");
+    }
+
     const colaborador = await prisma.colaborador.findUnique({
-      where: { opsId },
+      where: { cpf: cpfLimpo },
     });
 
     if (!colaborador) {
-      console.log("❌ Erro: Colaborador não encontrado para opsId:", opsId); // DEBUG
       return notFoundResponse(res, "Colaborador não encontrado");
     }
 
-    console.log("✅ Colaborador encontrado:", colaborador.opsId); // DEBUG
-
+    const opsId = colaborador.opsId;
     const r2 = getR2Client();
 
     const uploads = await Promise.all(
       files.map(async ({ filename, contentType, size }) => {
-        console.log("Processando arquivo:", { filename, contentType, size }); // DEBUG
-
         const allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-
         if (!allowed.includes(contentType)) {
-          console.log("❌ Formato inválido:", contentType); // DEBUG
           throw new Error("Formato de imagem não permitido");
         }
 
         if (size > 5 * 1024 * 1024) {
-          console.log("❌ Tamanho excede 5MB:", size); // DEBUG
           throw new Error("Imagem excede 5MB");
         }
 
@@ -98,19 +83,17 @@ const presignUpload = async (req, res) => {
 
         const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 300 });
 
-        console.log("✅ URL gerada para:", key); // DEBUG
-
         return { key, uploadUrl };
       })
     );
 
-    console.log("✅ Uploads gerados com sucesso:", uploads.length, "arquivos"); // DEBUG
     return successResponse(res, uploads);
   } catch (err) {
     console.error("❌ PRESIGN UPLOAD ACIDENTE:", err);
     return errorResponse(res, err.message || "Erro no upload", 500);
   }
 };
+
 
 /* ================= PRESIGN DOWNLOAD ================= */
 const presignDownload = async (req, res) => {
@@ -120,7 +103,7 @@ const presignDownload = async (req, res) => {
 
     const r2 = getR2Client();
 
-    const command = GetObjectCommand({
+    const command = new GetObjectCommand({
       Bucket: BUCKET,
       Key: key,
     });
@@ -138,7 +121,7 @@ const presignDownload = async (req, res) => {
 const createAcidente = async (req, res) => {
   try {
     const {
-      opsId,
+      cpf,
       nomeRegistrante,
       setor,
       cargo,
@@ -157,12 +140,17 @@ const createAcidente = async (req, res) => {
       evidencias = [],
     } = req.body;
 
-    if (!opsId || !nomeRegistrante || !dataOcorrencia || !tipoOcorrencia) {
+    if (!cpf || !nomeRegistrante || !dataOcorrencia || !tipoOcorrencia) {
       return errorResponse(res, "Campos obrigatórios não preenchidos", 400);
     }
 
+    const cpfLimpo = cpf.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) {
+      return errorResponse(res, 400, "CPF inválido");
+    }
+
     const colaborador = await prisma.colaborador.findUnique({
-      where: { opsId },
+      where: { cpf: cpfLimpo },
     });
 
     if (!colaborador) {
@@ -171,7 +159,7 @@ const createAcidente = async (req, res) => {
 
     const acidente = await prisma.acidenteTrabalho.create({
       data: {
-        opsIdColaborador: opsId,
+        opsIdColaborador: colaborador.opsId,
         registradoPor: nomeRegistrante,
         setor,
         cargo,
@@ -204,14 +192,30 @@ const createAcidente = async (req, res) => {
   }
 };
 
+
 /* ================= GET ALL ================= */
 const getAllAcidentes = async (req, res) => {
   try {
-    const { opsId } = req.query;
+    const { opsId, cpf } = req.query;
+    let where = {};
 
-    const where = opsId
-      ? { opsIdColaborador: opsId }
-      : {};
+    if (opsId) {
+      where.opsIdColaborador = opsId;
+    }
+
+    if (cpf) {
+      const cpfLimpo = cpf.replace(/\D/g, "");
+      if (cpfLimpo.length !== 11) {
+        return errorResponse(res, 400, "CPF inválido");
+      }
+
+      const colab = await prisma.colaborador.findUnique({
+        where: { cpf: cpfLimpo },
+      });
+
+      if (!colab) return successResponse(res, []);
+      where.opsIdColaborador = colab.opsId;
+    }
 
     const acidentes = await prisma.acidenteTrabalho.findMany({
       where,
@@ -254,11 +258,22 @@ const getAcidenteById = async (req, res) => {
 /* ================= GET BY COLABORADOR ================= */
 const getAcidentesByColaborador = async (req, res) => {
   try {
-    const { opsId } = req.params;
+    const { cpf } = req.params;
+
+    const cpfLimpo = cpf.replace(/\D/g, "");
+    if (cpfLimpo.length !== 11) {
+      return errorResponse(res, 400, "CPF inválido");
+    }
+
+    const colab = await prisma.colaborador.findUnique({
+      where: { cpf: cpfLimpo },
+    });
+
+    if (!colab) return successResponse(res, []);
 
     const acidentes = await prisma.acidenteTrabalho.findMany({
       where: {
-        opsIdColaborador: opsId,
+        opsIdColaborador: colab.opsId,
       },
       orderBy: {
         dataOcorrencia: "desc",
@@ -274,6 +289,7 @@ const getAcidentesByColaborador = async (req, res) => {
     return errorResponse(res, "Erro ao buscar acidentes do colaborador", 500);
   }
 };
+
 
 module.exports = {
   presignUpload,
