@@ -255,25 +255,42 @@ const getAcidenteById = async (req, res) => {
     return errorResponse(res, "Erro ao buscar acidente", 500);
   }
 };
-/* ================= GET BY COLABORADOR ================= */
+
+/* ================= GET ACIDENTES POR COLABORADOR ================= */
 const getAcidentesByColaborador = async (req, res) => {
   try {
-    const { cpf } = req.params;
+    const { id } = req.params; // pode ser OPS ID ou CPF
 
-    const cpfLimpo = cpf.replace(/\D/g, "");
-    if (cpfLimpo.length !== 11) {
-      return errorResponse(res, 400, "CPF inválido");
+    if (!id) {
+      return successResponse(res, []); // não quebra o perfil
     }
 
-    const colab = await prisma.colaborador.findUnique({
-      where: { cpf: cpfLimpo },
-    });
+    const idStr = String(id);
+    const cpfLimpo = idStr.replace(/\D/g, "");
 
-    if (!colab) return successResponse(res, []);
+    let colaborador = null;
+
+    // 🔹 Se for CPF válido
+    if (cpfLimpo.length === 11) {
+      colaborador = await prisma.colaborador.findUnique({
+        where: { cpf: cpfLimpo },
+      });
+    } 
+    // 🔹 Senão, tenta OPS ID
+    else {
+      colaborador = await prisma.colaborador.findUnique({
+        where: { opsId: idStr },
+      });
+    }
+
+    // 🔹 Se não achou colaborador → retorna array vazio
+    if (!colaborador) {
+      return successResponse(res, []);
+    }
 
     const acidentes = await prisma.acidenteTrabalho.findMany({
       where: {
-        opsIdColaborador: colab.opsId,
+        opsIdColaborador: colaborador.opsId,
       },
       orderBy: {
         dataOcorrencia: "desc",
@@ -284,11 +301,12 @@ const getAcidentesByColaborador = async (req, res) => {
     });
 
     return successResponse(res, acidentes);
-  } catch (err) {
-    console.error("❌ GET ACIDENTES POR COLABORADOR:", err);
-    return errorResponse(res, "Erro ao buscar acidentes do colaborador", 500);
+  } catch (error) {
+    console.error("❌ GET ACIDENTES POR COLABORADOR:", error);
+    return successResponse(res, []); // 🔑 NUNCA quebrar perfil
   }
 };
+
 
 
 module.exports = {
