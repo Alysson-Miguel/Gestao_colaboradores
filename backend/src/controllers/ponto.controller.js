@@ -7,6 +7,8 @@ const {
   errorResponse,
 } = require("../utils/response");
 const { getDateOperacional } = require("../utils/dateOperacional");
+const { finalizarAtestadosVencidos } = require("../utils/atestadoAutoFinalize");
+
 
 /* =====================================================
    HELPERS
@@ -99,6 +101,9 @@ const registrarPontoCPF = async (req, res) => {
   const reqId = `PONTO-${Date.now()}`;
 
   try {
+
+    await finalizarAtestadosVencidos();
+
     const { cpf } = req.body;
 
     console.log(`[${reqId}] registrarPontoCPF body:`, { cpf });
@@ -295,6 +300,9 @@ const getControlePresenca = async (req, res) => {
   const reqId = `CTRL-${Date.now()}`;
 
   try {
+    
+    await finalizarAtestadosVencidos();
+    
     const { mes, turno, escala, search, lider } = req.query;
 
     console.log(`[${reqId}] /ponto/controle query:`, req.query);
