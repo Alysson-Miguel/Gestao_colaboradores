@@ -7,6 +7,7 @@ import Register from "./pages/register";
 /* ================= DASHBOARDS ================= */
 import DashboardOperacional from "./pages/dashboards/dashboardOperacional";
 import DashboardAdmin from "./pages/dashboards/dashboardAdmin";
+import DashboardColaborador from "./pages/dashboards/dashboardColaborador";
 
 /* ================= COLABORADORES ================= */
 import ColaboradoresPage from "./pages/colaboradores";
@@ -71,6 +72,14 @@ export default function App() {
         }
       />
 
+      <Route
+        path="/dashboard/colaboradores"
+        element={
+          <ProtectedRoute>
+            <DashboardColaborador />
+            </ProtectedRoute>
+        }
+      />
       {/* ================= COLABORADORES ================= */}
       <Route
         path="/colaboradores"

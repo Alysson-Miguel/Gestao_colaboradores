@@ -151,11 +151,12 @@ export default function Sidebar({ isOpen, onClose }) {
                   onClick={() => go("/dashboard/admin")}
                 />
 
-                {/* FUTUROS */}
                 <SidebarSubItem
-                  label="Dashboard Colaboradores (em breve)"
-                  disabled
+                  label="Colaboradores"
+                  active={isActive("/dashboard/colaboradores")}
+                  onClick={() => go("/dashboard/colaboradores")}
                 />
+                {/* FUTURO */}
                 <SidebarSubItem
                   label="Dashboard Indicadores (em breve)"
                   disabled
