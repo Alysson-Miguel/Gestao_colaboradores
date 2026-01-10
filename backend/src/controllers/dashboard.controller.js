@@ -26,6 +26,49 @@ const normalizeTurno = (t) => {
   return "Sem turno";
 };
 
+function isFolgaCompensatoria(status) {
+  const s = String(status || "").toUpperCase();
+  return (
+    s === "FO" ||
+    s.includes("FOLGA")
+  );
+}
+
+function isDiaNaoTrabalhavel({ registro, data, colaborador }) {
+  // DSR pela escala
+  if (
+    colaborador.escala?.nomeEscala &&
+    isDiaDSR(data, colaborador.escala.nomeEscala)
+  ) {
+    return true;
+  }
+
+  // FO explícito
+  if (registro) {
+    const { status } = getStatusDoDia(registro);
+    if (isFolgaCompensatoria(status)) return true;
+  }
+
+  return false;
+}
+function isStatusNeutro(status = "") {
+  const s = String(status).toUpperCase();
+
+    const neutros = [
+      "DSR",
+      "DESCANSO",
+      "FOLGA",
+      "FO",
+      "BANCO DE HORAS",
+      "BH",
+      "TREINAMENTO",
+      "SINERGIA",
+      "S1",
+    ];
+
+    return neutros.some((v) => s.includes(v));
+}
+
 function isCargoElegivel(cargo) {
   const nome = String(cargo || "").toUpperCase();
 
@@ -229,11 +272,16 @@ const carregarDashboard = async (req, res) => {
           .slice(0, 10);
         if (!dataRef) return;
 
+        const { status } = getStatusDoDia(reg);
+
         if (
-          c.escala?.nomeEscala &&
-          isDiaDSR(reg.dataReferencia, c.escala.nomeEscala)
-        )
+          (c.escala?.nomeEscala &&
+            isDiaDSR(reg.dataReferencia, c.escala.nomeEscala)) ||
+          isFolgaCompensatoria(status)
+        ) {
           return;
+        }
+
 
         if (!tendenciaPorDia[dataRef]) {
           tendenciaPorDia[dataRef] = {
@@ -243,8 +291,6 @@ const carregarDashboard = async (req, res) => {
           };
         }
 
-        const { status } = getStatusDoDia(reg);
-
         if (status === "PRESENTE") {
           tendenciaPorDia[dataRef].presentes++;
         } else if (isAusenciaValida(status)) {
@@ -252,69 +298,100 @@ const carregarDashboard = async (req, res) => {
         }
       });
 
-      /* ========= 5.2 SNAPSHOT ========= */
-      if (
-        c.escala?.nomeEscala &&
-        isDiaDSR(fim, c.escala.nomeEscala)
-      )
-        return;
+    /* ========= 5.2 SNAPSHOT ========= */
+    const registroSnapshot =
+      registros.find(
+        (r) =>
+          r.dataReferencia?.toISOString().slice(0, 10) === dataSnapshotStr
+      ) || null;
 
-      if (!turnoSetorAgg[turno]) {
-        turnoSetorAgg[turno] = {
-          turno,
-          totalEscalados: 0,
-          presentes: 0,
-          ausentes: 0,
-          setores: {},
-        };
-      }
+    // ❌ sem registro no dia → não escalado
+    if (!registroSnapshot) return;
 
-      turnoSetorAgg[turno].totalEscalados++;
-      generoPorTurno[turno][genero] =
-        (generoPorTurno[turno][genero] || 0) + 1;
-      empresaPorTurno[turno][empresa] =
-        (empresaPorTurno[turno][empresa] || 0) + 1;
+    const { status: statusSnapshot, origem } =
+      getStatusDoDia(registroSnapshot);
 
-      const registroSnapshot =
-        registros.find(
-          (r) =>
-            r.dataReferencia
-              ?.toISOString()
-              .slice(0, 10) === dataSnapshotStr
-        ) || null;
+    // ❌ DSR por escala
+    if (
+      c.escala?.nomeEscala &&
+      isDiaDSR(fim, c.escala.nomeEscala)
+    ) {
+      return;
+    }
 
-      const setor = getSetor(registroSnapshot, c);
-      turnoSetorAgg[turno].setores[setor] =
-        (turnoSetorAgg[turno].setores[setor] || 0) + 1;
+    // ❌ folga compensatória (FO)
+    if (isFolgaCompensatoria(statusSnapshot)) {
+      return;
+    }
 
-      const { status, origem } = getStatusDoDia(registroSnapshot);
+    // ❌ dia não trabalhável (sua regra central)
+    if (
+      isDiaNaoTrabalhavel({
+        registro: registroSnapshot,
+        data: fim,
+        colaborador: c,
+      })
+    ) {
+      return;
+    }
 
-      if (status === "PRESENTE") {
-        turnoSetorAgg[turno].presentes++;
-        statusPorTurno[turno][status] =
-          (statusPorTurno[turno][status] || 0) + 1;
-      } else if (isAusenciaValida(status)) {
-        turnoSetorAgg[turno].ausentes++;
-        statusPorTurno[turno][status] =
-          (statusPorTurno[turno][status] || 0) + 1;
+    // ❌ status neutro (SINERGIA, BH, TREINAMENTO etc.)
+    if (isStatusNeutro(statusSnapshot)) {
+      return;
+    }
 
-        ausenciasHoje.push({
-          colaboradorId: c.opsId,
-          nome: c.nomeCompleto,
-          turno,
-          motivo: status,
-          setor: normalize(c.setor?.nomeSetor),
-          empresa: normalize(c.empresa?.razaoSocial),
-          admissao: c.dataAdmissao,
-          lider: normalize(c.lider?.nomeCompleto),
-          origem,
-          categoria: getCategoria(status, origem),
-          criticidade: getCriticidade(
-            getCategoria(status, origem),
-            origem
-          ),
-        });
-      }
+    // ✅ somente AGORA entra na base de escalados
+    if (!turnoSetorAgg[turno]) {
+      turnoSetorAgg[turno] = {
+        turno,
+        totalEscalados: 0,
+        presentes: 0,
+        ausentes: 0,
+        setores: {},
+      };
+    }
+
+    turnoSetorAgg[turno].totalEscalados++;
+
+    generoPorTurno[turno][genero] =
+      (generoPorTurno[turno][genero] || 0) + 1;
+
+    empresaPorTurno[turno][empresa] =
+      (empresaPorTurno[turno][empresa] || 0) + 1;
+
+    const setor = getSetor(registroSnapshot, c);
+    turnoSetorAgg[turno].setores[setor] =
+      (turnoSetorAgg[turno].setores[setor] || 0) + 1;
+
+    // ✅ presença / ausência válida
+    if (statusSnapshot === "PRESENTE") {
+      turnoSetorAgg[turno].presentes++;
+      statusPorTurno[turno][statusSnapshot] =
+        (statusPorTurno[turno][statusSnapshot] || 0) + 1;
+    } else if (isAusenciaValida(statusSnapshot)) {
+      turnoSetorAgg[turno].ausentes++;
+      statusPorTurno[turno][statusSnapshot] =
+        (statusPorTurno[turno][statusSnapshot] || 0) + 1;
+
+      ausenciasHoje.push({
+        colaboradorId: c.opsId,
+        nome: c.nomeCompleto,
+        turno,
+        motivo: statusSnapshot,
+        setor: normalize(c.setor?.nomeSetor),
+        empresa: normalize(c.empresa?.razaoSocial),
+        admissao: c.dataAdmissao,
+        lider: normalize(c.lider?.nomeCompleto),
+        origem,
+        categoria: getCategoria(statusSnapshot, origem),
+        criticidade: getCriticidade(
+          getCategoria(statusSnapshot, origem),
+          origem
+        ),
+      });
+    }
+
+
     });
 
     /* ===============================

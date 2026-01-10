@@ -27,7 +27,8 @@ export default function DashboardOperacional() {
   ===================================================== */
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dados, setDados] = useState(null);
-  const [turno, setTurno] = useState("T1");
+  const [turnoSelecionado, setTurnoSelecionado] = useState("T2"); // default UX
+  const [turnoAtual, setTurnoAtual] = useState(null); // informativo
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
 
@@ -59,7 +60,7 @@ export default function DashboardOperacional() {
       const payload = res.data.data;
 
       setDados(payload);
-      setTurno(payload.turnoAtual || "T1");
+      setTurnoAtual(payload.turnoAtual);
     } catch (e) {
       if (e.response?.status === 401) {
         logout();
@@ -104,14 +105,14 @@ export default function DashboardOperacional() {
   ===================================================== */
   const turnoData = useMemo(() => {
     return (
-      dados?.distribuicaoTurnoSetor?.find((t) => t.turno === turno) || {
+      dados?.distribuicaoTurnoSetor?.find((t) => t.turno === turnoSelecionado) || {
         totalEscalados: 0,
         presentes: 0,
         ausentes: 0,
         setores: [],
       }
     );
-  }, [dados, turno]);
+  }, [dados, turnoSelecionado]);
 
   /* =====================================================
      KPIs
@@ -155,16 +156,16 @@ export default function DashboardOperacional() {
 
   const statusItems = useMemo(
     () =>
-      (dados?.statusColaboradoresPorTurno?.[turno] || []).map((s) => ({
+      (dados?.statusColaboradoresPorTurno?.[turnoSelecionado] || []).map((s) => ({
         label: s.status,
         value: s.quantidade,
       })),
-    [dados, turno]
+    [dados, turnoSelecionado]
   );
 
   const ausentesTurno = useMemo(
-    () => dados?.ausenciasHoje?.filter((a) => a.turno === turno) || [],
-    [dados, turno]
+    () => dados?.ausenciasHoje?.filter((a) => a.turno === turnoSelecionado) || [],
+    [dados, turnoSelecionado]
   );
 
   const setoresItems = useMemo(
@@ -178,11 +179,11 @@ export default function DashboardOperacional() {
 
   const empresasItems = useMemo(
     () =>
-      (dados?.empresaPorTurno?.[turno] || []).map((e) => ({
+      (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
         label: e.empresa,
         value: e.quantidade,
       })),
-    [dados, turno]
+    [dados, turnoSelecionado]
   );
 
   /* =====================================================
@@ -216,7 +217,7 @@ export default function DashboardOperacional() {
             title="Dashboard Operacional"
             subtitle="Dia operacional"
             date={dados.dataOperacional}
-            badges={[`Turno atual: ${dados.turnoAtual}`]}
+            badges={[`Turno atual: ${turnoAtual}`]}
           />
 
           {/* DATE RANGE PICKER */}
@@ -273,8 +274,8 @@ export default function DashboardOperacional() {
           </div>
 
           <TurnoSelector
-            value={turno}
-            onChange={setTurno}
+            value={turnoSelecionado}
+            onChange={setTurnoSelecionado}
             options={["T1", "T2", "T3"]}
           />
 
@@ -285,7 +286,7 @@ export default function DashboardOperacional() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <DistribuicaoGeneroChart
               title="Distribuição por Gênero"
-              data={dados.generoPorTurno?.[turno] || []}
+              data={dados.generoPorTurno?.[turnoSelecionado] || []}
             />
             <StatusColaboradoresSection
               title="Status dos Colaboradores"
@@ -299,12 +300,12 @@ export default function DashboardOperacional() {
           />
 
           <TendenciaAbsenteismoChart
-            title="Tendência de Absenteísmo (%)"
+            title="Curva de Absenteísmo (%)"
             data={tendenciaData}
           />
 
           <AusentesHojeTable
-            title={`Ausentes no turno — ${turno}`}
+            title={`Ausentes no turno — ${turnoSelecionado}`}
             data={ausentesTurno}
             columns={[
               { key: "nome", label: "Colaborador" },
