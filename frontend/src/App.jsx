@@ -37,6 +37,12 @@ import NovaMedidaDisciplinar from "./pages/medidas-disciplinares/novo";
 import AcidentesPage from "./pages/acidentes";
 import NovoAcidente from "./pages/acidentes/novo";
 
+/* ================= TREINAMENTOS ================= */
+import TreinamentosPage from "./pages/treinamentos";
+import DetalhesTreinamento from "./pages/treinamentos/detalhes";
+import NovoTreinamento from "./pages/treinamentos/novo";
+
+
 /* ================= PROTEÇÃO ================= */
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -187,6 +193,33 @@ export default function App() {
         element={
           <ProtectedRoute>
             <NovoAcidente />
+          </ProtectedRoute>
+        }
+      />
+      {/* ================= TREINAMENTOS ================= */}
+      <Route
+        path="/treinamentos"
+        element={
+          <ProtectedRoute>
+            <TreinamentosPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/novo"
+        element={
+          <ProtectedRoute>
+            <NovoTreinamento />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/:id"
+        element={
+          <ProtectedRoute>
+            <DetalhesTreinamento />
           </ProtectedRoute>
         }
       />

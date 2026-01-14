@@ -319,7 +319,7 @@ export default function Sidebar({ isOpen, onClose }) {
             )}
           </div>
           {/* =====================
-              GESTÃO & DESENVOLVIMENTO (FUTURO)
+              GESTÃO & DESENVOLVIMENTO
           ===================== */}
           <div className="mt-2">
             <div
@@ -327,8 +327,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 w-full flex items-center gap-3
                 px-4 py-3 rounded-xl
                 text-sm font-medium
-                text-[#6F6F73]
-                cursor-not-allowed
+                text-[#BFBFC3]
               "
             >
               <Layers size={18} />
@@ -336,11 +335,17 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
 
             <div className="ml-8 mt-1 space-y-1">
+              <SidebarSubItem
+                label="Treinamentos"
+                active={isActive("/treinamentos")}
+                onClick={() => go("/treinamentos")}
+              />
+
               <SidebarSubItem label="Recrutamento (em breve)" disabled />
-              <SidebarSubItem label="Treinamento (em breve)" disabled />
               <SidebarSubItem label="SPI (em breve)" disabled />
             </div>
           </div>
+
 
         </nav>
       </aside>

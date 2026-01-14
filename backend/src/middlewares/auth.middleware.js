@@ -33,6 +33,7 @@ const authenticate = async (req, res, next) => {
         email: true,
         role: true,
         isActive: true,
+        opsId: true,
       },
     });
 

@@ -5,3 +5,9 @@
     @apply bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white;
   }
 }
+.input {
+  @apply w-full bg-[#262628] border border-[#2A2A2C]
+  rounded-xl px-4 py-2 text-sm text-white
+  placeholder:text-[#6F6F73]
+  focus:outline-none focus:ring-2 focus:ring-[#FA4C00];
+}
