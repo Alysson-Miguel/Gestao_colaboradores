@@ -236,8 +236,9 @@ const registrarPontoCPF = async (req, res) => {
       const agoraMin = nowToMinutes(agora);
 
       let minutosDecorridos = agoraMin - entradaMin;
+
+      // 🔑 VIRADA DE DIA (T3)
       if (minutosDecorridos < 0) {
-        // virou o dia (T3)
         minutosDecorridos += 24 * 60;
       }
 
@@ -255,10 +256,30 @@ const registrarPontoCPF = async (req, res) => {
         (minutosDecorridos / 60).toFixed(2)
       );
 
+      /* =================================================
+        🔑 AJUSTE DA DATA/HORA DA SAÍDA (ALINHADO AO MANUAL)
+      ================================================= */
+      const virouDia = agoraMin < entradaMin;
+
+      let horaSaidaFinal;
+
+      if (virouDia) {
+        // saída no dia seguinte (T3)
+        const base = new Date(dataReferencia);
+        base.setDate(base.getDate() + 1);
+
+        horaSaidaFinal = new Date(
+          `${base.toISOString().slice(0, 10)}T${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}:00`
+        );
+      } else {
+        // saída no mesmo dia
+        horaSaidaFinal = toTimeOnly(agora);
+      }
+
       const atualizado = await prisma.frequencia.update({
         where: { idFrequencia: existente.idFrequencia },
         data: {
-          horaSaida: toTimeOnly(agora),
+          horaSaida: horaSaidaFinal, // ✅ agora correto
           horasTrabalhadas,
         },
       });
@@ -271,6 +292,7 @@ const registrarPontoCPF = async (req, res) => {
         "Saída registrada com sucesso"
       );
     }
+
 
     /* ==========================================
        3ª BATIDA → BLOQUEIO
@@ -481,6 +503,7 @@ const ajusteManualPresenca = async (req, res) => {
       "MARCACAO_INDEVIDA",
       "ATESTADO_MEDICO",
       "SINERGIA_ENVIADA",
+      "Hora Extra",
       "LICENCA",
     ];
 
@@ -509,33 +532,29 @@ const ajusteManualPresenca = async (req, res) => {
         400
       );
     }
+
     if (horaEntrada && horaSaida) {
-    const [hE, mE] = horaEntrada.split(":").map(Number);
-    const [hS, mS] = horaSaida.split(":").map(Number);
+      const [hE, mE] = horaEntrada.split(":").map(Number);
+      const [hS, mS] = horaSaida.split(":").map(Number);
 
-    const entradaMin = hE * 60 + mE;
-    const saidaMin = hS * 60 + mS;
+      let minutosTrabalhados = hS * 60 + mS - (hE * 60 + mE);
 
-    let minutosTrabalhados = saidaMin - entradaMin;
+      // 🔑 VIRADA DE DIA (T3)
+      if (minutosTrabalhados < 0) {
+        minutosTrabalhados += 24 * 60;
+      }
 
-    // 🔑 VIRADA DE DIA (T3)
-    if (minutosTrabalhados < 0) {
-      minutosTrabalhados += 24 * 60;
+      // 🔒 REGRA DE SEGURANÇA
+      if (minutosTrabalhados <= 0 || minutosTrabalhados > 16 * 60) {
+        return errorResponse(
+          res,
+          "Jornada inválida. Verifique os horários informados.",
+          400
+        );
+      }
     }
 
-    // 🔒 REGRA DE SEGURANÇA (ex: mais de 16h é erro)
-    if (minutosTrabalhados <= 0 || minutosTrabalhados > 16 * 60) {
-      return errorResponse(
-        res,
-        "Jornada inválida. Verifique os horários informados.",
-        400
-      );
-    }
-
-  }
-
-
-    // ✅ Data sem UTC
+    // ✅ Data base (sempre a data da ENTRADA)
     const [y, m, d] = dataReferencia.split("-").map(Number);
     const dataRef = new Date(y, m - 1, d);
     dataRef.setHours(0, 0, 0, 0);
@@ -549,9 +568,28 @@ const ajusteManualPresenca = async (req, res) => {
       return errorResponse(res, `Status inválido: ${status}`, 400);
     }
 
-    // ⏰ Time-only
+    // ⏰ Hora ENTRADA continua time-only
     const toTime = (t) =>
       t ? new Date(`1970-01-01T${t}:00.000Z`) : null;
+
+    // 🔑 AJUSTE DA HORA DE SAÍDA (RESOLVE T3)
+    let horaSaidaFinal = null;
+
+    if (horaSaida) {
+      const [hE, mE] = horaEntrada.split(":").map(Number);
+      const [hS, mS] = horaSaida.split(":").map(Number);
+
+      const virouDia = hS * 60 + mS < hE * 60 + mE;
+
+      const base = new Date(dataRef);
+      if (virouDia) {
+        base.setDate(base.getDate() + 1);
+      }
+
+      horaSaidaFinal = new Date(
+        `${base.toISOString().slice(0, 10)}T${horaSaida}:00`
+      );
+    }
 
     const registro = await prisma.frequencia.upsert({
       where: {
@@ -563,10 +601,10 @@ const ajusteManualPresenca = async (req, res) => {
       update: {
         idTipoAusencia: tipo.idTipoAusencia,
         horaEntrada: toTime(horaEntrada),
-        horaSaida: toTime(horaSaida),
+        horaSaida: horaSaidaFinal, // ✅ CORRETO
         justificativa,
         manual: true,
-        validado: true, // ✅ sempre válido por enquanto
+        validado: true,
         registradoPor: req.user?.id || "GESTAO",
       },
       create: {
@@ -574,7 +612,7 @@ const ajusteManualPresenca = async (req, res) => {
         dataReferencia: dataRef,
         idTipoAusencia: tipo.idTipoAusencia,
         horaEntrada: toTime(horaEntrada),
-        horaSaida: toTime(horaSaida),
+        horaSaida: horaSaidaFinal, // ✅ CORRETO
         justificativa,
         manual: true,
         validado: true,

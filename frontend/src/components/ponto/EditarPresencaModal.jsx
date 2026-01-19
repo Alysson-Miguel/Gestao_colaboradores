@@ -6,21 +6,25 @@ import { ajustarPresencaManual } from "../../services/presenca";
    STATUS PERMITIDOS
 ============================= */
 const STATUS_OPTIONS = [
-  { code: "P", label: "Presente" },
-  { code: "F", label: "Falta não justificada" },
-  { code: "FJ", label: "Falta justificada" },
-  { code: "DSR", label: "DSR" },
-  { code: "AM", label: "Atestado médico" },
   { code: "AA", label: "Atestado acompanhamento" },
-  { code: "FE", label: "Férias" },
+  { code: "AM", label: "Atestado médico" },
   { code: "AFA", label: "Afastamento" },
   { code: "BH", label: "Banco de horas" },
+  { code: "DSR", label: "DSR" },
+  { code: "DF", label: "Desligamento Forçado"},
+  { code: "DV", label: "Desligamento Voluntario"},
+  { code: "FE", label: "Férias" },
   { code: "FO", label: "Folga" },
+  { code: "F", label: "Falta não justificada" },
+  { code: "FJ", label: "Falta justificada" },
   { code: "LM", label: "Licença maternidade" },
   { code: "LP", label: "Licença paternidade" },
+  { code: "NC", label: "Não contratado"},
+  { code: "P", label: "Presente" },
   { code: "S1", label: "Sinergia enviada" },
   { code: "TR", label: "Transferido" },
 ];
+
 
 /* =============================
    JUSTIFICATIVAS PADRÃO
@@ -32,6 +36,7 @@ const JUSTIFICATIVAS = [
   { code: "ATESTADO_MEDICO", label: "Atestado médico" },
   { code: "SINERGIA_ENVIADA", label: "Sinergia enviada" },
   { code: "LICENCA", label: "Licença" },
+  { code: "HORA EXTRA", label: "Hora Extra"},
 ];
 
 const STATUS_COM_HORARIO = ["P", "BH"];
@@ -54,7 +59,7 @@ export default function EditarPresencaModal({
   registro,
   onSuccess, // opcional: recarregar grade
 }) {
-  const [status, setStatus] = useState(() => registro?.status || "P");
+  const [status, setStatus] = useState("") ;
   const [renderKey, setRenderKey] = useState(0);
   const [horaEntrada, setHoraEntrada] = useState("");
   const [horaSaida, setHoraSaida] = useState("");
@@ -67,7 +72,7 @@ export default function EditarPresencaModal({
   useEffect(() => {
     if (!open) return;
 
-    setStatus(registro?.status || "P");
+    setStatus(registro?.status || "");
     setHoraEntrada(toHHMM(registro?.entrada));
     setHoraSaida(toHHMM(registro?.saida));
     setJustificativa("");
@@ -175,6 +180,8 @@ export default function EditarPresencaModal({
             onChange={(e) => setStatus(e.target.value)}
             className="w-full bg-[#2A2A2C] border border-[#3D3D40] rounded-xl px-4 py-2"
           >
+            <option value="">Selecione um status</option>
+
             {STATUS_OPTIONS.map((s) => (
               <option key={s.code} value={s.code}>
                 {s.label}

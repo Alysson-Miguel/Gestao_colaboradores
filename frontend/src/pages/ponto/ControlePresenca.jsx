@@ -95,12 +95,12 @@ export default function ControlePresenca() {
         ...c,
         dias: {
           ...c.dias,
-          [dataReferencia]: {
-            status,
-            horaEntrada,
-            horaSaida,
-            manual: true,
-          },
+        [dataReferencia]: {
+          status,
+          entrada: horaEntrada ? `1970-01-01T${horaEntrada}:00.000Z` : null,
+          saida: horaSaida ? `1970-01-01T${horaSaida}:00.000Z` : null,
+          manual: true,
+        },
         },
       };
     })
