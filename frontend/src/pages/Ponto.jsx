@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import api from "../services/api";
+import { AuthContext } from "../context/AuthContext";
 
 function formatCPF(value) {
   return value.replace(/\D/g, "").slice(0, 11);
@@ -15,6 +16,9 @@ export default function PontoPage() {
   const [tipoBatida, setTipoBatida] = useState(null); // ENTRADA | SAIDA
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { user } = useContext(AuthContext);
+  const isKiosk = user?.role === "OPERACAO";
 
   const navigate = useNavigate();
 
@@ -58,34 +62,62 @@ export default function PontoPage() {
   }, [msg]);
 
   return (
-    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+    <div
+      className={`min-h-screen bg-[#0D0D0D] text-white ${
+        isKiosk ? "flex items-center justify-center" : "flex"
+      }`}
+    >
       {/* SIDEBAR */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        navigate={navigate}
-      />
+      {!isKiosk && (
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          navigate={navigate}
+        />
+      )}
 
-      <div className="flex-1 lg:ml-64">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+      <div className={`flex-1 ${!isKiosk ? "lg:ml-64" : ""}`}>
+        {/* HEADER */}
+        {!isKiosk && <Header onMenuClick={() => setSidebarOpen(true)} />}
 
         {/* PAGE */}
-        <main className="px-8 py-6">
-          {/* HEADER */}
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold">Registrar Ponto</h1>
-            <p className="text-sm text-[#BFBFC3]">
-              Digite apenas seu CPF para registrar entrada ou saída
-            </p>
-          </div>
+        <main
+          className={
+            isKiosk
+              ? "w-full flex items-center justify-center"
+              : "px-8 py-6"
+          }
+        >
+          <section
+            className={`
+              bg-[#1A1A1C] border border-[#3D3D40] rounded-2xl space-y-8
+              ${isKiosk ? "w-[520px] p-10" : "max-w-md mx-auto p-6"}
+            `}
+          >
+            {/* TEXTO EXPLICATIVO (SEMPRE VISÍVEL) */}
+            <div className="text-center space-y-2">
+              <h1
+                className={`font-bold ${
+                  isKiosk ? "text-3xl" : "text-2xl"
+                }`}
+              >
+                Registrar Ponto
+              </h1>
+              <p
+                className={`text-[#BFBFC3] ${
+                  isKiosk ? "text-base" : "text-sm"
+                }`}
+              >
+                Digite apenas seu CPF para registrar entrada ou saída
+              </p>
+            </div>
 
-          {/* CARD */}
-          <section className="max-w-md mx-auto bg-[#1A1A1C] border border-[#3D3D40] rounded-2xl p-6 space-y-6">
             {/* CPF */}
             <div>
-              <label className="block text-xs text-[#BFBFC3] mb-1">
+              <label className="block text-xs text-[#BFBFC3] mb-2 text-center">
                 CPF do colaborador
               </label>
+
               <input
                 type="text"
                 inputMode="numeric"
@@ -94,17 +126,15 @@ export default function PontoPage() {
                 value={cpf}
                 onChange={(e) => setCpf(formatCPF(e.target.value))}
                 onKeyDown={(e) => e.key === "Enter" && handleRegistrar()}
-                className="
-                  w-full px-4 py-3 rounded-xl
+                className={`
+                  w-full rounded-xl
                   bg-[#2A2A2C]
                   border border-[#3D3D40]
-                  text-white
-                  text-lg tracking-widest
+                  text-white tracking-widest
                   placeholder:text-[#6F6F73]
-                  focus:outline-none
-                  focus:ring-1
-                  focus:ring-[#FA4C00]
-                "
+                  focus:outline-none focus:ring-1 focus:ring-[#FA4C00]
+                  ${isKiosk ? "h-16 text-2xl px-6 text-center" : "px-4 py-3 text-lg"}
+                `}
               />
             </div>
 
@@ -113,12 +143,13 @@ export default function PontoPage() {
               onClick={handleRegistrar}
               disabled={cpf.length !== 11 || loading}
               className={`
-                w-full py-3 rounded-xl font-semibold transition
+                w-full rounded-xl font-semibold transition
                 ${
                   loading || cpf.length !== 11
                     ? "bg-[#3D3D40] cursor-not-allowed"
                     : "bg-[#FA4C00] hover:bg-[#e64500]"
                 }
+                ${isKiosk ? "h-16 text-xl" : "py-3"}
               `}
             >
               {loading ? "Registrando..." : "Registrar Ponto"}

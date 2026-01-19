@@ -15,11 +15,18 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useContext } from "react";
+import { AuthContext} from "../context/AuthContext"
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
+  if(user?.role === "OPERACAO") {
+    return null
+  }
+  
   /* =====================
      SUBMENUS
   ===================== */
