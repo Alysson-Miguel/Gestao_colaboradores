@@ -98,6 +98,15 @@ function getStatusDoDiaOperacional(f) {
       };
     }
 
+    if (codigo === "S1" || desc.includes("Sinergia")) {
+      return {
+        label: "Sinergia Enviada",
+        contaComoEscalado: false,
+        impactaAbsenteismo: false,
+        origem: "tipoAusencia",
+      }
+    }
+    
     // Qualquer outra ausência conta como falta operacional
     return {
       label: "Falta",
