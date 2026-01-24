@@ -156,10 +156,24 @@ const registrarPontoCPF = async (req, res) => {
       `[${reqId}] agora=${agora.toISOString()} dataRefOperacional=${ymd(dataReferenciaOperacional)}`
     );
     /* ==========================================
+       1) SEMPRE PRIORIZE FECHAR FREQUÊNCIA ABERTA
+       (isso resolve T3 saindo após 05:25)
+    ========================================== */
+    const aberta = await prisma.frequencia.findFirst({
+      where: {
+        opsId: colaborador.opsId,
+        horaSaida: null,
+      },
+      orderBy: {
+        dataReferencia: "desc",
+      },
+    });
+    /* ==========================================
       BLOQUEIO DE ANTECIPAÇÃO – TURNO T3
-      (evita bater ponto antes das 20:50)
+      ⚠️ SOMENTE PARA ENTRADA (sem frequência aberta)
     ========================================== */
     if (
+      !aberta && // 🔑 NÃO existe frequência aberta → é ENTRADA
       colaborador.turno?.nomeTurno === "T3" &&
       turnoAtual !== "T3"
     ) {
@@ -169,6 +183,7 @@ const registrarPontoCPF = async (req, res) => {
         400
       );
     }
+
 
     /* ==========================================
        BLOQUEIOS (DSR / AUSÊNCIA / ATESTADO)
@@ -190,20 +205,6 @@ const registrarPontoCPF = async (req, res) => {
     if (colaborador.atestadosMedicos?.length > 0) {
       return errorResponse(res, "Colaborador possui atestado médico ativo", 400);
     }
-
-    /* ==========================================
-       1) SEMPRE PRIORIZE FECHAR FREQUÊNCIA ABERTA
-       (isso resolve T3 saindo após 05:25)
-    ========================================== */
-    const aberta = await prisma.frequencia.findFirst({
-      where: {
-        opsId: colaborador.opsId,
-        horaSaida: null,
-      },
-      orderBy: {
-        dataReferencia: "desc",
-      },
-    });
 
     const horaAgora = toTimeOnly(agora);
 
