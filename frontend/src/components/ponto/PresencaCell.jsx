@@ -7,6 +7,14 @@ const STATUS_CONFIG = {
   "-": { label: "Sem registro", short: "-", bg: "bg-transparent", text: "text-zinc-500"},
   P:   { label: "Presente", short: "P", bg: "bg-emerald-600/20", text: "text-emerald-400" },
   F:   { label: "Falta", short: "F", bg: "bg-red-600/20", text: "text-red-400" },
+
+  FJ:  { label: "Falta Justificada", short: "FJ", bg: "bg-red-600/20", text: "text-red-400" },
+
+  DF:  { label: "Desligamento Forçado", short: "DF", bg: "bg-red-800/20", text: "text-red-500" },
+  DV:  { label: "Desligamento Voluntário", short: "DV", bg: "bg-red-800/20", text: "text-red-500" },
+  DP:  { label: "Desligamento Planejado", short: "DP", bg: "bg-red-800/20", text: "text-red-500" },
+  NC:  { label: "Não Contratado", short: "NC", bg: "bg-zinc-700/20", text: "text-zinc-400" },
+
   DSR: { label: "DSR", short: "DSR", bg: "bg-zinc-600/20", text: "text-zinc-400" },
   AM:  { label: "Atestado Médico", short: "AM", bg: "bg-blue-600/20", text: "text-blue-400" },
   AA:  { label: "Atest. Acompanh.", short: "AA", bg: "bg-cyan-600/20", text: "text-cyan-400" },
@@ -16,9 +24,10 @@ const STATUS_CONFIG = {
   AFA: { label: "Afastado", short: "AFA", bg: "bg-orange-600/20", text: "text-orange-400" },
   BH:  { label: "Banco de Horas", short: "BH", bg: "bg-yellow-600/20", text: "text-yellow-400" },
   FO:  { label: "Folga", short: "FO", bg: "bg-slate-600/20", text: "text-slate-400" },
-  TR:   { label: "Transferido", short: "TR", bg: "bg-neutral-600/20", text: "text-neutral-400" },
+  TR:  { label: "Transferido", short: "TR", bg: "bg-neutral-600/20", text: "text-neutral-400" },
   S1:  { label: "Sinergia", short: "S1", bg: "bg-lime-600/20", text: "text-lime-400" },
 };
+
 
 /* ================= HELPERS ================= */
 function fmtHora(iso) {

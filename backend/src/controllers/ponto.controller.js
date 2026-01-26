@@ -411,6 +411,11 @@ const getControlePresenca = async (req, res) => {
         dataReferencia: { gte: inicioMes, lte: fimMes },
       },
       include: { tipoAusencia: true },
+      orderBy: [
+        { dataReferencia: "asc" },
+        { manual: "asc" },
+        { idFrequencia: "asc" },
+      ],
     });
 
     console.log(`[${reqId}] frequencias do mês:`, frequencias.length);
@@ -418,8 +423,25 @@ const getControlePresenca = async (req, res) => {
     const freqMap = {};
     for (const f of frequencias) {
       const key = `${f.opsId}_${ymd(f.dataReferencia)}`;
-      freqMap[key] = f;
+
+      // se não existe, coloca
+      if (!freqMap[key]) {
+        freqMap[key] = f;
+        continue;
+      }
+
+      // se o novo é manual, ele tem prioridade
+      if (f.manual && !freqMap[key].manual) {
+        freqMap[key] = f;
+        continue;
+      }
+
+      // se ambos são manuais, pega o mais recente
+      if (f.manual && freqMap[key].manual) {
+        if (f.idFrequencia > freqMap[key].idFrequencia) freqMap[key] = f;
+      }
     }
+
 
     const dias = Array.from(
       { length: new Date(ano, mesNum, 0).getDate() },
@@ -443,7 +465,7 @@ const getControlePresenca = async (req, res) => {
 
         if (f.manual) {
           diasMap[dataISO] = {
-            status: f.tipoAusencia?.codigo || "P",
+            status: f.tipoAusencia?.codigo,
             entrada: f.horaEntrada,
             saida: f.horaSaida,
             validado: !!f.validado,
@@ -469,7 +491,7 @@ const getControlePresenca = async (req, res) => {
       if (freqMap[key]) {
         const f = freqMap[key];
         diasMap[dataISO] = {
-          status: f.tipoAusencia?.codigo || "P",
+          status: f.tipoAusencia?.codigo,
           entrada: f.horaEntrada,
           saida: f.horaSaida,
           validado: f.validado,
@@ -540,11 +562,14 @@ const ajusteManualPresenca = async (req, res) => {
       "MARCACAO_INDEVIDA",
       "ATESTADO_MEDICO",
       "SINERGIA_ENVIADA",
-      "Hora Extra",
+      "HORA_EXTRA",
       "LICENCA",
     ];
 
-    if (!JUSTIFICATIVAS_PERMITIDAS.includes(justificativa)) {
+    const justificativaNormalizada = String(justificativa)
+    .trim()
+    .toUpperCase();
+    if (!JUSTIFICATIVAS_PERMITIDAS.includes(justificativaNormalizada)) {
       return errorResponse(res, "Justificativa inválida", 400);
     }
 

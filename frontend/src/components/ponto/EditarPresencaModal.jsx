@@ -36,7 +36,7 @@ const JUSTIFICATIVAS = [
   { code: "ATESTADO_MEDICO", label: "Atestado médico" },
   { code: "SINERGIA_ENVIADA", label: "Sinergia enviada" },
   { code: "LICENCA", label: "Licença" },
-  { code: "HORA EXTRA", label: "Hora Extra"},
+  { code: "HORA_EXTRA", label: "Hora Extra"},
 ];
 
 const STATUS_COM_HORARIO = ["P", "BH"];
