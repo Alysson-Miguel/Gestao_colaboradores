@@ -345,7 +345,7 @@ const getControlePresenca = async (req, res) => {
     
     await finalizarAtestadosVencidos();
     
-    const { mes, turno, escala, search, lider } = req.query;
+    const { mes, turno, escala, search, lider, pendenciaSaida } = req.query;
 
     console.log(`[${reqId}] /ponto/controle query:`, req.query);
 
@@ -367,10 +367,21 @@ const getControlePresenca = async (req, res) => {
       dataDesligamento: null,
       ...(turno && turno !== "TODOS" ? { turno: { nomeTurno: turno } } : {}),
       ...(escala && escala !== "TODOS" ? { escala: { nomeEscala: escala } } : {}),
-      ...(lider && lider !== "TODOS" ? { idlider: lider } : {}),
+      ...(lider && lider !== "TODOS" ? { idLider: lider } : {}),
       ...(search
         ? { nomeCompleto: { contains: String(search), mode: "insensitive" } }
         : {}),
+      ...(pendenciaSaida === "true"
+        ? {
+          frequencias: {
+            some: {
+              dataReferencia: {gte: inicioMes, lte: fimMes },
+              horaEntrada: { not: null },
+              horaSaida: null,
+            },
+          },
+        }
+      : {}),
     };
     
     const colaboradores = await prisma.colaborador.findMany({

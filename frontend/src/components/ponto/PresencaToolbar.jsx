@@ -7,6 +7,8 @@ export default function PresencaToolbar({
   busca,
   lider,
   lideres = [],
+  pendenciaSaida,
+  onPendenciaSaidaChange,
   onMesChange,
   onTurnoChange,
   onEscalaChange,
@@ -97,6 +99,25 @@ export default function PresencaToolbar({
             </option>
           ))}
         </select>
+
+        {/* PENDÊNCIA DE SAÍDA */}
+        <label className="
+          flex items-center gap-2
+          text-sm text-[#BFBFC3]
+          px-3 py-2
+          rounded-xl
+          bg-[#1A1A1C]
+          hover:bg-[#2A2A2C]
+          cursor-pointer
+        ">
+          <input
+            type="checkbox"
+            checked={!!pendenciaSaida}
+            onChange={(e) => onPendenciaSaidaChange(e.target.checked)}
+            className="accent-[#FA4C00]"
+          />
+          Entrada sem saída
+        </label>
       </div>
 
       {/* BUSCA */}

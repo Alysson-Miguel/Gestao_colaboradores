@@ -19,6 +19,7 @@ export default function ControlePresenca() {
   const [escala, setEscala] = useState("TODOS");
   const [busca, setBusca] = useState("");
   const [lider, setLider] = useState("TODOS");
+  const [pendenciaSaida, setPendenciaSaida] = useState(false);
 
   /* ================== DADOS ================== */
   const [dias, setDias] = useState([]);
@@ -52,6 +53,7 @@ export default function ControlePresenca() {
         ...(turno !== "TODOS" ? { turno } : {}),
         ...(escala !== "TODOS" ? { escala } : {}),
         ...(lider !== "TODOS" ? { lider } : {}),
+        ...(pendenciaSaida ? { pendenciaSaida: "true" } : {}),
       };
 
       const res = await api.get("/ponto/controle", { params });
@@ -84,7 +86,7 @@ export default function ControlePresenca() {
     } finally {
       setLoading(false);
     }
-  }, [mes, turno, escala, busca, lider]);
+  }, [mes, turno, escala, busca, lider, pendenciaSaida]);
 
   function aplicarAjusteLocal({ opsId, dataReferencia, status, horaEntrada, horaSaida }) {
   setColaboradores((prev) =>
@@ -151,6 +153,8 @@ useEffect(() => {
             busca={busca}
             lider={lider}
             lideres={lideres}
+            pendenciaSaida={pendenciaSaida}
+            onPendenciaSaidaChange={setPendenciaSaida}
             onMesChange={setMes}
             onTurnoChange={setTurno}
             onEscalaChange={setEscala}
@@ -191,7 +195,13 @@ useEffect(() => {
         registro={modalData?.registro}
         onClose={() => setModalOpen(false)}
         onSuccess={(payload) => {
-          aplicarAjusteLocal(payload); // 🔑 ATUALIZA NA HORA
+          if (pendenciaSaida) {
+            // 🔑 se estiver filtrando pendências, recarrega tudo
+            loadPresenca();
+          } else {
+            // comportamento atual
+            aplicarAjusteLocal(payload);
+          }
           setModalOpen(false);
         }}
       />
