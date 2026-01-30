@@ -20,6 +20,7 @@ export default function ControlePresenca() {
   const [busca, setBusca] = useState("");
   const [lider, setLider] = useState("TODOS");
   const [pendenciaSaida, setPendenciaSaida] = useState(false);
+  const [pendentesHoje, setPendentesHoje] = useState(false);
 
   /* ================== DADOS ================== */
   const [dias, setDias] = useState([]);
@@ -54,6 +55,7 @@ export default function ControlePresenca() {
         ...(escala !== "TODOS" ? { escala } : {}),
         ...(lider !== "TODOS" ? { lider } : {}),
         ...(pendenciaSaida ? { pendenciaSaida: "true" } : {}),
+        ...(pendentesHoje ? { pendentesHoje: "true" } : {}),
       };
 
       const res = await api.get("/ponto/controle", { params });
@@ -76,6 +78,25 @@ export default function ControlePresenca() {
         );
       }
 
+      // 🔑 FILTRO LOCAL: Pendentes hoje (sem presença marcada no dia atual)
+      if (pendentesHoje) {
+        const hoje = new Date();
+        const diaHoje = hoje.getDate();
+        const mesHoje = hoje.getMonth() + 1;
+        const anoHoje = hoje.getFullYear();
+        
+        // Só aplica o filtro se estivermos visualizando o mês atual
+        if (ano === anoHoje && mesNum === mesHoje) {
+          const dataHojeISO = `${anoHoje}-${String(mesHoje).padStart(2, "0")}-${String(diaHoje).padStart(2, "0")}`;
+          
+          lista = lista.filter((c) => {
+            const registroHoje = c.dias?.[dataHojeISO];
+            // Considera pendente se não tem registro ou se o status é "-" (falta)
+            return !registroHoje || registroHoje.status === "-";
+          });
+        }
+      }
+
       setDias(data.dias || []);
       setColaboradores(lista);
     } catch (e) {
@@ -86,7 +107,7 @@ export default function ControlePresenca() {
     } finally {
       setLoading(false);
     }
-  }, [mes, turno, escala, busca, lider, pendenciaSaida]);
+  }, [mes, turno, escala, busca, lider, pendenciaSaida, pendentesHoje]);
 
   function aplicarAjusteLocal({ opsId, dataReferencia, status, horaEntrada, horaSaida }) {
   setColaboradores((prev) =>
@@ -154,7 +175,9 @@ useEffect(() => {
             lider={lider}
             lideres={lideres}
             pendenciaSaida={pendenciaSaida}
+            pendentesHoje={pendentesHoje}
             onPendenciaSaidaChange={setPendenciaSaida}
+            onPendentesHojeChange={setPendentesHoje}
             onMesChange={setMes}
             onTurnoChange={setTurno}
             onEscalaChange={setEscala}

@@ -345,7 +345,7 @@ const getControlePresenca = async (req, res) => {
     
     await finalizarAtestadosVencidos();
     
-    const { mes, turno, escala, search, lider, pendenciaSaida } = req.query;
+    const { mes, turno, escala, search, lider, pendenciaSaida, pendentesHoje } = req.query;
 
     console.log(`[${reqId}] /ponto/controle query:`, req.query);
 
@@ -537,7 +537,27 @@ const getControlePresenca = async (req, res) => {
       };
     });
 
-    return successResponse(res, { dias, colaboradores: resultado });
+    // 🔑 FILTRO: Pendentes hoje (colaboradores sem presença marcada no dia atual)
+    let colaboradoresFiltrados = resultado;
+    if (pendentesHoje === "true") {
+      const hoje = new Date();
+      const diaHoje = hoje.getDate();
+      const mesHoje = hoje.getMonth() + 1;
+      const anoHoje = hoje.getFullYear();
+      
+      // Só aplica o filtro se estivermos visualizando o mês atual
+      if (ano === anoHoje && mesNum === mesHoje) {
+        const dataHojeISO = ymd(hoje);
+        
+        colaboradoresFiltrados = resultado.filter((c) => {
+          const registroHoje = c.dias[dataHojeISO];
+          // Considera pendente se não tem registro ou se o status é "-" (falta)
+          return !registroHoje || registroHoje.status === "-";
+        });
+      }
+    }
+
+    return successResponse(res, { dias, colaboradores: colaboradoresFiltrados });
   } catch (err) {
     console.error(`[${reqId}] ❌ ERRO /ponto/controle:`, err);
     return errorResponse(
