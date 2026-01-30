@@ -8,7 +8,9 @@ export default function PresencaToolbar({
   lider,
   lideres = [],
   pendenciaSaida,
+  pendentesHoje,
   onPendenciaSaidaChange,
+  onPendentesHojeChange,
   onMesChange,
   onTurnoChange,
   onEscalaChange,
@@ -117,6 +119,30 @@ export default function PresencaToolbar({
             className="accent-[#FA4C00]"
           />
           Entrada sem saída
+        </label>
+
+        {/* PENDENTES */}
+        <label className="
+          flex items-center gap-2
+          text-sm text-[#BFBFC3]
+          px-3 py-2
+          rounded-xl
+          bg-[#1A1A1C]
+          hover:bg-[#2A2A2C]
+          cursor-pointer
+        ">
+          <input
+            type="checkbox"
+            checked={!!pendentesHoje}
+            onChange={(e) => onPendentesHojeChange(e.target.checked)}
+            className="accent-[#FA4C00]"
+          />
+          <span>Pendentes</span>
+          {pendentesHoje && (
+            <span className="bg-[#FA4C00] text-white text-xs px-2 py-1 rounded-full font-medium">
+              Filtro ativo
+            </span>
+          )}
         </label>
       </div>
 
