@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+// import { Download } from "lucide-react"; // COMENTADO - ÍCONE PARA EXPORTAR CSV
 
 export default function PresencaToolbar({
   mes,
@@ -16,6 +17,8 @@ export default function PresencaToolbar({
   onEscalaChange,
   onBuscaChange,
   onLiderChange,
+  // onExportarCSV, // COMENTADO - FUNÇÃO EXPORTAR CSV
+  // loading = false, // COMENTADO - LOADING PARA EXPORTAR CSV
 }) {
   const turnos = ["TODOS", "T1", "T2", "T3"];
 
@@ -23,6 +26,29 @@ export default function PresencaToolbar({
     <div className="flex flex-wrap items-center justify-between gap-4">
       {/* FILTROS */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* EXPORTAR CSV - COMENTADO */}
+        {/*
+        <button
+          onClick={onExportarCSV}
+          disabled={loading}
+          className="
+            inline-flex items-center gap-2
+            px-4 py-2
+            bg-[#34C759]
+            hover:bg-[#28A745]
+            disabled:bg-[#3A3A3C]
+            disabled:cursor-not-allowed
+            text-sm font-medium
+            rounded-xl
+            transition
+          "
+          title="Exportar controle de presença para CSV"
+        >
+          <Download size={16} />
+          Exportar CSV
+        </button>
+        */}
+
         {/* MÊS */}
         <input
           type="month"
@@ -121,29 +147,28 @@ export default function PresencaToolbar({
           Entrada sem saída
         </label>
 
-        {/* PENDENTES */}
-        <label className="
-          flex items-center gap-2
-          text-sm text-[#BFBFC3]
-          px-3 py-2
-          rounded-xl
-          bg-[#1A1A1C]
-          hover:bg-[#2A2A2C]
-          cursor-pointer
-        ">
-          <input
-            type="checkbox"
-            checked={!!pendentesHoje}
-            onChange={(e) => onPendentesHojeChange(e.target.checked)}
-            className="accent-[#FA4C00]"
-          />
-          <span>Pendentes</span>
+        {/* PENDENTES HOJE - BOTÃO */}
+        <button
+          onClick={() => onPendentesHojeChange(!pendentesHoje)}
+          className={`
+            inline-flex items-center gap-2
+            px-3 py-2
+            text-sm font-medium
+            rounded-xl
+            transition
+            ${pendentesHoje 
+              ? 'bg-[#FA4C00] text-white' 
+              : 'bg-[#1A1A1C] text-[#BFBFC3] hover:bg-[#2A2A2C]'
+            }
+          `}
+        >
+          <span>Pendentes hoje</span>
           {pendentesHoje && (
-            <span className="bg-[#FA4C00] text-white text-xs px-2 py-1 rounded-full font-medium">
-              Filtro ativo
+            <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full font-medium">
+              Ativo
             </span>
           )}
-        </label>
+        </button>
       </div>
 
       {/* BUSCA */}
