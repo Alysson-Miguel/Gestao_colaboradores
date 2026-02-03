@@ -156,8 +156,6 @@ const presignDownload = async (req, res) => {
 
     const url = await getSignedUrl(r2, command, {
       expiresIn: 600,
-      signingRegion: "auto",
-      signingService: "s3",
     });
 
 
