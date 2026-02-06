@@ -88,7 +88,6 @@ function getStatusDoDiaOperacional(f) {
         origem: "tipoAusencia",
       };
     }
-
     // ✅ ON -> onboarding (não escalado, não impacta abs)
     if (codigo === "ON") {
       return {
@@ -108,7 +107,15 @@ function getStatusDoDiaOperacional(f) {
         origem: "tipoAusencia",
       };
     }
-
+        // FE -> Férias (não escalado, não impacta abs)
+    if (codigo === "FE" || desc.includes("FÉRIAS")) {
+      return {
+        label: "Férias",
+        contaComoEscalado: false,
+        impactaAbsenteismo: false,
+        origem: "tipoAusencia",
+      };
+    }
     // Atestado médico (preferência por código AM; fallback por descrição)
     if (codigo === "AM" || desc.includes("ATEST")) {
       return {
