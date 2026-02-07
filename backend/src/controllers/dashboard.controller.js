@@ -239,7 +239,25 @@ const carregarDashboard = async (req, res) => {
           orderBy: { dataReferencia: "asc" },
         }),
       ]);
+    /* ===============================
+      DISTRIBUIÇÃO COLABORADORES — SPX vs BPO
+    =============================== */
+    let totalSPX = 0;
+    let totalBPO = 0;
 
+    colaboradores.forEach((c) => {
+      if (c.status !== "ATIVO") return;
+
+      const empresa = normalize(c.empresa?.razaoSocial).toUpperCase();
+
+      // ajuste se o nome for diferente no seu banco
+      if (empresa.includes("SHOPEE") || empresa.includes("SPX")) {
+        totalSPX++;
+      } else {
+        totalBPO++;
+      }
+    });
+  
     /* ===============================
        3️⃣ MAPA DE FREQUÊNCIAS (por opsId)
     =============================== */
@@ -259,6 +277,27 @@ const carregarDashboard = async (req, res) => {
     const ausenciasHoje = [];
     const tendenciaPorDia = {}; // { data: { presentes, ausentes, escalados } }
 
+    const distribuicaoVinculoPorTurno = {
+      T1: { SPX: 0, BPO: 0 },
+      T2: { SPX: 0, BPO: 0 },
+      T3: { SPX: 0, BPO: 0 },
+    };
+    colaboradores.forEach((c) => {
+      if (c.status !== "ATIVO") return;
+      if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
+
+      const turno = normalizeTurno(c.turno?.nomeTurno);
+      if (turno === "Sem turno") return;
+
+      const empresa = normalize(c.empresa?.razaoSocial).toUpperCase();
+
+      if (empresa.includes("SHOPEE") || empresa.includes("SPX")) {
+        distribuicaoVinculoPorTurno[turno].SPX += 1;
+      } else {
+        distribuicaoVinculoPorTurno[turno].BPO += 1;
+      }
+    });
+    
     /* ===============================
        5️⃣ LOOP PRINCIPAL (ALINHADO AO ADMIN)
     =============================== */
@@ -332,8 +371,21 @@ const carregarDashboard = async (req, res) => {
       generoPorTurno[turno][genero] =
         (generoPorTurno[turno][genero] || 0) + 1;
 
-      empresaPorTurno[turno][empresa] =
-        (empresaPorTurno[turno][empresa] || 0) + 1;
+      if (!empresaPorTurno[turno][empresa]) {
+        empresaPorTurno[turno][empresa] = { total: 0, ausencias: 0, atestados: 0 };
+      }
+
+      empresaPorTurno[turno][empresa].total += 1;
+
+      // Se for ausência que impacta (Falta / Atestado)
+      if (sSnap.impactaAbsenteismo) {
+        empresaPorTurno[turno][empresa].ausencias += 1;
+
+        // Conta atestado separado
+        if (sSnap.label === "Atestado Médico") {
+          empresaPorTurno[turno][empresa].atestados += 1;
+        }
+      }
 
       const setor = getSetor(registroSnapshot, c);
       turnoSetorAgg[turno].setores[setor] =
@@ -521,6 +573,21 @@ const aderenciaDW =
         dataOperacional: dataOperacionalStr,
         turnoAtual,
 
+        distribuicaoVinculoPorTurno: {
+          T1: [
+            { name: "SPX", value: distribuicaoVinculoPorTurno.T1.SPX },
+            { name: "BPO", value: distribuicaoVinculoPorTurno.T1.BPO },
+          ],
+          T2: [
+            { name: "SPX", value: distribuicaoVinculoPorTurno.T2.SPX },
+            { name: "BPO", value: distribuicaoVinculoPorTurno.T2.BPO },
+          ],
+          T3: [
+            { name: "SPX", value: distribuicaoVinculoPorTurno.T3.SPX },
+            { name: "BPO", value: distribuicaoVinculoPorTurno.T3.BPO },
+          ],
+        },
+
         // adiciona período (padrão Admin)
         periodo: { inicio: isoDate(inicio), fim: isoDate(fim) },
 
@@ -566,11 +633,16 @@ const aderenciaDW =
         ),
 
         empresaPorTurno: Object.fromEntries(
-          Object.entries(empresaPorTurno).map(([t, e]) => [
+          Object.entries(empresaPorTurno).map(([t, empresas]) => [
             t,
-            Object.entries(e).map(([empresa, quantidade]) => ({
+            Object.entries(empresas).map(([empresa, dados]) => ({
               empresa,
-              quantidade,
+              total: dados.total,
+              atestados: dados.atestados,
+              absenteismo:
+                dados.total > 0
+                  ? Number(((dados.ausencias / dados.total) * 100).toFixed(2))
+                  : 0,
             })),
           ])
         ),

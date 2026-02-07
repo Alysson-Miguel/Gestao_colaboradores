@@ -1,8 +1,8 @@
 export default function EmpresasSection({
-  title = "Distribuição",
-  items = [],               // [{ label, value }]
+  title = "Quantidade por Empresa",
+  items = [],
   emptyMessage = "Nenhum registro encontrado",
-  columns = 3,
+  columns = 2,
 }) {
   if (!items || items.length === 0) {
     return (
@@ -20,22 +20,41 @@ export default function EmpresasSection({
         </h2>
       )}
 
-      <div
-        className={`grid grid-cols-1 md:grid-cols-${columns} gap-6`}
-      >
-        {items.map((item, i) => (
-          <div
-            key={`${item.label}-${i}`}
-            className="rounded-xl bg-[#1A1A1C] p-5 flex justify-between items-center"
-          >
-            <span className="text-sm text-[#E5E5E5]">
-              {item.label}
-            </span>
-            <span className="text-lg font-semibold text-white">
-              {item.value}
-            </span>
-          </div>
-        ))}
+      <div className={`grid grid-cols-1 md:grid-cols-${columns} gap-6`}>
+        {items.map((item, i) => {
+          const absColor =
+            item.absenteismo <= 3.4 ? "#34C759" : "#d6000e";
+
+          return (
+            <div
+              key={`${item.empresa}-${i}`}
+              className="rounded-xl bg-[#1A1A1C] p-5 space-y-2"
+            >
+              {/* Empresa */}
+              <div className="text-sm text-[#E5E5E5] font-medium">
+                {item.empresa}
+              </div>
+
+              {/* Total */}
+              <div className="text-xl font-semibold text-white">
+                {item.total}
+              </div>
+
+              {/* Métricas */}
+              <div className="flex justify-between text-xs text-[#BFBFC3]">
+                <span>
+                  Abs:{" "}
+                  <strong style={{ color: absColor }}>
+                    {item.absenteismo}%
+                  </strong>
+                </span>
+                <span>
+                  Atest.: <strong>{item.atestados}</strong>
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

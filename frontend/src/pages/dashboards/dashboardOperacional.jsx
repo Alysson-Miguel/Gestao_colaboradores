@@ -17,6 +17,8 @@ import StatusColaboradoresSection from "../../components/dashboard/StatusColabor
 import AusentesHojeTable from "../../components/dashboard/AusentesHojeTable";
 import SetorDistribuicaoSection from "../../components/dashboard/SetorDistribuicaoSection";
 import TendenciaAbsenteismoChart from "../../components/dashboard/TendenciaAbsenteismoChart";
+import DistribuicaoVinculoChart from "../../components/dashboard/DistribuicaoVinculoChart";
+
 
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
@@ -220,13 +222,21 @@ export default function DashboardOperacional() {
   );
 
   const empresasItems = useMemo(
-    () =>
-      (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
-        label: e.empresa,
-        value: e.quantidade,
-      })),
+  () =>
+    (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
+      empresa: e.empresa,
+      total: e.total,
+      absenteismo: e.absenteismo,
+      atestados: e.atestados,
+    })),
     [dados, turnoSelecionado]
   );
+
+  const vinculoData = useMemo(
+    () => dados?.distribuicaoVinculoPorTurno?.[turnoSelecionado] || [],
+    [dados, turnoSelecionado]
+  );
+
 
   /* =====================================================
      RENDER
@@ -325,10 +335,14 @@ export default function DashboardOperacional() {
 
           <EmpresasSection title="Quantidade por Empresa" items={empresasItems} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <DistribuicaoGeneroChart
               title="Distribuição por Gênero"
               data={dados.generoPorTurno?.[turnoSelecionado] || []}
+            />
+            <DistribuicaoVinculoChart
+              title="Total Colaboradores - SPX x BPO"
+              data={vinculoData}
             />
             <StatusColaboradoresSection
               title="Status dos Colaboradores"
