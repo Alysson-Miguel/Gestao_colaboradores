@@ -98,15 +98,27 @@ function getStatusDoDiaOperacional(f) {
       };
     }
     
-    // FO / DSR -> não escalado (igual Admin)
-    if (codigo === "FO" || codigo === "DSR") {
+    // FO -> conta como HC Apto, não impacta absenteísmo
+    if (codigo === "FO") {
       return {
-        label: codigo === "FO" ? "Folga" : "Folga",
-        contaComoEscalado: false,
+        label: "Folga",
+        contaComoEscalado: true,       // ✅ entra no HC APTO
+        impactaAbsenteismo: false,    // ✅ não é ausência
+        origem: "tipoAusencia",
+      };
+    }
+
+    // DSR -> não escalado
+    if (codigo === "DSR") {
+      return {
+        label: "Folga",
+        contaComoEscalado: false,     // ❌ fora do HC
         impactaAbsenteismo: false,
         origem: "tipoAusencia",
       };
     }
+
+    
         // FE -> Férias (não escalado, não impacta abs)
     if (codigo === "FE" || desc.includes("FÉRIAS")) {
       return {
@@ -126,13 +138,13 @@ function getStatusDoDiaOperacional(f) {
       };
     }
 
-    if (codigo === "S1" || desc.includes("Sinergia")) {
+    if (codigo === "S1" || desc.includes("SINERGIA")) {
       return {
         label: "Sinergia Enviada",
-        contaComoEscalado: false,
-        impactaAbsenteismo: false,
+        contaComoEscalado: true,      // ✅ entra no HC APTO
+        impactaAbsenteismo: false,   // ✅ NÃO conta como ausência
         origem: "tipoAusencia",
-      }
+      };
     }
     
     // Qualquer outra ausência conta como falta operacional
@@ -354,41 +366,36 @@ const carregarDashboard = async (req, res) => {
     /* ===============================
        6️⃣ KPIs (absenteísmo no período igual Admin)
     =============================== */
-    const diasPeriodo = daysInclusive(inicio, fim);
-
-    let absDias = 0;
-    const escaladosSet = new Set();
-    const presentesSet = new Set();
+    let totalHcAptoDias = 0;
+    let totalAusenciasDias = 0;
 
     frequenciasPeriodo.forEach((f) => {
       const c = colaboradores.find(col => col.opsId === f.opsId);
       if (!c) return;
 
+      if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
+
       const turnoColab = normalizeTurno(c.turno?.nomeTurno);
       if (turnoFiltro && turnoColab !== turnoFiltro) return;
 
       const s = getStatusDoDiaOperacional(f);
-      if (!s.contaComoEscalado) return;
 
-      escaladosSet.add(f.opsId);
-
-      if (s.label === "Presente") {
-        presentesSet.add(f.opsId);
+      // HC APTO por dia
+      if (s.contaComoEscalado) {
+        totalHcAptoDias++;
       }
 
+      // AUSÊNCIAS por dia (F, FJ, AM)
       if (s.impactaAbsenteismo) {
-        absDias++;
+        totalAusenciasDias++;
       }
     });
 
-
-    const totalEscaladosPeriodo = escaladosSet.size;
-    const diasEsperados = totalEscaladosPeriodo * diasPeriodo;
-
     const absenteismoPeriodo =
-      diasEsperados > 0
-        ? Number(((absDias / diasEsperados) * 100).toFixed(2))
+      totalHcAptoDias > 0
+        ? Number(((totalAusenciasDias / totalHcAptoDias) * 100).toFixed(2))
         : 0;
+
 
     /* ===============================
        7️⃣ BUSCAR DIARISTAS PRESENTES (REAIS) POR TURNO
@@ -442,8 +449,8 @@ const carregarDashboard = async (req, res) => {
 
         // KPIs alinhados ao Admin
         kpis: {
-          totalColaboradores: totalEscaladosPeriodo,
-          presentes: presentesSet.size,
+          totalColaboradores: totalHcAptoDias,
+          presentes: totalHcAptoDias - totalAusenciasDias,
           absenteismo: absenteismoPeriodo,
         },
 
