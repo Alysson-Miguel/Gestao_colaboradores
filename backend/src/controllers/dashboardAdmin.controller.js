@@ -652,6 +652,13 @@ function buildEmpresasResumo({
   const map = {};
   const colaboradoresAtivosPeriodo = {};
 
+  // 🔑 BASE GLOBAL: quem esteve escalado no período
+  const escaladosSetGlobal = new Set(
+    frequencias
+      .filter(f => getStatusDoDia(f).contaComoEscalado)
+      .map(f => f.opsId)
+  );
+
   /* ===============================
      BASE: COLABORADORES POR EMPRESA
   =============================== */
@@ -663,10 +670,12 @@ function buildEmpresasResumo({
         empresa: emp,
         colaboradores: [],
         totalColaboradoresCadastrados: 0,
-        totalColaboradores: 0,
         presentes: new Set(),
         absDias: 0,
-        atestados: 0,
+
+        // 🔁 AJUSTE AQUI
+        atestadosSet: new Set(),
+
         medidasDisciplinares: 0,
         acidentes: 0,
         desligados: 0,
@@ -691,8 +700,9 @@ function buildEmpresasResumo({
     if (!colaboradoresAtivosPeriodo[emp]) {
       colaboradoresAtivosPeriodo[emp] = new Set();
     }
+
     if (s.contaComoEscalado) {
-    colaboradoresAtivosPeriodo[emp].add(f.opsId);
+      colaboradoresAtivosPeriodo[emp].add(f.opsId);
     }
 
     if (s.code === "P") {
@@ -704,15 +714,22 @@ function buildEmpresasResumo({
     }
   });
 
-
   /* ===============================
-     EVENTOS
+     EVENTOS (AJUSTADO)
   =============================== */
+
+  // ✅ ATESTADOS = DISTINCT opsId + somente escalados
   atestados.forEach(a => {
+    if (!escaladosSetGlobal.has(a.opsId)) return;
+
     const c = colaboradoresMap.get(a.opsId);
-    if (c) map[c.empresa?.razaoSocial || "Sem empresa"].atestados++;
+    if (!c) return;
+
+    const emp = c.empresa?.razaoSocial || "Sem empresa";
+    map[emp].atestadosSet.add(a.opsId);
   });
 
+  // ❌ mantém contagem simples (evento administrativo)
   medidas.forEach(m => {
     const c = colaboradoresMap.get(m.opsId);
     if (c) map[c.empresa?.razaoSocial || "Sem empresa"].medidasDisciplinares++;
@@ -737,10 +754,10 @@ function buildEmpresasResumo({
      CALCULA EMPRESAS
   =============================== */
   const empresas = Object.values(map).map(e => {
-    const totalPeriodo = 
+    const totalPeriodo =
       colaboradoresAtivosPeriodo[e.empresa]?.size || 0;
 
-    const diasEsperados = totalPeriodo * diasPeriodo
+    const diasEsperados = totalPeriodo * diasPeriodo;
 
     const absenteismo =
       diasEsperados > 0
@@ -751,29 +768,30 @@ function buildEmpresasResumo({
 
     const turnover =
       totalPeriodo > 0
-        ? Number(((mediaMovimentacao / totalPeriodo) * 100).toFixed(2)
-          )
+        ? Number(((mediaMovimentacao / totalPeriodo) * 100).toFixed(2))
         : 0;
 
     return {
       empresa: e.empresa,
       totalColaboradores: totalPeriodo,
       presentes: e.presentes.size,
-
       totalColaboradoresCadastrados: e.totalColaboradoresCadastrados,
 
       absenteismo,
       medidasDisciplinares: e.medidasDisciplinares,
-      atestados: e.atestados,
-      acidentes: e.acidentes,
 
+      // ✅ AJUSTE AQUI
+      atestadosSet: e.atestadosSet,
+      atestados: e.atestadosSet.size,
+
+      acidentes: e.acidentes,
       turnover,
       tempoMedioEmpresaDias: buildTempoMedioEmpresa(e.colaboradores),
     };
   });
 
   /* ===============================
-     TOTAL BPO
+     TOTAL BPO (DISTINCT GLOBAL)
   =============================== */
   const bpoEmpresas = ["ADECCO", "ADILIS", "LUANDRE"];
   const bpo = empresas.filter(e =>
@@ -781,14 +799,33 @@ function buildEmpresasResumo({
   );
 
   if (bpo.length) {
-    const totalColaboradores = bpo.reduce((s, e) => s + e.totalColaboradores, 0);
-    const totalColaboradoresCadastrados = bpo.reduce((s, e) => s + (e.totalColaboradoresCadastrados || 0),
-    0);
-    const presentes = bpo.reduce((s, e) => s + e.presentes, 0);
-    const atestadosTot = bpo.reduce((s, e) => s + e.atestados, 0);
-    const medidasTot = bpo.reduce((s, e) => s + e.medidasDisciplinares, 0);
-    const acidentesTot = bpo.reduce((s, e) => s + e.acidentes, 0);
+    const totalColaboradores = bpo.reduce(
+      (s, e) => s + e.totalColaboradores,
+      0
+    );
 
+    const totalColaboradoresCadastrados = bpo.reduce(
+      (s, e) => s + (e.totalColaboradoresCadastrados || 0),
+      0
+    );
+
+    const presentes = bpo.reduce((s, e) => s + e.presentes, 0);
+
+    // ✅ DISTINCT GLOBAL BPO
+    const atestadosBpoSet = new Set();
+    bpo.forEach(e => {
+      e.atestadosSet?.forEach(id => atestadosBpoSet.add(id));
+    });
+
+    const medidasTot = bpo.reduce(
+      (s, e) => s + e.medidasDisciplinares,
+      0
+    );
+
+    const acidentesTot = bpo.reduce(
+      (s, e) => s + e.acidentes,
+      0
+    );
 
     const mediaMov = (admitidos.length + desligados.length) / 2;
 
@@ -806,13 +843,18 @@ function buildEmpresasResumo({
         totalColaboradores > 0
           ? Number(
               (
-                bpo.reduce((s, e) => s + e.absenteismo * e.totalColaboradores, 0) /
-                totalColaboradores
+                bpo.reduce(
+                  (s, e) => s + e.absenteismo * e.totalColaboradores,
+                  0
+                ) / totalColaboradores
               ).toFixed(2)
             )
           : 0,
       medidasDisciplinares: medidasTot,
-      atestados: atestadosTot,
+
+      // ✅ AJUSTE FINAL
+      atestados: atestadosBpoSet.size,
+
       acidentes: acidentesTot,
       turnover,
       tempoMedioEmpresaDias: Math.round(
@@ -836,18 +878,15 @@ function buildEmpresasResumo({
     const ia = ORDEM_EMPRESAS.indexOf(a.empresa.toUpperCase());
     const ib = ORDEM_EMPRESAS.indexOf(b.empresa.toUpperCase());
 
-    // quem não estiver na lista vai para o final
-    if (ia === -1 && ib === -1) {
-      return a.empresa.localeCompare(b.empresa);
-    }
+    if (ia === -1 && ib === -1) return a.empresa.localeCompare(b.empresa);
     if (ia === -1) return 1;
     if (ib === -1) return -1;
-
     return ia - ib;
   });
 
   return empresas;
 }
+
 
 
 /* =====================================================

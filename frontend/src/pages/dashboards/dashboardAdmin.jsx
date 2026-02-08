@@ -305,7 +305,7 @@ const kpis = useMemo(() => {
             />
 
             <DistribuicaoColaboradoresCadastradosChart
-              title="Colaboradores Cadastrados"
+              title="Total de Colaboradores"
               data={colaboradoresCadastradosData}
             />
 
