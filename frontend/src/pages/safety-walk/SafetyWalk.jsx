@@ -27,9 +27,8 @@ export default function SafetyWalk() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [filtroTurno, setFiltroTurno] = useState("TODOS");
-  const [periodo, setPeriodo] = useState("semana"); // semana por padrão para acompanhamento semanal
-  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1); // 1-12
-  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [periodo, setPeriodo] = useState("semana_atual"); // semana_atual por padrão
+  const [semanaSelecionada, setSemanaSelecionada] = useState(""); // W2, W3, etc.
   const [pendentesExpandido, setPendentesExpandido] = useState(true);
   const [realizadosExpandido, setRealizadosExpandido] = useState(true);
 
@@ -48,10 +47,9 @@ export default function SafetyWalk() {
         turno: filtroTurno !== "TODOS" ? filtroTurno : undefined,
       };
 
-      // Se período for "mes", adicionar mês e ano
-      if (periodo === "mes") {
-        params.mes = mesSelecionado;
-        params.ano = anoSelecionado;
+      // Se período for "semana_especifica", adicionar semana
+      if (periodo === "semana_especifica" && semanaSelecionada) {
+        params.semana = semanaSelecionada;
       }
       
       const res = await api.get("/safety-walk", { params });
@@ -74,7 +72,7 @@ export default function SafetyWalk() {
 
   useEffect(() => {
     loadSafetyWalk();
-  }, [periodo, filtroTurno, mesSelecionado, anoSelecionado]);
+  }, [periodo, filtroTurno, semanaSelecionada]);
 
   /* =====================================================
      FILTRAR DADOS - PESSOAS ÚNICAS
@@ -110,22 +108,8 @@ export default function SafetyWalk() {
   /* =====================================================
      HELPERS
   ===================================================== */
-  const meses = [
-    { valor: 1, nome: "Janeiro" },
-    { valor: 2, nome: "Fevereiro" },
-    { valor: 3, nome: "Março" },
-    { valor: 4, nome: "Abril" },
-    { valor: 5, nome: "Maio" },
-    { valor: 6, nome: "Junho" },
-    { valor: 7, nome: "Julho" },
-    { valor: 8, nome: "Agosto" },
-    { valor: 9, nome: "Setembro" },
-    { valor: 10, nome: "Outubro" },
-    { valor: 11, nome: "Novembro" },
-    { valor: 12, nome: "Dezembro" },
-  ];
-
-  const anos = [2024, 2025, 2026];
+  const semanasDisponiveis = dados?.semanasDisponiveis || [];
+  const semanaAtual = dados?.semanaAtual || '';
 
   /* =====================================================
      KPIs
@@ -194,54 +178,44 @@ export default function SafetyWalk() {
             {/* Período */}
             <div className="flex gap-2">
               <button
-                onClick={() => setPeriodo("semana")}
+                onClick={() => {
+                  setPeriodo("semana_atual");
+                  setSemanaSelecionada("");
+                }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  periodo === "semana"
+                  periodo === "semana_atual"
                     ? "bg-[#FA4C00] text-white"
                     : "bg-[#1A1A1C] text-[#BFBFC3] hover:bg-[#222]"
                 }`}
               >
-                Esta Semana
+                Esta Semana {semanaAtual && `(${semanaAtual})`}
               </button>
               <button
-                onClick={() => setPeriodo("mes")}
+                onClick={() => setPeriodo("semana_especifica")}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  periodo === "mes"
+                  periodo === "semana_especifica"
                     ? "bg-[#FA4C00] text-white"
                     : "bg-[#1A1A1C] text-[#BFBFC3] hover:bg-[#222]"
                 }`}
               >
-                Por Mês
+                Por Semana
               </button>
             </div>
 
-            {/* Seletor de Mês e Ano - só aparece quando período = "mes" */}
-            {periodo === "mes" && (
-              <>
-                <select
-                  value={mesSelecionado}
-                  onChange={(e) => setMesSelecionado(Number(e.target.value))}
-                  className="bg-[#1A1A1C] border border-[#2A2A2C] px-4 py-2 rounded-lg text-sm"
-                >
-                  {meses.map((mes) => (
-                    <option key={mes.valor} value={mes.valor}>
-                      {mes.nome}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={anoSelecionado}
-                  onChange={(e) => setAnoSelecionado(Number(e.target.value))}
-                  className="bg-[#1A1A1C] border border-[#2A2A2C] px-4 py-2 rounded-lg text-sm"
-                >
-                  {anos.map((ano) => (
-                    <option key={ano} value={ano}>
-                      {ano}
-                    </option>
-                  ))}
-                </select>
-              </>
+            {/* Seletor de Semana - só aparece quando período = "semana_especifica" */}
+            {periodo === "semana_especifica" && (
+              <select
+                value={semanaSelecionada}
+                onChange={(e) => setSemanaSelecionada(e.target.value)}
+                className="bg-[#1A1A1C] border border-[#2A2A2C] px-4 py-2 rounded-lg text-sm"
+              >
+                <option value="">Selecione uma semana</option>
+                {semanasDisponiveis.map((semana) => (
+                  <option key={semana} value={semana}>
+                    {semana}
+                  </option>
+                ))}
+              </select>
             )}
 
             {/* Turno */}
