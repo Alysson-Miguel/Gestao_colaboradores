@@ -8,6 +8,7 @@ import Register from "./pages/register";
 import DashboardOperacional from "./pages/dashboards/dashboardOperacional";
 import DashboardAdmin from "./pages/dashboards/dashboardAdmin";
 import DashboardColaborador from "./pages/dashboards/dashboardColaborador";
+import DashboardAtestados from "./pages/dashboards/dashboardAtestados";
 
 /* ================= COLABORADORES ================= */
 import ColaboradoresPage from "./pages/colaboradores";
@@ -93,6 +94,15 @@ export default function App() {
             </ProtectedRoute>
         }
       />
+      <Route
+        path="/dashboard/atestados"
+        element={
+          <ProtectedRoute roles={["ADMIN", "LIDERANCA"]}>
+            <DashboardAtestados />
+          </ProtectedRoute>
+        }
+      />
+
       {/* ================= COLABORADORES ================= */}
       <Route
         path="/colaboradores"

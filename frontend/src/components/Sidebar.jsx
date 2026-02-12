@@ -161,6 +161,14 @@ export default function Sidebar({ isOpen, onClose }) {
                   onClick={() => go("/dashboard/operacional")}
                 />
 
+                {(isAdmin || isLideranca) && (
+                  <SidebarSubItem
+                    label="Atestados"
+                    active={isActive("/dashboard/atestados")}
+                    onClick={() => go("/dashboard/atestados")}
+                  />
+                )}
+
                 {isAdmin && (
                   <>
                     <SidebarSubItem
