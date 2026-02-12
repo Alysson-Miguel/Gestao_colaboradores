@@ -66,6 +66,24 @@ const parseData = (dataStr) => {
   return null;
 };
 
+// 📅 Calcular semana atual do ano
+const calcularSemanaAtual = () => {
+  const hoje = new Date();
+  const inicioAno = new Date(hoje.getFullYear(), 0, 1);
+  const diasPassados = Math.floor((hoje - inicioAno) / (1000 * 60 * 60 * 24));
+  const semanaAtual = Math.ceil((diasPassados + inicioAno.getDay() + 1) / 7);
+  
+  console.log(`📅 Cálculo de semana atual:`, {
+    hoje: hoje.toISOString().split('T')[0],
+    diasPassados,
+    diaSemanaInicioAno: inicioAno.getDay(),
+    semanaCalculada: semanaAtual,
+    resultado: `W${semanaAtual}`
+  });
+  
+  return `W${semanaAtual}`;
+};
+
 /**
  * 📊 Buscar dados do Safety Walk do Google Sheets
  * Estrutura da planilha:
@@ -77,10 +95,9 @@ const parseData = (dataStr) => {
  * - Linha 6+: Dados (W2, Safety Walk, datas, status por líder)
  * 
  * @param {Object} filtros - Filtros opcionais
- * @param {string} filtros.periodo - 'hoje', 'semana', 'mes'
+ * @param {string} filtros.periodo - 'semana_atual' ou 'semana_especifica'
+ * @param {string} filtros.semana - Semana específica (ex: 'W2', 'W10')
  * @param {string} filtros.turno - 'T1', 'T2', 'T3', 'ADM'
- * @param {number} filtros.mes - Mês específico (1-12)
- * @param {number} filtros.ano - Ano específico (ex: 2025)
  * @returns {Object} Dados processados do Safety Walk
  */
 const buscarDadosSafetyWalk = async (filtros = {}) => {
@@ -245,11 +262,20 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
         // Filtro de turno
         if (filtros.turno && lider.turno !== filtros.turno) return;
 
-        // Determinar se está realizado
-        const realizado = statusLower.includes('realizado') || 
-                         statusLower.includes('ok') ||
-                         statusLower.includes('concluído') ||
-                         statusLower.includes('concluido');
+        // Determinar se está realizado - LÓGICA MAIS RESTRITIVA
+        // Apenas considerar realizado se tiver palavras-chave MUITO específicas
+        // Qualquer coisa diferente disso é considerado PENDENTE
+        const palavrasRealizadas = ['realizado', 'concluído', 'concluido', 'completo'];
+        const realizado = palavrasRealizadas.some(palavra => statusLower === palavra) ||
+                         statusLower === 'ok' ||
+                         statusLower.startsWith('realizado') ||
+                         statusLower.startsWith('concluído') ||
+                         statusLower.startsWith('concluido');
+        
+        // Log para debug - ver o que está sendo processado
+        if (semana === 'W7' || semana === 'W6') {
+          console.log(`🔍 ${semana} Debug - ${lider.nome} (${lider.turno}): "${status}" → ${realizado ? 'REALIZADO' : 'PENDENTE'}`);
+        }
 
         const registro = {
           semana,
@@ -273,41 +299,62 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
     }
 
     console.log(`✅ Total de registros processados: ${registros.length}`);
+    
+    // Debug: mostrar todas as semanas disponíveis
+    const semanasEncontradas = [...new Set(registros.map(r => r.semana))].sort();
+    console.log(`📅 Semanas encontradas na planilha:`, semanasEncontradas);
 
-    // Aplicar filtro de período
+    // Aplicar filtro de período/semana
     let registrosFiltrados = registros;
-    if (filtros.periodo || filtros.mes || filtros.ano) {
-      registrosFiltrados = registros.filter(reg => {
-        // Se não tem data, incluir no resultado
-        if (!reg.dataFim && !reg.dataInicio) return true;
-        
-        // Usar dataFim ou dataInicio
-        const dataRef = reg.dataFim || reg.dataInicio;
-        if (!dataRef) return true;
-        
-        const dataRefObj = new Date(dataRef);
-        
-        // Filtro específico por mês e ano
-        if (filtros.mes && filtros.ano) {
-          const mesData = dataRefObj.getMonth() + 1; // 1-12
-          const anoData = dataRefObj.getFullYear();
-          return mesData === Number(filtros.mes) && anoData === Number(filtros.ano);
-        }
-        
-        // Filtro por período relativo
-        if (filtros.periodo) {
-          const diffDias = Math.floor((hoje - dataRefObj) / (1000 * 60 * 60 * 24));
-          
-          // Ajustar filtros para serem mais inclusivos
-          if (filtros.periodo === 'hoje') return Math.abs(diffDias) <= 7; // Última semana
-          if (filtros.periodo === 'semana') return Math.abs(diffDias) <= 30; // Último mês
-          if (filtros.periodo === 'mes') return Math.abs(diffDias) <= 90; // Últimos 3 meses
-        }
-        
-        return true;
-      });
+    
+    if (filtros.periodo === 'semana_atual') {
+      // Filtrar pela semana atual
+      const semanaAtual = calcularSemanaAtual();
+      console.log(`📅 Filtrando pela semana atual: ${semanaAtual}`);
       
-      console.log(`📊 Após filtro de período: ${registrosFiltrados.length} registros`);
+      registrosFiltrados = registros.filter(reg => reg.semana === semanaAtual);
+      console.log(`📊 Após filtro de semana atual: ${registrosFiltrados.length} registros`);
+      
+      // Debug: mostrar status dos registros filtrados
+      const statusCount = registrosFiltrados.reduce((acc, r) => {
+        acc[r.status] = (acc[r.status] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`📊 Status dos registros filtrados:`, statusCount);
+      
+      // Debug: mostrar alguns exemplos de registros
+      if (registrosFiltrados.length > 0) {
+        console.log(`📋 Primeiros 3 registros da ${semanaAtual}:`);
+        registrosFiltrados.slice(0, 3).forEach(r => {
+          console.log(`   - ${r.responsavel} (${r.turno}): ${r.status} - "${r.statusOriginal}"`);
+        });
+      }
+      
+    } else if (filtros.periodo === 'semana_especifica' && filtros.semana) {
+      // Filtrar por semana específica
+      console.log(`📅 Filtrando pela semana específica: ${filtros.semana}`);
+      
+      registrosFiltrados = registros.filter(reg => reg.semana === filtros.semana);
+      console.log(`📊 Após filtro de semana específica: ${registrosFiltrados.length} registros`);
+      
+      // Debug: mostrar status dos registros filtrados
+      const statusCount = registrosFiltrados.reduce((acc, r) => {
+        acc[r.status] = (acc[r.status] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`📊 Status dos registros filtrados:`, statusCount);
+      
+      // Debug: mostrar alguns exemplos de registros
+      if (registrosFiltrados.length > 0) {
+        console.log(`📋 Primeiros 3 registros da ${filtros.semana}:`);
+        registrosFiltrados.slice(0, 3).forEach(r => {
+          console.log(`   - ${r.responsavel} (${r.turno}): ${r.status} - "${r.statusOriginal}"`);
+        });
+      }
+      
+    } else {
+      // Sem filtro de período - mostrar todas as semanas
+      console.log(`📊 Sem filtro de período - mostrando todos os registros`);
     }
 
     // Calcular métricas - CONTAR PESSOAS ÚNICAS, NÃO REGISTROS
@@ -326,12 +373,11 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       : 0;
 
     // Conclusão por turno - PESSOAS ÚNICAS (não registros)
-    // Primeiro: identificar pessoas que têm pelo menos uma célula com valor (não vazia)
-    // Se todas as células de uma pessoa estão vazias = não é obrigatório = não conta
+    // Usar registrosFiltrados para respeitar o filtro de semana
     const pessoasComValorPorTurno = {};
     const pessoasRealizaramPorTurno = {};
     
-    registros.forEach(r => {
+    registrosFiltrados.forEach(r => {
       const turno = r.turno || 'Não informado';
       
       // Inicializar se não existe
@@ -368,6 +414,15 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       })
       .sort((a, b) => a.turno.localeCompare(b.turno));
 
+    // Extrair lista de semanas disponíveis (únicas e ordenadas)
+    const semanasDisponiveis = [...new Set(registros.map(r => r.semana))]
+      .filter(s => s && s.startsWith('W'))
+      .sort((a, b) => {
+        const numA = parseInt(a.replace('W', ''));
+        const numB = parseInt(b.replace('W', ''));
+        return numA - numB;
+      });
+
     const resultado = {
       totalInspecoes,
       realizadas,
@@ -377,6 +432,8 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       registros: registrosFiltrados,
       conclusaoPorTurno,
       naoConformidadesLista: [], // Será implementado quando houver dados de NC
+      semanaAtual: calcularSemanaAtual(),
+      semanasDisponiveis,
     };
 
     console.log('📊 Métricas calculadas:', {

@@ -7,15 +7,14 @@ const { successResponse, errorResponse } = require('../utils/response');
  */
 const getDadosSafetyWalk = async (req, res) => {
   try {
-    const { periodo, turno, mes, ano } = req.query;
+    const { periodo, turno, semana } = req.query;
 
-    console.log('📊 GET /api/safety-walk - Filtros:', { periodo, turno, mes, ano });
+    console.log('📊 GET /api/safety-walk - Filtros:', { periodo, turno, semana });
 
     const filtros = { periodo, turno };
     
-    // Adicionar mês e ano se fornecidos
-    if (mes) filtros.mes = parseInt(mes);
-    if (ano) filtros.ano = parseInt(ano);
+    // Adicionar semana se fornecida
+    if (semana) filtros.semana = semana;
 
     const resultado = await buscarDadosSafetyWalk(filtros);
 
@@ -77,15 +76,14 @@ const sincronizarManual = async (req, res) => {
  */
 const exportarDados = async (req, res) => {
   try {
-    const { periodo, turno, mes, ano } = req.query;
+    const { periodo, turno, semana } = req.query;
 
-    console.log('📥 GET /api/safety-walk/export - Filtros:', { periodo, turno, mes, ano });
+    console.log('📥 GET /api/safety-walk/export - Filtros:', { periodo, turno, semana });
 
     const filtros = { periodo, turno };
     
-    // Adicionar mês e ano se fornecidos
-    if (mes) filtros.mes = parseInt(mes);
-    if (ano) filtros.ano = parseInt(ano);
+    // Adicionar semana se fornecida
+    if (semana) filtros.semana = semana;
 
     const resultado = await buscarDadosSafetyWalk(filtros);
 
