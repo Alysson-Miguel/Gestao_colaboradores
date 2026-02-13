@@ -254,15 +254,18 @@ export default function DashboardOperacional() {
   );
 
   const empresasItems = useMemo(
-  () =>
-    (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
-      empresa: e.empresa,
-      total: e.total,
-      absenteismo: e.absenteismo,
-      atestados: e.atestados,
-    })),
+    () =>
+      (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
+        empresa: e.empresa,
+        total: e.total,
+        faltas: e.faltas,
+        atestados: e.atestados,
+        ausencias: e.ausencias,
+        absenteismo: e.absenteismo,
+      })),
     [dados, turnoSelecionado]
   );
+
 
   const vinculoData = useMemo(
     () => dados?.distribuicaoVinculoPorTurno?.[turnoSelecionado] || [],

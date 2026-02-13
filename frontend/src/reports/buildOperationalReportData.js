@@ -64,8 +64,10 @@ export function buildOperationalReportData({ dados, turno, periodo }) {
     (dados.empresaPorTurno?.[turnoKey] || []).map((e) => ({
       name: e.empresa,
       total: safe(e.total),
-      absenteismo: safe(e.absenteismo),
+      faltas: safe(e.faltas),
       atestados: safe(e.atestados),
+      ausencias: safe(e.ausencias ?? (e.faltas + e.atestados)),
+      absenteismo: safe(e.absenteismo),
     }))
 
   /* ================= AUSÊNCIAS ================= */

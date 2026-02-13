@@ -12,6 +12,14 @@ export default function EmpresasSection({
     );
   }
 
+  // 🔥 Evita problema de grid dinâmico no Tailwind
+  const gridCols =
+    columns === 3
+      ? "md:grid-cols-3"
+      : columns === 4
+      ? "md:grid-cols-4"
+      : "md:grid-cols-2";
+
   return (
     <section className="space-y-4">
       {title && (
@@ -20,15 +28,20 @@ export default function EmpresasSection({
         </h2>
       )}
 
-      <div className={`grid grid-cols-1 md:grid-cols-${columns} gap-6`}>
+      <div className={`grid grid-cols-1 ${gridCols} gap-6`}>
         {items.map((item, i) => {
+          const faltas = item.faltas ?? 0;
+          const atestados = item.atestados ?? 0;
+          const ausencias = item.ausencias ?? faltas + atestados;
+          const absenteismo = item.absenteismo ?? 0;
+
           const absColor =
-            item.absenteismo <= 3.4 ? "#34C759" : "#d6000e";
+            absenteismo <= 3.4 ? "#34C759" : "#d6000e";
 
           return (
             <div
               key={`${item.empresa}-${i}`}
-              className="rounded-xl bg-[#1A1A1C] p-5 space-y-2"
+              className="rounded-xl bg-[#1A1A1C] p-5 space-y-3 border border-[#2A2A2C]"
             >
               {/* Empresa */}
               <div className="text-sm text-[#E5E5E5] font-medium">
@@ -36,21 +49,40 @@ export default function EmpresasSection({
               </div>
 
               {/* Total */}
-              <div className="text-xl font-semibold text-white">
+              <div className="text-2xl font-semibold text-white">
                 {item.total}
               </div>
 
               {/* Métricas */}
-              <div className="flex justify-between text-xs text-[#BFBFC3]">
-                <span>
-                  Abs:{" "}
-                  <strong style={{ color: absColor }}>
-                    {item.absenteismo}%
+              <div className="space-y-1 text-xs text-[#BFBFC3]">
+
+                <div className="flex justify-between">
+                  <span>Faltas</span>
+                  <strong className="text-[#FF453A]">
+                    {faltas}
                   </strong>
-                </span>
-                <span>
-                  Atest.: <strong>{item.atestados}</strong>
-                </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Atestados</span>
+                  <strong className="text-[#FF9F0A]">
+                    {atestados}
+                  </strong>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>Ausências</span>
+                  <strong className="text-[#d6000e]">
+                    {ausencias}
+                  </strong>
+                </div>
+
+                <div className="flex justify-between pt-2 border-t border-[#2A2A2C]">
+                  <span>Absenteísmo</span>
+                  <strong style={{ color: absColor }}>
+                    {absenteismo}%
+                  </strong>
+                </div>
               </div>
             </div>
           );
