@@ -49,6 +49,7 @@ import DwNovoPage from "./pages/DailyWorks/dwNovo";
 
 /* ================= SSO - SEGURANÇA E SAÚDE OCUPACIONAL ================= */
 import SafetyWalk from "./pages/safety-walk/SafetyWalk";
+import DDSMA from "./pages/safety-walk/DDSMA";
 
 /* ================= PROTEÇÃO ================= */
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -330,6 +331,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={["ADMIN", "LIDERANCA", "GESTAO"]}>
             <SafetyWalk />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ddsma"
+        element={
+          <ProtectedRoute roles={["ADMIN", "LIDERANCA", "GESTAO"]}>
+            <DDSMA />
           </ProtectedRoute>
         }
       />
