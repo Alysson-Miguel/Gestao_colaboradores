@@ -376,7 +376,7 @@ const carregarDashboard = async (req, res) => {
         (generoPorTurno[turno][genero] || 0) + 1;
 
       if (!empresaPorTurno[turno][empresa]) {
-        empresaPorTurno[turno][empresa] = { total: 0, ausencias: 0, atestados: 0 };
+        empresaPorTurno[turno][empresa] = { total: 0, ausencias: 0, faltas: 0, atestados: 0 };
       }
 
       empresaPorTurno[turno][empresa].total += 1;
@@ -388,6 +388,9 @@ const carregarDashboard = async (req, res) => {
         // Conta atestado separado
         if (sSnap.label === "Atestado Médico") {
           empresaPorTurno[turno][empresa].atestados += 1;
+        }
+        else if (sSnap.label === "Falta") {
+          empresaPorTurno[turno][empresa].faltas += 1;
         }
       }
 
@@ -642,7 +645,9 @@ const aderenciaDW =
             Object.entries(empresas).map(([empresa, dados]) => ({
               empresa,
               total: dados.total,
+              faltas: dados.faltas,
               atestados: dados.atestados,
+              ausencias: dados.faltas + dados.atestados,
               absenteismo:
                 dados.total > 0
                   ? Number(((dados.ausencias / dados.total) * 100).toFixed(2))
@@ -650,6 +655,7 @@ const aderenciaDW =
             })),
           ])
         ),
+
 
         ausenciasHoje,
 

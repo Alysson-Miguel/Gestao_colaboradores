@@ -222,7 +222,7 @@ export default function OperationalReport({ report }) {
           <KpiCard label="Colaboradores Planejados" value={kpis.colaboradoresPlanejados} />
           <KpiCard label="Colaboradores Presentes" value={kpis.colaboradoresPresentes} />
           <KpiCard label="Ausências" value={kpis.ausencias} highlight="error" />
-          <KpiCard label="Absenteísmo" value={`${kpis.absenteismo}%`} highlight="warning" />
+          <KpiCard label="Absenteísmo" value={`${kpis.absenteismo}%`} highlight="warning" textColor={kpis.absenteismo > 3.4 ? "#FF453A" : "#FA4C00"} />
           <KpiCard label="Diaristas Planejados" value={kpis.diaristasPlanejados} />
           <KpiCard label="Diaristas Presentes" value={kpis.diaristasPresentes} />
           <KpiCard label="Aderência DW" value={`${kpis.aderenciaDW}%`} highlight="success" />
@@ -241,15 +241,25 @@ export default function OperationalReport({ report }) {
                   <div className="absolute left-0 top-0 h-full w-1 bg-[#FA4C00]" />
                   <p className="text-xs text-[#BFBFC3]">{e.name}</p>
                   <p className="text-2xl font-semibold mt-1">{e.total}</p>
-                  <div className="mt-3 flex justify-between text-xs">
-                    <span className="text-[#BFBFC3]">Absenteísmo</span>
-                    <span className={e.absenteismo > 4 ? "text-[#FF453A]" : "text-[#34C759]"}>
-                      {e.absenteismo}%
-                    </span>
-                  </div>
-                  <div className="mt-1 flex justify-between text-xs">
-                    <span className="text-[#BFBFC3]">Atestados</span>
-                    <span className="text-[#FF9F0A]">{e.atestados}</span>
+                  <div className="mt-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-[#BFBFC3]">Faltas</span>
+                      <span className="text-[#FF453A]">{e.faltas}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#BFBFC3]">Atestados</span>
+                      <span className="text-[#FF9F0A]">{e.atestados}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#BFBFC3]">Ausências</span>
+                      <span className="text-[#d6000e]">{e.ausencias}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-white/5">
+                      <span className="text-[#BFBFC3]">Absenteísmo</span>
+                      <span className={e.absenteismo > 3.4 ? "text-[#FF453A]" : "text-[#34C759]"}>
+                        {e.absenteismo}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))
@@ -339,7 +349,7 @@ export default function OperationalReport({ report }) {
 function Card({ children }) {
   return <div className="bg-[#1c1c1c] rounded-xl p-4">{children}</div>
 }
-function KpiCard({ label, value, highlight }) {
+function KpiCard({ label, value, highlight, textColor }) {
   const bar =
     highlight === "success"
       ? "bg-[#34C759]"
@@ -352,7 +362,10 @@ function KpiCard({ label, value, highlight }) {
     <div className="relative rounded-xl bg-[#1c1c1c] p-4 overflow-hidden">
       <div className={`absolute left-0 top-0 h-full w-1 ${bar}`} />
       <p className="text-xs text-[#BFBFC3]">{label}</p>
-      <p className="text-xl sm:text-2xl font-semibold mt-1">{value}</p>
+      <p className="text-xl sm:text-2xl font-semibold mt-1" style={{ color: textColor || "#ffffff"}}
+      >
+        {value}
+      </p>
     </div>
   )
 }
