@@ -48,8 +48,8 @@ import DwListPage from "./pages/DailyWorks/dwList";
 import DwNovoPage from "./pages/DailyWorks/dwNovo";
 
 /* ================= SSO - SEGURANÇA E SAÚDE OCUPACIONAL ================= */
-import SafetyWalk from "./pages/safety-walk/SafetyWalk";
-import DDSMA from "./pages/safety-walk/DDSMA";
+import SafetyWalk from "./pages/spi/SafetyWalk";
+import DDSMA from "./pages/spi/DDSMA";
 
 /* ================= PROTEÇÃO ================= */
 import ProtectedRoute from "./routes/ProtectedRoute";
