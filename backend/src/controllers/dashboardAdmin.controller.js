@@ -515,12 +515,14 @@ function buildOverview({ frequencias, inicio, fim }) {
       totalColaboradores: 0,
       presentes: 0,
       absenteismo: 0,
+      faltas: 0,
     };
   }
 
   const diasPeriodo = daysInclusive(inicio, fim);
 
   let absDias = 0;
+  let faltasDias = 0;
 
   const escaladosSet = new Set();
   const presentesSet = new Set();
@@ -540,6 +542,10 @@ function buildOverview({ frequencias, inicio, fim }) {
     if (s.impactaAbsenteismo) {
       absDias++;
     }
+
+    if (s.code === "F" || s.code === "FJ") {
+      faltasDias++;
+    } 
   });
 
   const totalEscalados = escaladosSet.size;
@@ -548,6 +554,7 @@ function buildOverview({ frequencias, inicio, fim }) {
   return {
     totalColaboradores: totalEscalados,
     presentes: presentesSet.size,
+    faltas: faltasDias,
     absenteismo:
       diasEsperados > 0
         ? Number(((absDias / diasEsperados) * 100).toFixed(2))
@@ -676,6 +683,7 @@ function buildEmpresasResumo({
         totalColaboradoresCadastrados: 0,
         presentes: new Set(),
         absDias: 0,
+        faltas: 0,
 
         // 🔁 AJUSTE AQUI
         atestadosSet: new Set(),
@@ -715,6 +723,10 @@ function buildEmpresasResumo({
 
     if (s.impactaAbsenteismo) {
       map[emp].absDias++;
+    }
+    // 👇 SOMA FALTAS (F e FJ)
+    if (s.code === "F" || s.code === "FJ") {
+      map[emp].faltas++;
     }
   });
 
@@ -782,6 +794,7 @@ function buildEmpresasResumo({
       totalColaboradoresCadastrados: e.totalColaboradoresCadastrados,
 
       absenteismo,
+      faltas: e.faltas || 0,
       medidasDisciplinares: e.medidasDisciplinares,
 
       // ✅ AJUSTE AQUI
@@ -838,6 +851,11 @@ function buildEmpresasResumo({
         ? Number(((mediaMov / totalColaboradores) * 100).toFixed(2))
         : 0;
 
+    const faltasTot = bpo.reduce(
+      (s, e) => s + (e.faltas || 0),
+      0
+    );
+
     empresas.push({
       empresa: "TOTAL BPO",
       totalColaboradores,
@@ -855,6 +873,7 @@ function buildEmpresasResumo({
             )
           : 0,
       medidasDisciplinares: medidasTot,
+      faltas: faltasTot,
 
       // ✅ AJUSTE FINAL
       atestados: atestadosBpoSet.size,
@@ -1032,6 +1051,7 @@ const carregarDashboardAdmin = async (req, res) => {
           atestados: atestados.filter(a =>
             opsIdsEscaladosPeriodo.includes(a.opsId)
           ).length,
+          faltas: overview.faltas,
           medidasDisciplinares: medidas.length,
           acidentes: acidentes.length,
           idadeMedia: buildIdadeMedia(colaboradoresPeriodo),
