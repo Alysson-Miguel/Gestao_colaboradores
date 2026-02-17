@@ -62,6 +62,13 @@ export default function EmpresasResumoSection({ empresas = [] }) {
           </div>
 
           <div>
+            <span className="text-[#BFBFC3]">Faltas</span>
+            <p className="text-lg font-semibold text-[#FF453A]">
+              {e.faltas ?? 0}
+            </p>
+          </div>
+
+          <div>
             <span className="text-[#BFBFC3]">Absenteísmo</span>
             <p
               className="text-lg font-semibold"

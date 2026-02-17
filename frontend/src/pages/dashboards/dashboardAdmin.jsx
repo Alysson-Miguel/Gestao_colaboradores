@@ -40,6 +40,7 @@ const INITIAL_DATA = {
     absenteismo: 0,
     turnover: 0,
     atestados: 0,
+    faltas: 0,
     medidasDisciplinares: 0,
     acidentes: 0,
     idadeMedia: 0,
@@ -156,6 +157,12 @@ const kpis = useMemo(() => {
       label: "Acidentes",
       value: k.acidentes || 0,
       color: "#FFD60A",
+    },
+    {
+      icon: AlertTriangle,
+      label: "Faltas",
+      value: k.faltas || 0,
+      color: "#FF453A", // vermelho Shopee
     },
     {
       icon: User,
