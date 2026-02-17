@@ -107,7 +107,7 @@ async function sendImageToGroup(imageBase64, groupId, metadata = {}) {
         }
       }
       
-      const textoInfo = `Relatório Operacional\ Data: ${periodoFormatado}\n Turno: ${metadata.turno || 'N/A'}`
+      const textoInfo = `Boa tarde segue Report Relatório Operacional\nData: ${periodoFormatado}\nTurno: ${metadata.turno || 'N/A'}`
       
       console.log("💬 Enviando texto informativo...")
       
