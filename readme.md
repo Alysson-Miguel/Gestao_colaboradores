@@ -260,6 +260,6 @@ Agradecimentos especiais a todos que contribuíram para este projeto.
 
 ---
 
-**Versão:** 1.0.0  
+**Versão:** 1.0.0
 **Última Atualização:** 17/02/2026  
 **Status:** ✅ Em Produção
