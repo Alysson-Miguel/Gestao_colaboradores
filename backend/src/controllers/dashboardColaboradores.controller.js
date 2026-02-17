@@ -323,7 +323,8 @@ const carregarDashboardColaboradores = async (req, res) => {
 
       // desligado pode ficar no universo para métricas de desligamento/HC
       // mas para presença/abs do período a gente avalia separado
-      if (c.status === "DESLIGADO") return true;
+      if (c.status !== "ATIVO") return false;
+
 
       if (!isCargoElegivel(c.cargo?.nomeCargo)) return false;
       if (t === "Sem turno") return false;
@@ -331,155 +332,204 @@ const carregarDashboardColaboradores = async (req, res) => {
       return true;
     });
 
-    /* ===============================
-       6) KPIs + DISTRIBUIÇÕES + TABELA
-       - presença/ausência (snapshot se 1 dia, regra período se > 1 dia) alinhada ao seu contrato
-       - absenteísmo do período: MESMA MÉTRICA DO OPERACIONAL (HC apto-dias vs ausências-dias)
-    =============================== */
-    const kpis = {
-      ativos: 0,
-      presentes: 0,
-      ausentes: 0,
-      atrasos: 0,
-      desligados: 0,
+/* ===============================
+   6) KPIs + DISTRIBUIÇÕES + TABELA
+=============================== */
+const kpis = {
+  ativos: 0,
+  presentes: 0,
+  ausentes: 0,
+  atrasos: 0,
+  inativos: 0,
 
-      mediaIdade: 0,
-      tempoMedioEmpresa: 0,
+  mediaIdade: 0,
+  tempoMedioEmpresa: 0,
 
-      // ✅ NOVO (operacional/admin)
-      absenteismoPeriodo: 0,
+  absenteismoPeriodo: 0,
+  hcAptoDias: 0,
+  ausenciasDias: 0,
+};
 
-      // KPIs úteis pra header executivo (opcional no front)
-      hcAptoDias: 0,
-      ausenciasDias: 0,
-    };
+/* ===============================
+   DISTRIBUIÇÕES (DONUTS)
+=============================== */
+const tempoEmpresaDistribuicao = {};
+const generoDistribuicao = {};
+const turnoDistribuicao = {};
 
-    const setorGenero = {};
-    const porTurno = {};
-    const porEscala = {};
+const setorGenero = {};
+const porTurno = {};
+const porEscala = {};
+const hcPorLider = {};
+const hcPorSetor = {};
 
-    const tempoEmpresaDistribuicao = {}; // donut premium
 
-    let somaIdade = 0,
-      qtdIdade = 0,
-      somaTempoEmpresaDias = 0,
-      qtdTempoEmpresa = 0;
+let somaIdade = 0,
+  qtdIdade = 0,
+  somaTempoEmpresaDias = 0,
+  qtdTempoEmpresa = 0;
 
-    const linhas = [];
-    const diasUteisCache = new Map(); // escala -> dias uteis
+const linhas = [];
+const diasUteisCache = new Map();
 
-    // ====== LOOP PARA TABELA + KPIs SNAPSHOT/PERÍODO PARCIAL ======
-    colaboradoresElegiveis.forEach((c) => {
-      const turnoNorm = normalizeTurno(c.turno?.nomeTurno);
+/* ===============================
+   LOOP PRINCIPAL
+=============================== */
+colaboradoresElegiveis.forEach((c) => {
+  const turnoNorm = normalizeTurno(c.turno?.nomeTurno);
 
-      // DESLIGADO
-      if (c.status === "DESLIGADO") {
-        kpis.desligados++;
-        return;
-      }
+  // DESLIGADO
+  if (c.status === "INATIVO") {
+    kpis.inativos++;
+    return;
+  }
 
-      // ATIVO (para presença/ausência)
-      kpis.ativos++;
+// Apenas ATIVOS
+if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
+kpis.ativos++;
 
-      const registros = freqMap.get(c.opsId) || [];
 
-      // ignora DSR do snapshot (igual vocês tratam muito no operacional)
-      if (c.escala?.nomeEscala && isDiaDSR(fim, c.escala.nomeEscala)) {
-        return;
-      }
+const registros = freqMap.get(c.opsId) || [];
 
-      const registroSnapshot =
-        registros.find((r) => toISODateStr(r.dataReferencia) === snapshotStr) || null;
+// ✅ DSR: não remove do universo (donuts), só bloqueia presença/tabela
+const isDsrHoje = !!(c.escala?.nomeEscala && isDiaDSR(fim, c.escala.nomeEscala));
 
-      // cache dias úteis por escala
-      const esc = c.escala?.nomeEscala || "";
-      if (!diasUteisCache.has(esc)) {
-        diasUteisCache.set(esc, getDiasUteisPeriodo(inicio, fim, esc));
-      }
-      const diasUteis = diasUteisCache.get(esc);
-      const totalDiasUteis = diasUteis.length;
+const nomeLider = c.lider?.nomeCompleto || "Sem Líder";
+const nomeSetor = c.setor?.nomeSetor || "Sem Setor";
 
-      // mapa rápido data->registro (período)
-      const freqMapDia = new Map(registros.map((r) => [toISODateStr(r.dataReferencia), r]));
+hcPorLider[nomeLider] = (hcPorLider[nomeLider] || 0) + 1;
+hcPorSetor[nomeSetor] = (hcPorSetor[nomeSetor] || 0) + 1;
 
-      // KPI presença/ausência (seu contrato)
-      if (totalDiasUteis <= 1) {
-        const s = getStatusDoDiaOperacional(registroSnapshot);
+  const registroSnapshot =
+    registros.find((r) => toISODateStr(r.dataReferencia) === snapshotStr) || null;
 
-        if (s.label === "Presente") {
-          kpis.presentes++;
-        } else {
-          // atraso (no seu dashboard de colaboradores você tinha ATRASO,
-          // mas o operacional/admin não calcula atraso via jornada aqui.
-          // Mantive atrasos = 0 para não inventar regra.
-          // Se você quiser atraso real, a gente adiciona por jornada depois.
-          if (s.impactaAbsenteismo) kpis.ausentes++;
-        }
-      } else {
-        // período > 1 dia: "plena"
-        const diasTrabalhados = diasUteis.filter((dia) => {
-          const reg = freqMapDia.get(dia);
-          return !!reg?.horaEntrada;
-        }).length;
+  const esc = c.escala?.nomeEscala || "";
+  if (!diasUteisCache.has(esc)) {
+    diasUteisCache.set(esc, getDiasUteisPeriodo(inicio, fim, esc));
+  }
+  const diasUteis = diasUteisCache.get(esc);
+  const totalDiasUteis = diasUteis.length;
 
-        if (diasTrabalhados === totalDiasUteis) {
-          kpis.presentes++;
-        } else if (diasTrabalhados === 0) {
-          kpis.ausentes++;
-        }
-        // parcial: ignora KPI (igual seu contrato)
-      }
+  const freqMapDia = new Map(registros.map((r) => [toISODateStr(r.dataReferencia), r]));
 
-      // idade
-      if (c.dataNascimento) {
-        somaIdade += calcIdade(c.dataNascimento, fim);
-        qtdIdade++;
-      }
+  /* ===============================
+     PRESENÇA / AUSÊNCIA
+  =============================== */
+  if (!isDsrHoje) {
+  if (totalDiasUteis <= 1) {
+    const s = getStatusDoDiaOperacional(registroSnapshot);
 
-      // tempo empresa médio (dias)
-      if (c.dataAdmissao) {
-        somaTempoEmpresaDias += diffDays(c.dataAdmissao, fim);
-        qtdTempoEmpresa++;
-      }
+    if (s.label === "Presente") {
+      kpis.presentes++;
+    } else if (s.impactaAbsenteismo) {
+      kpis.ausentes++;
+    }
+  } else {
+    const diasTrabalhados = diasUteis.filter((dia) => {
+      const reg = freqMapDia.get(dia);
+      return !!reg?.horaEntrada;
+    }).length;
 
-      // donut tempo empresa
-      if (c.dataAdmissao) {
-        const faixa = getFaixaTempoEmpresaPremium(c.dataAdmissao, fim);
-        tempoEmpresaDistribuicao[faixa] = (tempoEmpresaDistribuicao[faixa] || 0) + 1;
-      }
+    if (diasTrabalhados === totalDiasUteis) {
+      kpis.presentes++;
+    } else if (diasTrabalhados === 0) {
+      kpis.ausentes++;
+    }
+  }
+}
+  /* ===============================
+     MÉTRICAS
+  =============================== */
+  if (c.dataNascimento) {
+    somaIdade += calcIdade(c.dataNascimento, fim);
+    qtdIdade++;
+  }
 
-      // distribuições
-      const setor = c.setor?.nomeSetor || "Sem setor";
-      const genero = (c.genero || "N/I").toUpperCase();
+  if (c.dataAdmissao) {
+    const diasEmpresa = diffDays(c.dataAdmissao, fim);
+    somaTempoEmpresaDias += diasEmpresa;
+    qtdTempoEmpresa++;
 
-      setorGenero[setor] ??= { masculino: 0, feminino: 0, total: 0 };
-      if (genero.startsWith("M")) setorGenero[setor].masculino++;
-      if (genero.startsWith("F")) setorGenero[setor].feminino++;
-      setorGenero[setor].total++;
+    const faixa = getFaixaTempoEmpresaPremium(c.dataAdmissao, fim);
+    tempoEmpresaDistribuicao[faixa] =
+      (tempoEmpresaDistribuicao[faixa] || 0) + 1;
+  }
 
-      porTurno[turnoNorm] = (porTurno[turnoNorm] || 0) + 1;
-      porEscala[c.escala?.nomeEscala || "Sem escala"] =
-        (porEscala[c.escala?.nomeEscala || "Sem escala"] || 0) + 1;
+  /* ===============================
+     DONUT GÊNERO
+  =============================== */
+  const genero = (c.genero || "N/I").toUpperCase();
 
-      // status tabela (snapshot)
-      const sTabela = getStatusDoDiaOperacional(registroSnapshot);
+  if (genero.startsWith("M")) {
+    generoDistribuicao["Masculino"] =
+      (generoDistribuicao["Masculino"] || 0) + 1;
+  } else if (genero.startsWith("F")) {
+    generoDistribuicao["Feminino"] =
+      (generoDistribuicao["Feminino"] || 0) + 1;
+  } else {
+    generoDistribuicao["N/I"] =
+      (generoDistribuicao["N/I"] || 0) + 1;
+  }
 
-      linhas.push({
-        colaborador: c.nomeCompleto,
-        opsId: c.opsId,
-        cpf: c.cpf || null,
-        lider: c.lider?.nomeCompleto || "-",
-        empresa: c.empresa?.razaoSocial || c.empresa?.nomeEmpresa || "-",
-        setor,
-        turno: turnoNorm,
-        escala: c.escala?.nomeEscala || "-",
-        status: sTabela.label, // "Presente" | "Falta" | "Atestado Médico" | ...
-      });
-    });
+  /* ===============================
+     DONUT TURNO
+  =============================== */
+  if (turnoNorm !== "Sem turno") {
+    turnoDistribuicao[turnoNorm] =
+      (turnoDistribuicao[turnoNorm] || 0) + 1;
+  }
 
-    // médias
-    kpis.mediaIdade = qtdIdade ? +(somaIdade / qtdIdade).toFixed(1) : 0;
-    kpis.tempoMedioEmpresa = qtdTempoEmpresa ? +((somaTempoEmpresaDias / qtdTempoEmpresa) / 365).toFixed(1) : 0;
+  /* ===============================
+     DISTRIBUIÇÕES EXISTENTES
+  =============================== */
+  const setor = c.setor?.nomeSetor || "Sem setor";
+
+  setorGenero[setor] ??= { masculino: 0, feminino: 0, total: 0 };
+  if (genero.startsWith("M")) setorGenero[setor].masculino++;
+  if (genero.startsWith("F")) setorGenero[setor].feminino++;
+  setorGenero[setor].total++;
+
+  porTurno[turnoNorm] = (porTurno[turnoNorm] || 0) + 1;
+  porEscala[c.escala?.nomeEscala || "Sem escala"] =
+    (porEscala[c.escala?.nomeEscala || "Sem escala"] || 0) + 1;
+
+  const sTabela = getStatusDoDiaOperacional(registroSnapshot);
+
+  linhas.push({
+    colaborador: c.nomeCompleto,
+    opsId: c.opsId,
+    cpf: c.cpf || null,
+    lider: c.lider?.nomeCompleto || "-",
+    empresa: c.empresa?.razaoSocial || "-",
+    setor,
+    turno: turnoNorm,
+    escala: c.escala?.nomeEscala || "-",
+    status: sTabela.label,
+  });
+});
+
+function buildHcRanking(map) {
+  return Object.entries(map)
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total);
+}
+
+const hcLiderRanking = buildHcRanking(hcPorLider);
+const hcSetorRanking = buildHcRanking(hcPorSetor);
+const hcEscalaRanking = buildHcRanking(porEscala);
+
+
+
+/* ===============================
+   MÉDIAS FINAIS
+=============================== */
+kpis.mediaIdade = qtdIdade
+  ? +(somaIdade / qtdIdade).toFixed(1)
+  : 0;
+
+kpis.tempoMedioEmpresa = qtdTempoEmpresa
+  ? +((somaTempoEmpresaDias / qtdTempoEmpresa) / 365).toFixed(1)
+  : 0;
 
     /* ===============================
        6.1) ABSENTEÍSMO DO PERÍODO (IGUAL OPERACIONAL/ADMIN)
@@ -522,6 +572,9 @@ const carregarDashboardColaboradores = async (req, res) => {
     const atestByOps = new Map();
 
     frequenciasPeriodo.forEach((f) => {
+
+      if (!f) return; // 🔒 proteção absoluta
+
       const c = colabByOps.get(f.opsId);
       if (!c) return;
 
@@ -532,16 +585,18 @@ const carregarDashboardColaboradores = async (req, res) => {
       if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
       if (turnoColab === "Sem turno") return;
 
-      const s = getStatusDoDiaOperacional(f);
-
-      if (s.label === "Falta" && s.impactaAbsenteismo) {
+      // 🔴 FALTAS (usando campo correto do Prisma)
+      if (f.idTipoAusencia === 3 || f.idTipoAusencia === 32) {
         faltasByOps.set(f.opsId, (faltasByOps.get(f.opsId) || 0) + 1);
       }
 
-      if (s.label === "Atestado Médico" && s.impactaAbsenteismo) {
+      // 🟡 ATESTADOS
+      if (f.tipoAusencia?.codigo === "AM") {
         atestByOps.set(f.opsId, (atestByOps.get(f.opsId) || 0) + 1);
       }
     });
+
+    
 
     function buildTop(map, limit = 10) {
       return Array.from(map.entries())
@@ -562,6 +617,55 @@ const carregarDashboardColaboradores = async (req, res) => {
 
     const topFaltas = buildTop(faltasByOps, 10);
     const topAtestados = buildTop(atestByOps, 10);
+    /* ===============================
+      TURNOVER DO PERÍODO (CORRIGIDO)
+      Fórmula: Desligamentos / HC médio do período
+    ================================ */
+
+    // 🔴 1) Total de desligamentos no período (respeita filtros)
+    const desligamentosPeriodo = await prisma.colaborador.count({
+      where: {
+        ...whereColabBase,
+        ...(turnoNormFiltro
+          ? { turno: { nomeTurno: { contains: turnoNormFiltro, mode: "insensitive" } } }
+          : {}),
+        dataDesligamento: {
+          gte: inicio,
+          lte: fim,
+        },
+      },
+    });
+
+    // 🟢 2) Headcount no INÍCIO do período
+    const headcountInicio = colaboradoresElegiveis.filter((c) => {
+      if (c.status !== "ATIVO") return false;
+      if (!c.dataAdmissao) return false;
+
+      const admissao = new Date(c.dataAdmissao);
+      if (admissao > inicio) return false;
+
+      if (c.dataDesligamento) {
+        const deslig = new Date(c.dataDesligamento);
+        if (deslig <= inicio) return false;
+      }
+
+      return true;
+    }).length;
+
+    // 🟢 3) Headcount no FIM do período
+    const headcountFim = kpis.ativos;
+
+    // 📊 4) Headcount médio
+    const headcountMedio = (headcountInicio + headcountFim) / 2;
+
+    // 📈 5) Turnover final
+    kpis.turnover =
+      headcountMedio > 0
+        ? Number(((desligamentosPeriodo / headcountMedio) * 100).toFixed(2))
+        : 0;
+
+
+
 
     /* ===============================
        8) SÉRIES MENSAIS (HC / ADMISSÕES / DESLIGAMENTOS)
@@ -596,13 +700,21 @@ const carregarDashboardColaboradores = async (req, res) => {
     const [headcountMensal, admissoesMensal, desligamentosMensal] = await Promise.all([
       Promise.all(
         mesesSerie.map(async (m) => {
-          const total = await prisma.colaborador.count({
-            where: {
-              ...whereCountBase,
-              dataAdmissao: { lte: m.fim },
-              OR: [{ dataDesligamento: null }, { dataDesligamento: { gt: m.fim } }],
-            },
-          });
+          const total = colaboradoresElegiveis.filter((c) => {
+            if (c.status !== "ATIVO") return false;
+            if (!c.dataAdmissao) return false;
+
+            const admissao = new Date(c.dataAdmissao);
+            if (admissao > m.fim) return false;
+
+            if (c.dataDesligamento) {
+              const deslig = new Date(c.dataDesligamento);
+              if (deslig <= m.fim) return false;
+            }
+
+            return true;
+          }).length;
+
           return { mes: m.label, total };
         })
       ),
@@ -662,7 +774,15 @@ const carregarDashboardColaboradores = async (req, res) => {
         },
 
         donut: {
-          tempoEmpresaDistribuicao, // donut premium
+          tempoEmpresaDistribuicao,
+          generoDistribuicao,
+          turnoDistribuicao,
+        },
+
+        hc: {
+          hcPorLider: hcLiderRanking,
+          hcPorSetor: hcSetorRanking,
+          hcPorEscala: hcEscalaRanking,
         },
 
         rankings: {
