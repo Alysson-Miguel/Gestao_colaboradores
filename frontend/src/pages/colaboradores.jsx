@@ -15,6 +15,8 @@ export default function ColaboradoresPage() {
   const [query, setQuery] = useState("");
   const [turnoSelecionado, setTurnoSelecionado] = useState("TODOS");
   const [escalaSelecionada, setEscalaSelecionada] = useState("TODOS");
+  const [liderSelecionado, setLiderSelecionado] = useState("TODOS");
+  const [lideres, setLideres] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Estados para paginação
@@ -27,6 +29,20 @@ export default function ColaboradoresPage() {
 
   const navigate = useNavigate();
   const { permissions } = useContext(AuthContext);
+
+  /* ================= CARREGAR LÍDERES ================= */
+  useEffect(() => {
+    const carregarLideres = async () => {
+      try {
+        const lideresData = await ColaboradoresAPI.listarLideres();
+        setLideres(lideresData);
+      } catch (error) {
+        console.error("Erro ao carregar líderes:", error);
+      }
+    };
+    carregarLideres();
+  }, []);
+
   /* ================= LOAD ================= */
   const load = useCallback(async () => {
   setLoading(true);
@@ -36,7 +52,8 @@ export default function ColaboradoresPage() {
       limit,
       search: query || undefined,
       turno: turnoSelecionado !== "TODOS" ? turnoSelecionado : undefined,
-      escala: escalaSelecionada !== "TODOS" ? escalaSelecionada : undefined, // 👈 AQUI
+      escala: escalaSelecionada !== "TODOS" ? escalaSelecionada : undefined,
+      idLider: liderSelecionado !== "TODOS" ? liderSelecionado : undefined,
     };
 
 
@@ -55,7 +72,7 @@ export default function ColaboradoresPage() {
   } finally {
     setLoading(false);
   }
-}, [page, limit, query, turnoSelecionado, escalaSelecionada]);
+}, [page, limit, query, turnoSelecionado, escalaSelecionada, liderSelecionado]);
 
 
   useEffect(() => {
@@ -93,8 +110,13 @@ export default function ColaboradoresPage() {
   };
 
   const handleEscalaChange = (newEscala) => {
-  setEscalaSelecionada(newEscala);
-  setPage(1);
+    setEscalaSelecionada(newEscala);
+    setPage(1);
+  };
+
+  const handleLiderChange = (newLider) => {
+    setLiderSelecionado(newLider);
+    setPage(1);
   };
 
   return (
@@ -173,6 +195,28 @@ export default function ColaboradoresPage() {
                 <option value="A">Escala A</option>
                 <option value="B">Escala B</option>
                 <option value="C">Escala C</option>
+              </select>
+
+              {/* LÍDER */}
+              <select
+                value={liderSelecionado}
+                onChange={(e) => handleLiderChange(e.target.value)}
+                className="
+                  bg-[#1A1A1C]
+                  text-sm
+                  px-4 py-2
+                  rounded-xl
+                  text-[#BFBFC3]
+                  outline-none
+                  hover:bg-[#2A2A2C]
+                "
+              >
+                <option value="TODOS">Líderes</option>
+                {lideres.map((lider) => (
+                  <option key={lider.opsId} value={lider.opsId}>
+                    {lider.nomeCompleto}
+                  </option>
+                ))}
               </select>
             </div>
 

@@ -33,7 +33,7 @@ export default function Sidebar({ isOpen, onClose }) {
      SUBMENUS
   ===================== */
   const [dashboardsOpen, setDashboardsOpen] = useState(
-    location.pathname.startsWith("/dashboard")
+    location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/spi")
   );
 
   const [organizacaoOpen, setOrganizacaoOpen] = useState(
@@ -45,12 +45,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const [pontoOpen, setPontoOpen] = useState(
     location.pathname.startsWith("/ponto")
   );
-  const [ssoOpen, setSsoOpen] = useState(
-    location.pathname.startsWith("/safety-walk") ||
-    location.pathname.startsWith("/ddsma") ||
-    location.pathname.startsWith("/opas") ||
-    location.pathname.startsWith("/sso")
-  );
+  const [ssoOpen, setSsoOpen] = useState(false);
 
   const isActive = (path) =>
     location.pathname === path ||
@@ -139,7 +134,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 w-full flex items-center justify-between
                 px-4 py-3 rounded-xl text-sm font-medium transition
                 ${
-                  location.pathname.startsWith("/dashboard")
+                  location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/spi")
                     ? "bg-[#2A2A2C] text-white"
                     : "text-[#BFBFC3] hover:bg-[#242426]"
                 }
@@ -164,11 +159,18 @@ export default function Sidebar({ isOpen, onClose }) {
                 />
 
                 {(isAdmin || isLideranca) && (
-                  <SidebarSubItem
-                    label="Atestados"
-                    active={isActive("/dashboard/atestados")}
-                    onClick={() => go("/dashboard/atestados")}
-                  />
+                  <>
+                    <SidebarSubItem
+                      label="SPI"
+                      active={isActive("/spi")}
+                      onClick={() => go("/spi")}
+                    />
+                    <SidebarSubItem
+                      label="Atestados"
+                      active={isActive("/dashboard/atestados")}
+                      onClick={() => go("/dashboard/atestados")}
+                    />
+                  </>
                 )}
 
                 {isAdmin && (
@@ -373,10 +375,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 w-full flex items-center justify-between
                 px-4 py-3 rounded-xl text-sm font-medium transition
                 ${
-                  location.pathname.startsWith("/safety-walk") ||
-                  location.pathname.startsWith("/ddsma") ||
-                  location.pathname.startsWith("/opas") ||
-                  location.pathname.startsWith("/sso")
+                  ssoOpen
                     ? "bg-[#2A2A2C] text-white"
                     : "text-[#BFBFC3] hover:bg-[#242426]"
                 }
@@ -394,16 +393,6 @@ export default function Sidebar({ isOpen, onClose }) {
 
             {ssoOpen && (
               <div className="ml-8 mt-1 space-y-1">
-                <SidebarSubItem
-                  label="Safety Walk"
-                  active={isActive("/safety-walk")}
-                  onClick={() => go("/safety-walk")}
-                />
-                <SidebarSubItem
-                  label="DDSMA"
-                  active={isActive("/ddsma")}
-                  onClick={() => go("/ddsma")}
-                />
                 <SidebarSubItem label="OPAs (em breve)" disabled />
                 <SidebarSubItem label="Ginástica Laboral (em breve)" disabled />
               </div>

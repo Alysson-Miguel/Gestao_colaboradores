@@ -37,6 +37,7 @@ const safetyWalkRoutes = require("./safetyWalk.routes");
 const reportRoutes = require("./reports.routes");
 const dashboardAtestados = require("./dashboardAtestados.routes");
 const ddsmaRoutes = require("./ddsma.routes");
+const opaRoutes = require("./opa.routes");
 /* =========================
    HEALTH
 ========================= */
@@ -95,5 +96,6 @@ router.use("/safety-walk", safetyWalkRoutes);
 router.use("/reports", reportRoutes);
 router.use("/dashboard/atestados", dashboardAtestados);
 router.use("/ddsma", ddsmaRoutes);
+router.use("/opa", opaRoutes);
 
 module.exports = router;
