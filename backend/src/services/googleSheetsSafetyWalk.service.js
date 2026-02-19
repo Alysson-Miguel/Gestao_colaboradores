@@ -107,10 +107,10 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
 
     const sheets = getGoogleSheetsClient();
 
-    // Buscar dados da planilha - ler até coluna AZ para pegar todas as pessoas
+    // Buscar dados da planilha - ler até coluna CZ para pegar todas as pessoas
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SAFETY_WALK_SPREADSHEET_ID,
-      range: `${SAFETY_WALK_SHEET}!A1:AZ1000`,
+      range: `${SAFETY_WALK_SHEET}!A1:CZ1000`,
     });
 
     const rows = response.data.values;

@@ -75,18 +75,18 @@ const buscarDadosOPA = async (filtros = {}) => {
 
     const sheets = getGoogleSheetsClient();
 
-    // Buscar dados do OPA (A112:AZ163) - começar de A para manter índices consistentes
+    // Buscar dados do OPA (A112:CZ163) - começar de A para manter índices consistentes
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: OPA_SPREADSHEET_ID,
-      range: `${OPA_SHEET}!A112:AZ163`,
+      range: `${OPA_SHEET}!A112:CZ163`,
     });
 
     const rows = response.data.values;
 
-    // Buscar cabeçalho do Safety Walk para pegar os nomes das pessoas (A1:AZ5)
+    // Buscar cabeçalho do Safety Walk para pegar os nomes das pessoas (A1:CZ5)
     const headerResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: OPA_SPREADSHEET_ID,
-      range: `${OPA_SHEET}!A1:AZ5`,
+      range: `${OPA_SHEET}!A1:CZ5`,
     });
 
     const headerRows = headerResponse.data.values;
