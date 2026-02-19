@@ -3,7 +3,7 @@ const { google } = require('googleapis');
 // 📊 CONFIGURAÇÕES DA PLANILHA DDSMA
 const DDSMA_SPREADSHEET_ID = process.env.SHEETS_DDSMA_SPREADSHEET_ID || '1maB_sUQ-J5oVYUNJWuN5om19qjoSfX-aOnYakmlw0aI';
 const DDSMA_SHEET = process.env.SHEETS_DDSMA_ABA || 'Report SPI';
-const DDSMA_RANGE = 'A59:AZ110'; // Intervalo específico do DDSMA (começando da coluna A para manter índices consistentes)
+const DDSMA_RANGE = 'A59:CZ110'; // Intervalo específico do DDSMA (começando da coluna A para manter índices consistentes)
 
 // 🔧 Inicializar Google Sheets API
 const getGoogleSheetsClient = () => {
@@ -86,7 +86,7 @@ const buscarDadosDDSMA = async (filtros = {}) => {
     // Buscar cabeçalho do Safety Walk para pegar os nomes das pessoas (A1:AZ5)
     const headerResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: DDSMA_SPREADSHEET_ID,
-      range: `${DDSMA_SHEET}!A1:AZ5`,
+      range: `${DDSMA_SHEET}!A1:CZ5`,
     });
 
     const headerRows = headerResponse.data.values;
