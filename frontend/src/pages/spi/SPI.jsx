@@ -3,19 +3,18 @@ import { useNavigate } from "react-router-dom";
 import {
   Shield,
   ClipboardCheck,
-  CheckCircle2,
-  Clock,
   Download,
   RefreshCw,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
-import KpiCard from "../../components/dashboard/KpiCard";
 
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
@@ -23,6 +22,13 @@ import api from "../../services/api";
 export default function SPI() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState("safety"); // "safety", "ddsma" ou "opa"
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  
+  // Estados para drag
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [currentTranslate, setCurrentTranslate] = useState(0);
+  const [prevTranslate, setPrevTranslate] = useState(0);
   
   // Estados Safety Walk
   const [dadosSafety, setDadosSafety] = useState(null);
@@ -135,10 +141,79 @@ export default function SPI() {
   }, [periodo, filtroTurno, semanaSelecionada]);
 
   /* =====================================================
+     CARROSSEL
+  ===================================================== */
+  const carouselItems = [
+    { key: "safety", label: "Safety Walk", data: dadosSafety, loading: loadingSafety },
+    { key: "ddsma", label: "DDSMA", data: dadosDDSMA, loading: loadingDDSMA },
+    { key: "opa", label: "OPA", data: dadosOPA, loading: loadingOPA },
+  ];
+
+  const handlePrevCard = () => {
+    const newIndex = carouselIndex === 0 ? carouselItems.length - 1 : carouselIndex - 1;
+    setCarouselIndex(newIndex);
+    setAbaAtiva(carouselItems[newIndex].key);
+    setPrevTranslate(-newIndex * 100);
+  };
+
+  const handleNextCard = () => {
+    const newIndex = carouselIndex === carouselItems.length - 1 ? 0 : carouselIndex + 1;
+    setCarouselIndex(newIndex);
+    setAbaAtiva(carouselItems[newIndex].key);
+    setPrevTranslate(-newIndex * 100);
+  };
+
+  const handleDotClick = (index) => {
+    setCarouselIndex(index);
+    setAbaAtiva(carouselItems[index].key);
+    setPrevTranslate(-index * 100);
+  };
+
+  // Funções de drag
+  const handleDragStart = (e) => {
+    setIsDragging(true);
+    const clientX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+    setStartX(clientX);
+    setPrevTranslate(-carouselIndex * 100);
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    
+    const currentX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+    const diff = currentX - startX;
+    
+    // Pega a largura real do container
+    const container = e.currentTarget.closest('.overflow-hidden');
+    const containerWidth = container ? container.offsetWidth : window.innerWidth;
+    
+    const percentageMoved = (diff / containerWidth) * 100;
+    
+    setCurrentTranslate(prevTranslate + percentageMoved);
+  };
+
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const movedBy = currentTranslate - prevTranslate;
+    
+    // Se moveu mais de 15% da largura, muda de slide
+    if (movedBy < -15 && carouselIndex < carouselItems.length - 1) {
+      handleNextCard();
+    } else if (movedBy > 15 && carouselIndex > 0) {
+      handlePrevCard();
+    } else {
+      // Volta para a posição original
+      setCurrentTranslate(prevTranslate);
+    }
+  };
+
+  /* =====================================================
      PROCESSAR DADOS
   ===================================================== */
   const dados = abaAtiva === "safety" ? dadosSafety : abaAtiva === "ddsma" ? dadosDDSMA : dadosOPA;
-  const loading = abaAtiva === "safety" ? loadingSafety : abaAtiva === "ddsma" ? loadingDDSMA : loadingOPA;
   
   const dadosFiltrados = dados?.registros || [];
   const mapPendentes = new Map();
@@ -231,148 +306,190 @@ export default function SPI() {
             date={new Date().toLocaleDateString("pt-BR")}
           />
 
-          {/* VISÃO CONSOLIDADA - CARDS EM GRID 3 COLUNAS */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* CARD SAFETY WALK */}
-            <div 
-              className={`bg-[#1A1A1C] border-2 rounded-xl p-6 cursor-pointer transition-all ${
-                abaAtiva === "safety" ? "border-[#007AFF]" : "border-[#2A2A2C] hover:border-[#3A3A3C]"
-              }`}
-              onClick={() => setAbaAtiva("safety")}
+          {/* CARROSSEL DE CARDS */}
+          <div className="relative px-8 md:px-12">
+            {/* Botão Anterior */}
+            <button
+              onClick={handlePrevCard}
+              className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 z-10 bg-[#1A1A1C] border border-[#2A2A2C] p-3 rounded-full hover:bg-[#222] hover:border-[#3A3A3C] transition-all shadow-lg"
+              aria-label="Card anterior"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#007AFF]/20">
-                    <ClipboardCheck size={24} className="text-[#007AFF]" />
+              <ChevronLeft size={24} className="text-[#BFBFC3]" />
+            </button>
+
+            {/* Container do Carrossel */}
+            <div className="overflow-hidden rounded-xl">
+              <div 
+                className={`flex ${isDragging ? '' : 'transition-transform duration-500 ease-out'} cursor-grab active:cursor-grabbing select-none`}
+                style={{ 
+                  transform: `translateX(${isDragging ? currentTranslate : -carouselIndex * 100}%)`,
+                  touchAction: 'pan-y',
+                  willChange: 'transform'
+                }}
+                onMouseDown={handleDragStart}
+                onMouseMove={handleDragMove}
+                onMouseUp={handleDragEnd}
+                onMouseLeave={handleDragEnd}
+                onTouchStart={handleDragStart}
+                onTouchMove={handleDragMove}
+                onTouchEnd={handleDragEnd}
+              >
+                {/* CARD SAFETY WALK */}
+                <div className="w-full flex-shrink-0 px-1 md:px-2">
+                  <div 
+                    className="bg-[#1A1A1C] border-2 border-[#007AFF] rounded-xl p-4 md:p-8 transition-all hover:shadow-xl"
+                  >
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="p-3 md:p-4 rounded-xl bg-[#007AFF]/20">
+                          <ClipboardCheck size={24} className="text-[#007AFF] md:w-8 md:h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg md:text-2xl font-bold">Safety Walk</h3>
+                          <p className="text-xs md:text-sm text-[#BFBFC3]">Inspeções de Segurança</p>
+                        </div>
+                      </div>
+                      <div className="text-left md:text-right w-full md:w-auto">
+                        <p className="text-3xl md:text-5xl font-bold" style={{
+                          color: kpisSafety.taxa >= 80 ? "#34C759" : kpisSafety.taxa >= 50 ? "#FF9F0A" : "#FF453A"
+                        }}>
+                          {kpisSafety.taxa}%
+                        </p>
+                        <p className="text-xs text-[#6F6F73] mt-1">Taxa de Conclusão</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 md:gap-6 mt-4 md:mt-8">
+                      <div className="text-center p-2 md:p-4 bg-[#0D0D0D] rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-white">{kpisSafety.total}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Total</p>
+                      </div>
+                      <div className="text-center p-2 md:p-4 bg-[#34C759]/10 rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-[#34C759]">{kpisSafety.realizadas}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Realizadas</p>
+                      </div>
+                      <div className="text-center p-2 md:p-4 bg-[#FF9F0A]/10 rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-[#FF9F0A]">{kpisSafety.pendentes}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Pendentes</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold">Safety Walk</h3>
-                    <p className="text-sm text-[#BFBFC3]">Inspeções de Segurança</p>
+                </div>
+
+                {/* CARD DDSMA */}
+                <div className="w-full flex-shrink-0 px-1 md:px-2">
+                  <div 
+                    className="bg-[#1A1A1C] border-2 border-[#FF9F0A] rounded-xl p-4 md:p-8 transition-all hover:shadow-xl"
+                  >
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="p-3 md:p-4 rounded-xl bg-[#FF9F0A]/20">
+                          <Shield size={24} className="text-[#FF9F0A] md:w-8 md:h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg md:text-2xl font-bold">DDSMA</h3>
+                          <p className="text-xs md:text-sm text-[#BFBFC3]">Diálogo Diário de Segurança</p>
+                        </div>
+                      </div>
+                      <div className="text-left md:text-right w-full md:w-auto">
+                        <p className="text-3xl md:text-5xl font-bold" style={{
+                          color: kpisDDSMA.taxa >= 80 ? "#34C759" : kpisDDSMA.taxa >= 50 ? "#FF9F0A" : "#FF453A"
+                        }}>
+                          {kpisDDSMA.taxa}%
+                        </p>
+                        <p className="text-xs text-[#6F6F73] mt-1">Taxa de Conclusão</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 md:gap-6 mt-4 md:mt-8">
+                      <div className="text-center p-2 md:p-4 bg-[#0D0D0D] rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-white">{kpisDDSMA.total}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Total</p>
+                      </div>
+                      <div className="text-center p-2 md:p-4 bg-[#34C759]/10 rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-[#34C759]">{kpisDDSMA.realizadas}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Realizadas</p>
+                      </div>
+                      <div className="text-center p-2 md:p-4 bg-[#FF9F0A]/10 rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-[#FF9F0A]">{kpisDDSMA.pendentes}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Pendentes</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-4xl font-bold" style={{
-                    color: kpisSafety.taxa >= 80 ? "#34C759" : kpisSafety.taxa >= 50 ? "#FF9F0A" : "#FF453A"
-                  }}>
-                    {kpisSafety.taxa}%
-                  </p>
-                  <p className="text-xs text-[#6F6F73]">Taxa de Conclusão</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mt-6">
-                <div className="text-center p-3 bg-[#0D0D0D] rounded-lg">
-                  <p className="text-2xl font-bold text-white">{kpisSafety.total}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Total</p>
-                </div>
-                <div className="text-center p-3 bg-[#34C759]/10 rounded-lg">
-                  <p className="text-2xl font-bold text-[#34C759]">{kpisSafety.realizadas}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Realizadas</p>
-                </div>
-                <div className="text-center p-3 bg-[#FF9F0A]/10 rounded-lg">
-                  <p className="text-2xl font-bold text-[#FF9F0A]">{kpisSafety.pendentes}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Pendentes</p>
+
+                {/* CARD OPA */}
+                <div className="w-full flex-shrink-0 px-1 md:px-2">
+                  <div 
+                    className="bg-[#1A1A1C] border-2 border-[#FF453A] rounded-xl p-4 md:p-8 transition-all hover:shadow-xl"
+                  >
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 gap-4">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="p-3 md:p-4 rounded-xl bg-[#FF453A]/20">
+                          <AlertTriangle size={24} className="text-[#FF453A] md:w-8 md:h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg md:text-2xl font-bold">OPA</h3>
+                          <p className="text-xs md:text-sm text-[#BFBFC3]">Observação Preventiva de Atos</p>
+                        </div>
+                      </div>
+                      <div className="text-left md:text-right w-full md:w-auto">
+                        <p className="text-3xl md:text-5xl font-bold" style={{
+                          color: kpisOPA.taxa >= 80 ? "#34C759" : kpisOPA.taxa >= 50 ? "#FF9F0A" : "#FF453A"
+                        }}>
+                          {kpisOPA.taxa}%
+                        </p>
+                        <p className="text-xs text-[#6F6F73] mt-1">Taxa de Conclusão</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 md:gap-6 mt-4 md:mt-8">
+                      <div className="text-center p-2 md:p-4 bg-[#0D0D0D] rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-white">{kpisOPA.total}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Total</p>
+                      </div>
+                      <div className="text-center p-2 md:p-4 bg-[#34C759]/10 rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-[#34C759]">{kpisOPA.realizadas}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Realizadas</p>
+                      </div>
+                      <div className="text-center p-2 md:p-4 bg-[#FF9F0A]/10 rounded-xl">
+                        <p className="text-xl md:text-3xl font-bold text-[#FF9F0A]">{kpisOPA.pendentes}</p>
+                        <p className="text-xs md:text-sm text-[#BFBFC3] mt-1 md:mt-2">Pendentes</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* CARD DDSMA */}
-            <div 
-              className={`bg-[#1A1A1C] border-2 rounded-xl p-6 cursor-pointer transition-all ${
-                abaAtiva === "ddsma" ? "border-[#FF9F0A]" : "border-[#2A2A2C] hover:border-[#3A3A3C]"
-              }`}
-              onClick={() => setAbaAtiva("ddsma")}
+            {/* Botão Próximo */}
+            <button
+              onClick={handleNextCard}
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 z-10 bg-[#1A1A1C] border border-[#2A2A2C] p-3 rounded-full hover:bg-[#222] hover:border-[#3A3A3C] transition-all shadow-lg"
+              aria-label="Próximo card"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#FF9F0A]/20">
-                    <Shield size={24} className="text-[#FF9F0A]" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">DDSMA</h3>
-                    <p className="text-sm text-[#BFBFC3]">Diálogo Diário de Segurança</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-4xl font-bold" style={{
-                    color: kpisDDSMA.taxa >= 80 ? "#34C759" : kpisDDSMA.taxa >= 50 ? "#FF9F0A" : "#FF453A"
-                  }}>
-                    {kpisDDSMA.taxa}%
-                  </p>
-                  <p className="text-xs text-[#6F6F73]">Taxa de Conclusão</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mt-6">
-                <div className="text-center p-3 bg-[#0D0D0D] rounded-lg">
-                  <p className="text-2xl font-bold text-white">{kpisDDSMA.total}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Total</p>
-                </div>
-                <div className="text-center p-3 bg-[#34C759]/10 rounded-lg">
-                  <p className="text-2xl font-bold text-[#34C759]">{kpisDDSMA.realizadas}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Realizadas</p>
-                </div>
-                <div className="text-center p-3 bg-[#FF9F0A]/10 rounded-lg">
-                  <p className="text-2xl font-bold text-[#FF9F0A]">{kpisDDSMA.pendentes}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Pendentes</p>
-                </div>
-              </div>
-            </div>
-
-            {/* CARD OPA */}
-            <div 
-              className={`bg-[#1A1A1C] border-2 rounded-xl p-6 cursor-pointer transition-all ${
-                abaAtiva === "opa" ? "border-[#FF453A]" : "border-[#2A2A2C] hover:border-[#3A3A3C]"
-              }`}
-              onClick={() => setAbaAtiva("opa")}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-lg bg-[#FF453A]/20">
-                    <AlertTriangle size={24} className="text-[#FF453A]" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">OPA</h3>
-                    <p className="text-sm text-[#BFBFC3]">Observação Preventiva de Atos</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-4xl font-bold" style={{
-                    color: kpisOPA.taxa >= 80 ? "#34C759" : kpisOPA.taxa >= 50 ? "#FF9F0A" : "#FF453A"
-                  }}>
-                    {kpisOPA.taxa}%
-                  </p>
-                  <p className="text-xs text-[#6F6F73]">Taxa de Conclusão</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mt-6">
-                <div className="text-center p-3 bg-[#0D0D0D] rounded-lg">
-                  <p className="text-2xl font-bold text-white">{kpisOPA.total}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Total</p>
-                </div>
-                <div className="text-center p-3 bg-[#34C759]/10 rounded-lg">
-                  <p className="text-2xl font-bold text-[#34C759]">{kpisOPA.realizadas}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Realizadas</p>
-                </div>
-                <div className="text-center p-3 bg-[#FF9F0A]/10 rounded-lg">
-                  <p className="text-2xl font-bold text-[#FF9F0A]">{kpisOPA.pendentes}</p>
-                  <p className="text-xs text-[#BFBFC3] mt-1">Pendentes</p>
-                </div>
-              </div>
-            </div>
+              <ChevronRight size={24} className="text-[#BFBFC3]" />
+            </button>
           </div>
 
-          {/* INDICADOR DE ABA ATIVA */}
-          <div className="flex items-center justify-center gap-4">
-            <div className={`h-1 w-24 rounded-full transition-all ${
-              abaAtiva === "safety" ? "bg-[#007AFF]" : "bg-[#2A2A2C]"
-            }`} />
-            <div className={`h-1 w-24 rounded-full transition-all ${
-              abaAtiva === "ddsma" ? "bg-[#FF9F0A]" : "bg-[#2A2A2C]"
-            }`} />
-            <div className={`h-1 w-24 rounded-full transition-all ${
-              abaAtiva === "opa" ? "bg-[#FF453A]" : "bg-[#2A2A2C]"
-            }`} />
-            <span className="text-sm text-[#BFBFC3]">
-              Visualizando: {abaAtiva === "safety" ? "Safety Walk" : abaAtiva === "ddsma" ? "DDSMA" : "OPA"}
+          {/* INDICADORES DO CARROSSEL */}
+          <div className="flex items-center justify-center gap-3">
+            {carouselItems.map((item, index) => (
+              <button
+                key={item.key}
+                onClick={() => handleDotClick(index)}
+                className={`transition-all ${
+                  carouselIndex === index 
+                    ? "h-2 w-12 rounded-full" 
+                    : "h-2 w-2 rounded-full hover:w-4"
+                }`}
+                style={{
+                  backgroundColor: carouselIndex === index 
+                    ? (item.key === "safety" ? "#007AFF" : item.key === "ddsma" ? "#FF9F0A" : "#FF453A")
+                    : "#2A2A2C"
+                }}
+                aria-label={`Ir para ${item.label}`}
+              />
+            ))}
+            <span className="ml-4 text-sm text-[#BFBFC3]">
+              {carouselItems[carouselIndex].label}
             </span>
           </div>
 
