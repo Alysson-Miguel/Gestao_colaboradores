@@ -114,7 +114,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FA4C00]" />
             <span className="font-semibold text-white tracking-wide">
-              Gestão RH
+              COPeople
             </span>
           </div>
 
