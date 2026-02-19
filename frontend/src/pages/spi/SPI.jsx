@@ -354,6 +354,39 @@ export default function SPI() {
             </div>
           </div>
 
+          {/* INDICADOR CENTRALIZADO */}
+          <div className="flex items-center justify-center gap-3">
+            {/* Traço Safety Walk */}
+            <div 
+              className={`h-1 w-16 rounded-full transition-all duration-300 ${
+                abaAtiva === "safety" ? "bg-[#007AFF]" : "bg-[#2A2A2C]"
+              }`}
+            ></div>
+            
+            {/* Traço DDSMA */}
+            <div 
+              className={`h-1 w-16 rounded-full transition-all duration-300 ${
+                abaAtiva === "ddsma" ? "bg-[#FF9F0A]" : "bg-[#2A2A2C]"
+              }`}
+            ></div>
+            
+            {/* Traço OPA */}
+            <div 
+              className={`h-1 w-16 rounded-full transition-all duration-300 ${
+                abaAtiva === "opa" ? "bg-[#FF453A]" : "bg-[#2A2A2C]"
+              }`}
+            ></div>
+          </div>
+
+          {/* Texto do indicador */}
+          <div className="text-center">
+            <p className="text-sm font-medium" style={{
+              color: abaAtiva === "safety" ? "#007AFF" : abaAtiva === "ddsma" ? "#FF9F0A" : "#FF453A"
+            }}>
+              Visualizando {abaAtiva === "safety" ? "Safety Walk" : abaAtiva === "ddsma" ? "DDSMA" : "OPA"}
+            </p>
+          </div>
+
           {/* FILTROS */}
           <div className="flex flex-wrap gap-4 items-center">
             <div className="flex gap-2">
