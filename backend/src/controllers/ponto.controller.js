@@ -9,6 +9,7 @@ const {
 const { getDateOperacional } = require("../utils/dateOperacional");
 const { finalizarAtestadosVencidos } = require("../utils/atestadoAutoFinalize");
 const { exportarControlePresenca } = require("../services/googleSheetsPresenca.service");
+const { error } = require("../utils/logger");
 
 
 /* =====================================================
@@ -139,8 +140,16 @@ const registrarPontoCPF = async (req, res) => {
 
     if (!colaborador) return notFoundResponse(res, "Colaborador não encontrado");
 
+    if (colaborador.dataDesligamento) {
+      return errorResponse(
+        res,
+        "Colaborador desligado não pode registrar ponto.",
+        403
+      );
+    }
+
     if (colaborador.status !== "ATIVO" || colaborador.dataDesligamento) {
-      return errorResponse(res, "Colaborador não está ativo", 400);
+      return errorResponse(res, "Colaborador não está ativo", 403);
     }
 
     /* ==========================================
@@ -149,6 +158,27 @@ const registrarPontoCPF = async (req, res) => {
     ========================================== */
     const { dataOperacional, turnoAtual } = getDateOperacional(agora);
     const dataReferenciaOperacional = startOfDay(dataOperacional);
+
+        const frequenciaDia = await prisma.frequencia.findUnique({
+      where: {
+        opsId_dataReferencia: {
+          opsId: colaborador.opsId,
+          dataReferencia: dataReferenciaOperacional,
+        },
+      },
+      include: {
+        tipoAusencia: true,
+      },
+    });
+
+    // 🔒 BLOQUEIO ABSOLUTO S1
+    if (frequenciaDia?.tipoAusencia?.codigo === "S1") {
+      return errorResponse(
+        res,
+        "Este dia está marcado como Sinergia Enviada (S1).",
+        403
+      );
+    }
 
     console.log(
       `[${reqId}] opsId=${colaborador.opsId} turnoColab=${colaborador.turno?.nomeTurno} turnoAtual=${turnoAtual}`
@@ -190,7 +220,8 @@ const registrarPontoCPF = async (req, res) => {
        BLOQUEIOS (DSR / AUSÊNCIA / ATESTADO)
        -> bloqueia entrada/saída normal
     ========================================== */
-    if (isDiaDSR(dataReferenciaOperacional, colaborador.escala?.nomeEscala)) {
+// 🔒 BLOQUEIO DSR SOMENTE PARA ENTRADA
+    if (!aberta && isDiaDSR(dataReferenciaOperacional, colaborador.escala?.nomeEscala)) {
       return errorResponse(
         res,
         "Hoje é DSR. Se for hora extra, solicite ajuste manual.",
@@ -198,12 +229,12 @@ const registrarPontoCPF = async (req, res) => {
       );
     }
 
-    if (colaborador.ausencias?.length > 0) {
+    if (!aberta && colaborador.ausencias?.length > 0) {
       const cod = colaborador.ausencias[0]?.tipoAusencia?.codigo || "AUS";
       return errorResponse(res, `Colaborador possui ausência ativa (${cod})`, 400);
     }
 
-    if (colaborador.atestadosMedicos?.length > 0) {
+    if (!aberta && colaborador.atestadosMedicos?.length > 0) {
       return errorResponse(res, "Colaborador possui atestado médico ativo", 400);
     }
 
@@ -260,14 +291,6 @@ const registrarPontoCPF = async (req, res) => {
           - Se já existe jornada finalizada no dia -> 409
           - Se não existe -> cria ENTRADA
     ========================================== */
-    const frequenciaDia = await prisma.frequencia.findUnique({
-      where: {
-        opsId_dataReferencia: {
-          opsId: colaborador.opsId,
-          dataReferencia: dataReferenciaOperacional,
-        },
-      },
-    });
 
     // 3ª batida real: já tem entrada e saída no dia operacional
     if (frequenciaDia?.horaEntrada && frequenciaDia?.horaSaida) {
@@ -627,13 +650,22 @@ const ajusteManualPresenca = async (req, res) => {
     /* ===============================
        COLABORADOR
     =============================== */
-    const colaborador = await prisma.colaborador.findFirst({
-      where: {
-        opsId,
-        status: "ATIVO",
-        dataDesligamento: null,
-      },
+    const colaborador = await prisma.colaborador.findUnique({
+      where: { opsId },
     });
+
+    if (!colaborador)
+      return notFoundResponse(res, "Colaborador não encontrado");
+
+
+
+    if (colaborador.dataDesligamento || colaborador.status !== "ATIVO") {
+      return errorResponse(
+        res,
+        "Colaborador não está ativo",
+        403
+      );
+    }
 
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado ou inativo");
@@ -657,6 +689,44 @@ const ajusteManualPresenca = async (req, res) => {
       return errorResponse(res, `Status inválido: ${status}`, 400);
     }
 
+    if (status === "S1") {
+    const registro = await prisma.frequencia.upsert({
+      where: {
+        opsId_dataReferencia: {
+          opsId,
+          dataReferencia: dataRef,
+        },
+      },
+      update: {
+        idTipoAusencia: tipo.idTipoAusencia,
+        horaEntrada: null,
+        horaSaida: null,
+        horasTrabalhadas: null,
+        justificativa: "SINERGIA_ENVIADA",
+        manual: true,
+        validado: true,
+        registradoPor: req.user?.id || "GESTAO",
+      },
+      create: {
+        opsId,
+        dataReferencia: dataRef,
+        idTipoAusencia: tipo.idTipoAusencia,
+        horaEntrada: null,
+        horaSaida: null,
+        horasTrabalhadas: null,
+        justificativa: "SINERGIA_ENVIADA",
+        manual: true,
+        validado: true,
+        registradoPor: req.user?.id || "GESTAO",
+      },
+    });
+
+    return successResponse(
+      res,
+      registro,
+      "Sinergia Enviada aplicada com sucesso"
+    );
+  }
     /* =====================================================
        🟢 REGRA ESPECÍFICA: ONBOARDING (ON)
        - ignora horários
