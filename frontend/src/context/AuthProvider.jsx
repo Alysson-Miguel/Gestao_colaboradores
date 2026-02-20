@@ -1,9 +1,10 @@
-import { useState, useEffect, startTransition, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AuthContext } from "./AuthContext";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // 🔥 NOVO
 
   useEffect(() => {
     try {
@@ -18,21 +19,24 @@ export function AuthProvider({ children }) {
       ) {
         const parsedUser = JSON.parse(storedUser);
 
-        startTransition(() => {
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-        });
+        setUser(parsedUser);
+        setIsAuthenticated(true);
 
-        console.log("✅ Sessão restaurada:", parsedUser.name);
+        console.log("✅ Sessão restaurada:", parsedUser?.name);
       } else {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        console.log("⚠️ Nenhuma sessão válida encontrada");
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error("❌ Erro ao restaurar sessão:", error);
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoadingAuth(false); // 🔥 ESSENCIAL
     }
   }, []);
 
@@ -42,26 +46,21 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    startTransition(() => {
-      setUser(userData);
-      setIsAuthenticated(true);
-    });
+    setUser(userData);
+    setIsAuthenticated(true);
 
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const logout = () => {
-    startTransition(() => {
-      setUser(null);
-      setIsAuthenticated(false);
-    });
+    setUser(null);
+    setIsAuthenticated(false);
 
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   };
 
-  // 🔐 PERMISSÕES CENTRALIZADAS
   const permissions = useMemo(() => {
     return {
       isAdmin: user?.role === "ADMIN",
@@ -70,17 +69,22 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
-  // 🛡️ Helper de role
   const hasRole = (...roles) => {
     if (!user?.role) return false;
     return roles.includes(user.role);
   };
+
+  // 🔄 Enquanto carrega sessão, não renderiza app
+  if (isLoadingAuth) {
+    return null; // ou <LoadingScreen />
+  }
 
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated,
+        isLoadingAuth, // 🔥 IMPORTANTE
         permissions,
         hasRole,
         login,
