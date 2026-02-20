@@ -220,7 +220,8 @@ const registrarPontoCPF = async (req, res) => {
        BLOQUEIOS (DSR / AUSÊNCIA / ATESTADO)
        -> bloqueia entrada/saída normal
     ========================================== */
-    if (isDiaDSR(dataReferenciaOperacional, colaborador.escala?.nomeEscala)) {
+// 🔒 BLOQUEIO DSR SOMENTE PARA ENTRADA
+    if (!aberta && isDiaDSR(dataReferenciaOperacional, colaborador.escala?.nomeEscala)) {
       return errorResponse(
         res,
         "Hoje é DSR. Se for hora extra, solicite ajuste manual.",
@@ -228,12 +229,12 @@ const registrarPontoCPF = async (req, res) => {
       );
     }
 
-    if (colaborador.ausencias?.length > 0) {
+    if (!aberta && colaborador.ausencias?.length > 0) {
       const cod = colaborador.ausencias[0]?.tipoAusencia?.codigo || "AUS";
       return errorResponse(res, `Colaborador possui ausência ativa (${cod})`, 400);
     }
 
-    if (colaborador.atestadosMedicos?.length > 0) {
+    if (!aberta && colaborador.atestadosMedicos?.length > 0) {
       return errorResponse(res, "Colaborador possui atestado médico ativo", 400);
     }
 
