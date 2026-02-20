@@ -35,6 +35,9 @@ const INITIAL_DATA = {
   periodo: { inicio: "", fim: "" },
 
   kpis: {
+    headcountTotal: 0,
+    headcountOperacao: 0,
+    headcountReturns: 0,
     totalColaboradores: 0,
     presentes: 0,
     absenteismo: 0,
@@ -106,78 +109,105 @@ export default function DashboardAdmin() {
     load();
   }, [turno, dateRange, logout, navigate]);
 
- /* ================= KPIs ================= */
-const kpis = useMemo(() => {
-  const k = dados.kpis;
+  /* ================= KPI CARDS ================= */
+  const kpisEstrutura = useMemo(() => {
+    const k = dados.kpis;
 
-  const idadeMedia = Number.isFinite(k.idadeMedia)
-    ? Math.round(k.idadeMedia)
-    : 0;
+    return [
+      {
+        icon: Users,
+        label: "Headcount Total (Ativos)",
+        value: k.headcountTotal || 0,
+      },
+      {
+        icon: Users,
+        label: "Operação",
+        value: k.headcountOperacao || 0,
+        color: "#3b82f6",
+      },
+      {
+        icon: Users,
+        label: "Returns",
+        value: k.headcountReturns || 0,
+        color: "#FA4C00",
+      },
+      {
+        icon: Users,
+        label: "HC Operacional Escalado",
+        value: k.totalColaboradores || 0,
+      },
+    ];
+  }, [dados.kpis]);
 
-  // conversão correta: dias → meses reais
-  const mesesEmpresa = Number.isFinite(k.tempoMedioEmpresaDias)
-    ? Math.max(
-        0,
-        Math.round(k.tempoMedioEmpresaDias / 30.44)
-      )
-    : 0;
+  const kpisPerformance = useMemo(() => {
+    const k = dados.kpis;
 
-  return [
-    {
-      icon: Users,
-      label: "Colaboradores",
-      value: k.totalColaboradores || 0,
-    },
-    {
-      icon: TrendingUp,
-      label: "Absenteísmo",
-      value: k.absenteismo || 0,
-      suffix: "%",
-      color: k.absenteismo > 10 ? "#FF453A" : "#34C759",
-    },
-    {
-      icon: TrendingUp,
-      label: "Turnover",
-      value: k.turnover || 0,
-      suffix: "%",
-      color: k.turnover > 5 ? "#FF9F0A" : "#34C759",
-    },
-    {
-      icon: FileText,
-      label: "Atestados",
-      value: k.atestados || 0,
-    },
-    {
-      icon: ShieldAlert,
-      label: "Medidas Disciplinares",
-      value: k.medidasDisciplinares || 0,
-    },
-    {
-      icon: AlertTriangle,
-      label: "Acidentes",
-      value: k.acidentes || 0,
-      color: "#FFD60A",
-    },
-    {
-      icon: AlertTriangle,
-      label: "Faltas",
-      value: k.faltas || 0,
-      color: "#FF453A", // vermelho Shopee
-    },
-    {
-      icon: User,
-      label: "Idade Média",
-      value: idadeMedia,
-      suffix: " anos",
-    },
-    {
-      icon: Clock,
-      label: "Tempo Médio de Empresa",
-      value: mesesEmpresa,
-      suffix: " meses",
-    },
-  ];
-}, [dados.kpis]);
+    return [
+      {
+        icon: TrendingUp,
+        label: "Absenteísmo",
+        value: k.absenteismo || 0,
+        suffix: "%",
+        color: k.absenteismo > 10 ? "#FF453A" : "#34C759",
+      },
+      {
+        icon: TrendingUp,
+        label: "Turnover",
+        value: k.turnover || 0,
+        suffix: "%",
+        color: k.turnover > 5 ? "#FF9F0A" : "#34C759",
+      },
+      {
+        icon: AlertTriangle,
+        label: "Faltas",
+        value: k.faltas || 0,
+        color: "#FF453A",
+      },
+      {
+        icon: FileText,
+        label: "Atestados",
+        value: k.atestados || 0,
+      },
+    ];
+  }, [dados.kpis]);
+
+  const kpisPessoas = useMemo(() => {
+    const k = dados.kpis;
+
+    const idadeMedia = Number.isFinite(k.idadeMedia)
+      ? Math.round(k.idadeMedia)
+      : 0;
+
+    const mesesEmpresa = Number.isFinite(k.tempoMedioEmpresaDias)
+      ? Math.max(0, Math.round(k.tempoMedioEmpresaDias / 30.44))
+      : 0;
+
+    return [
+      {
+        icon: ShieldAlert,
+        label: "Medidas Disciplinares",
+        value: k.medidasDisciplinares || 0,
+      },
+      {
+        icon: AlertTriangle,
+        label: "Acidentes",
+        value: k.acidentes || 0,
+        color: "#FFD60A",
+      },
+      {
+        icon: User,
+        label: "Idade Média",
+        value: idadeMedia,
+        suffix: " anos",
+      },
+      {
+        icon: Clock,
+        label: "Tempo Médio de Empresa",
+        value: mesesEmpresa,
+        suffix: " meses",
+      },
+    ];
+  }, [dados.kpis]);
 
   /* ================= COLABORADORES CADASTRADOS ================= */
   const colaboradoresCadastradosData = useMemo(() => {
@@ -302,8 +332,96 @@ const kpis = useMemo(() => {
 
             <DateFilter value={dateRange} onApply={setDateRange} />
           </div>
+          
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-          <KpiCardsRow items={kpis} />
+          {/* ================= ESTRUTURA ================= */}
+          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F]">
+            <h3 className="text-sm text-[#BFBFC3] mb-8">
+              Estrutura do Time
+            </h3>
+
+            <div className="grid grid-cols-2 gap-8">
+              {kpisEstrutura.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
+                      <Icon size={20} className="text-[#BFBFC3]" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#BFBFC3]">{item.label}</p>
+                      <p className="text-2xl font-semibold text-white">
+                        {item.value}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ================= PERFORMANCE ================= */}
+          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F]">
+            <h3 className="text-sm text-[#BFBFC3] mb-8">
+              Performance Operacional
+            </h3>
+
+            <div className="grid grid-cols-2 gap-8">
+              {kpisPerformance.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
+                      <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#BFBFC3]">{item.label}</p>
+                      <p
+                        className="text-2xl font-semibold"
+                        style={{ color: item.color || "white" }}
+                      >
+                        {item.value}
+                        {item.suffix || ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ================= PESSOAS ================= */}
+          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F]">
+            <h3 className="text-sm text-[#BFBFC3] mb-8">
+              Pessoas & Saúde
+            </h3>
+
+            <div className="grid grid-cols-2 gap-8">
+              {kpisPessoas.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
+                      <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#BFBFC3]">{item.label}</p>
+                      <p
+                        className="text-2xl font-semibold"
+                        style={{ color: item.color || "white" }}
+                      >
+                        {item.value}
+                        {item.suffix || ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <DistribuicaoGeneroChart

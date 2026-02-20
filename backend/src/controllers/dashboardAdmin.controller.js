@@ -940,8 +940,22 @@ const carregarDashboardAdmin = async (req, res) => {
       },
     });
 
-    const colaboradoresFiltrados = colaboradores.filter(c =>
-      isCargoElegivel(c.cargo?.nomeCargo)
+    const colaboradoresAtivosGerais = colaboradores.filter(
+      c => c.status === "ATIVO"
+    );
+    const totalHeadCount = colaboradoresAtivosGerais.length;
+    const totalOperacao = colaboradoresAtivosGerais.filter(
+      c => isCargoElegivel(c.cargo?.nomeCargo)
+    ).length;
+
+    const totalReturns = colaboradoresAtivosGerais.filter(
+      c => String(c.cargo?.nomeCargo || "")
+        .toUpperCase()
+        .includes("RETURN")
+    ).length;
+
+    const colaboradoresFiltrados = colaboradores.filter(
+      c => isCargoElegivel(c.cargo?.nomeCargo)
     );
 
     const opsIds = colaboradoresFiltrados.map(c => c.opsId);
@@ -1040,6 +1054,9 @@ const carregarDashboardAdmin = async (req, res) => {
         periodo: { inicio: isoDate(inicio), fim: isoDate(fim) },
 
         kpis: {
+          headcountTotal: totalHeadCount,
+          headcountOperacao: totalOperacao,
+          headcountReturns: totalReturns,
           totalColaboradores: overview.totalColaboradores,
           presentes: overview.presentes,
           absenteismo: overview.absenteismo,
