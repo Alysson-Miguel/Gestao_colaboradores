@@ -333,10 +333,10 @@ export default function DashboardAdmin() {
             <DateFilter value={dateRange} onApply={setDateRange} />
           </div>
           
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-stretch">
 
           {/* ================= ESTRUTURA ================= */}
-          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F]">
+          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F] h-full flex flex-col">
             <h3 className="text-sm text-[#BFBFC3] mb-8">
               Estrutura do Time
             </h3>
@@ -345,12 +345,12 @@ export default function DashboardAdmin() {
               {kpisEstrutura.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-4">
+                  <div key={idx} className="flex items-center gap-4 min-h-[72px]">
                     <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
                       <Icon size={20} className="text-[#BFBFC3]" />
                     </div>
                     <div>
-                      <p className="text-sm text-[#BFBFC3]">{item.label}</p>
+                      <p className="text-sm text-[#BFBFC3] leading-tight">{item.label}</p>
                       <p className="text-2xl font-semibold text-white">
                         {item.value}
                       </p>
@@ -362,7 +362,7 @@ export default function DashboardAdmin() {
           </div>
 
           {/* ================= PERFORMANCE ================= */}
-          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F]">
+          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F] h-full flex flex-col">
             <h3 className="text-sm text-[#BFBFC3] mb-8">
               Performance Operacional
             </h3>
@@ -371,12 +371,12 @@ export default function DashboardAdmin() {
               {kpisPerformance.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-4">
+                  <div key={idx} className="flex items-center gap-4 min-h-[72px]">
                     <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
                       <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
                     </div>
                     <div>
-                      <p className="text-sm text-[#BFBFC3]">{item.label}</p>
+                      <p className="text-sm text-[#BFBFC3] leading-tight">{item.label}</p>
                       <p
                         className="text-2xl font-semibold"
                         style={{ color: item.color || "white" }}
@@ -392,7 +392,7 @@ export default function DashboardAdmin() {
           </div>
 
           {/* ================= PESSOAS ================= */}
-          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F]">
+          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F] h-full flex flex-col">
             <h3 className="text-sm text-[#BFBFC3] mb-8">
               Pessoas & Saúde
             </h3>
@@ -401,12 +401,12 @@ export default function DashboardAdmin() {
               {kpisPessoas.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-4">
+                  <div key={idx} className="flex items-center gap-4 min-h-[72px]">
                     <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
                       <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
                     </div>
                     <div>
-                      <p className="text-sm text-[#BFBFC3]">{item.label}</p>
+                      <p className="text-sm text-[#BFBFC3] leading-tight">{item.label}</p>
                       <p
                         className="text-2xl font-semibold"
                         style={{ color: item.color || "white" }}
