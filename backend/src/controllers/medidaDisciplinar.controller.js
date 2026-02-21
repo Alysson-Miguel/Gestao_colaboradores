@@ -60,7 +60,7 @@ const presignUpload = async (req, res) => {
       return errorResponse(res, "CPF inválido", 400);
     }
 
-    const colaborador = await prisma.colaborador.findUnique({
+    const colaborador = await prisma.colaborador.findFirst({
       where: { cpf: cpfLimpo },
     });
 

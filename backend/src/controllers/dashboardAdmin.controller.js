@@ -910,7 +910,247 @@ function buildEmpresasResumo({
   return empresas;
 }
 
+  function buildHierarquia({
+    colaboradores,
+    frequencias,
+    atestados,
+    inicio,
+    fim,
+  }) {
+    const diasPeriodo = daysInclusive(inicio, fim);
 
+    // 🔹 Mapear frequências por opsId
+    const freqMap = {};
+    frequencias.forEach((f) => {
+      if (!freqMap[f.opsId]) freqMap[f.opsId] = [];
+      freqMap[f.opsId].push(f);
+    });
+
+    // 🔹 Mapear atestados por opsId
+    const atestadoSet = new Set(atestados.map((a) => a.opsId));
+
+    const gerentesMap = new Map();
+
+    // =============================
+    // 1️⃣ GERENTES
+    // =============================
+    colaboradores.forEach((c) => {
+      if (!c.idLider) {
+        gerentesMap.set(c.opsId, {
+          id: c.opsId,
+          nome: c.nomeCompleto,
+          supervisores: new Map(),
+          totalColaboradores: 0,
+          faltas: 0,
+          atestados: 0,
+          absDias: 0,
+        });
+      }
+    });
+
+    // =============================
+    // 2️⃣ SUPERVISORES (FILTRAR POR CARGO)
+    // =============================
+    colaboradores.forEach((c) => {
+      if (!c.idLider) return;
+
+      const gerenteNode = gerentesMap.get(c.idLider);
+      if (!gerenteNode) return;
+
+      const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
+
+      const isSupervisor =
+        cargo.includes("supervisor");
+
+      if (!isSupervisor) return; // 🔥 CORREÇÃO PRINCIPAL
+
+      if (!gerenteNode.supervisores.has(c.opsId)) {
+        gerenteNode.supervisores.set(c.opsId, {
+          id: c.opsId,
+          nome: c.nomeCompleto,
+          lideres: new Map(),
+          supervisionadosDiretos: [], // 🔥 importante já deixar aqui
+          totalColaboradores: 0,
+          faltas: 0,
+          atestados: 0,
+          absDias: 0,
+        });
+      }
+    });
+
+    // =============================
+    // 3️⃣ LÍDERES (BASEADO EM CARGO E SUPERVISOR REAL)
+    // =============================
+    colaboradores.forEach((c) => {
+      if (!c.idLider) return;
+
+      const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
+      const isLider = cargo.includes("líder");
+
+      if (!isLider) return;
+
+      // 🔎 Encontrar supervisor correto
+      gerentesMap.forEach((gerenteNode) => {
+        const supervisorNode = gerenteNode.supervisores.get(c.idLider);
+
+        if (!supervisorNode) return;
+
+        if (!supervisorNode.lideres.has(c.opsId)) {
+          supervisorNode.lideres.set(c.opsId, {
+            id: c.opsId,
+            nome: c.nomeCompleto,
+            colaboradores: [],
+            totalColaboradores: 0,
+            faltas: 0,
+            atestados: 0,
+            absDias: 0,
+          });
+        }
+      });
+    });
+
+    // =============================
+    // 4️⃣ OPERADORES + MÉTRICAS
+    // =============================
+    colaboradores.forEach((c) => {
+      if (!c.idLider) return;
+
+      const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
+
+      const isGerente = !c.idLider;
+      const isSupervisor = cargo.includes("supervisor");
+      const isLider = cargo.includes("líder");
+
+      // 🔥 Apenas operadores entram aqui
+      if (isGerente || isSupervisor || isLider) return;
+
+      const freqs = freqMap[c.opsId] || [];
+
+      let absDias = 0;
+      let faltas = 0;
+
+      freqs.forEach((f) => {
+        const status = getStatusDoDia(f);
+        if (!status.contaComoEscalado) return;
+
+        if (status.impactaAbsenteismo) absDias++;
+        if (status.code === "F" || status.code === "FJ") faltas++;
+      });
+
+      const atestado = atestadoSet.has(c.opsId) ? 1 : 0;
+
+      gerentesMap.forEach((g) => {
+        g.supervisores.forEach((s) => {
+
+          // 🔹 1️⃣ Se responde direto ao supervisor
+          if (c.idLider === s.id) {
+
+            s.supervisionadosDiretos.push({
+              opsId: c.opsId,
+              nome: c.nomeCompleto,
+              setor: c.setor?.nomeSetor || "-",
+              empresa: c.empresa?.razaoSocial || "-",
+            });
+
+            // Métricas Supervisor
+            s.totalColaboradores++;
+            s.faltas += faltas;
+            s.atestados += atestado;
+            s.absDias += absDias;
+
+            // Métricas Gerente
+            g.totalColaboradores++;
+            g.faltas += faltas;
+            g.atestados += atestado;
+            g.absDias += absDias;
+
+            return;
+          }
+
+          // 🔹 2️⃣ Se responde a um líder
+          const liderNode = s.lideres.get(c.idLider);
+          if (!liderNode) return;
+
+          liderNode.colaboradores.push({
+            opsId: c.opsId,
+            nome: c.nomeCompleto,
+            setor: c.setor?.nomeSetor || "-",
+            empresa: c.empresa?.razaoSocial || "-",
+          });
+
+          // Métricas Líder
+          liderNode.totalColaboradores++;
+          liderNode.faltas += faltas;
+          liderNode.atestados += atestado;
+          liderNode.absDias += absDias;
+
+          // Métricas Supervisor
+          s.totalColaboradores++;
+          s.faltas += faltas;
+          s.atestados += atestado;
+          s.absDias += absDias;
+
+          // Métricas Gerente
+          g.totalColaboradores++;
+          g.faltas += faltas;
+          g.atestados += atestado;
+          g.absDias += absDias;
+        });
+      });
+    });
+
+    // =============================
+    // 5️⃣ FINALIZAR ABSENTEÍSMO %
+    // =============================
+    const finalizarMetricas = (node) => {
+      const diasEsperados = node.totalColaboradores * diasPeriodo;
+
+      return {
+        ...node,
+        absenteismo:
+          diasEsperados > 0
+            ? Number(((node.absDias / diasEsperados) * 100).toFixed(2))
+            : 0,
+      };
+    };
+
+    return Array.from(gerentesMap.values()).map((g) => {
+      const gerenteFinal = finalizarMetricas(g);
+
+      return {
+        ...gerenteFinal,
+        supervisores: Array.from(g.supervisores.values()).map((s) => {
+          const supervisorFinal = finalizarMetricas(s);
+
+          return {
+            ...supervisorFinal,
+            lideres: Array.from(s.lideres.values()).map((l) =>
+              finalizarMetricas(l)
+            ),
+          };
+        }),
+      };
+    });
+  }
+
+  function buildResumoHierarquia(hierarquia) {
+    return {
+      totalGerentes: hierarquia.length,
+      totalSupervisores: hierarquia.reduce(
+        (acc, g) => acc + g.supervisores.length,
+        0
+      ),
+      totalLideres: hierarquia.reduce(
+        (acc, g) =>
+          acc +
+          g.supervisores.reduce(
+            (sAcc, s) => sAcc + s.lideres.length,
+            0
+          ),
+        0
+      ),
+    };
+  }
 
 /* =====================================================
    CONTROLLER — DASHBOARD ADMIN
@@ -935,8 +1175,16 @@ const carregarDashboardAdmin = async (req, res) => {
         setor: true,
         turno: true,
         escala: true,
-        lider: true,
         cargo: true,
+        lider: {
+          include:  {
+            lider: {
+              include: {
+                lider: true
+              }
+            }
+          }
+        }
       },
     });
 
@@ -1007,7 +1255,7 @@ const carregarDashboardAdmin = async (req, res) => {
     const colaboradoresPeriodo = colaboradoresFiltrados.filter(c =>
       opsIdsEscaladosPeriodo.includes(c.opsId)
     );
-
+    
     const atestados = await prisma.atestadoMedico.findMany({
       where: {
         opsId: { in: opsIds },
@@ -1015,6 +1263,17 @@ const carregarDashboardAdmin = async (req, res) => {
         dataFim: { gte: inicio },
       },
     });
+
+
+    const colaboradoresEstrutura = colaboradores;
+    const hierarquia = buildHierarquia({
+      colaboradores: colaboradoresEstrutura,
+      frequencias,
+      atestados,
+      inicio,
+      fim,
+    });
+    const resumoHierarquia = buildResumoHierarquia(hierarquia);
 
     const medidas = await prisma.medidaDisciplinar.findMany({
       where: {
@@ -1098,6 +1357,8 @@ const carregarDashboardAdmin = async (req, res) => {
         escalas: buildEscalasResumo({ frequencias, colaboradoresMap, inicio, fim }),
         setores: buildSetoresResumo({ frequencias, colaboradoresMap, inicio, fim }),
         lideres: buildLideresResumo({ frequencias, colaboradoresMap, inicio, fim }),
+        hierarquia,
+        resumoHierarquia,
 
         eventos: buildEventos({
           colaboradoresMap,

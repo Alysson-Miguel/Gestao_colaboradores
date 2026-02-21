@@ -23,6 +23,7 @@ import AusentesHojeTable from "../../components/dashboard/AusentesHojeTable";
 import EmpresasResumoSection from "../../components/dashboard/EmpresasResumoSection";
 import ResumoOperacaoCard from "../../components/dashboard/ResumoOperacaoCard";
 import DistribuicaoColaboradoresCadastradosChart from "../../components/dashboard/DistribuicaoColaboradoresCadastradosChart";
+import HierarquiaSection from "../../components/HierarquiaSection";
 
 
 import { AuthContext } from "../../context/AuthContext";
@@ -92,7 +93,7 @@ export default function DashboardAdmin() {
 
         setDados({
           ...INITIAL_DATA,
-          ...res.data.data,
+          ...res.data?.data,
         });
       } catch (e) {
         if (e.response?.status === 401) {
@@ -444,7 +445,7 @@ export default function DashboardAdmin() {
 
           <EmpresasResumoSection empresas={dados.empresasResumo} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ResumoOperacaoCard
               title="Escala × Colaborador"
               data={dados.escalas}
@@ -456,13 +457,12 @@ export default function DashboardAdmin() {
               data={dados.setores}
               labelKey="setor"
             />
-
-            <ResumoOperacaoCard
-              title="Líder × Colaborador"
-              data={dados.lideres}
-              labelKey="lider"
-            />
           </div>
+
+          <HierarquiaSection
+            resumo={dados.resumoHierarquia}
+            hierarquia={dados.hierarquia}
+          />
 
           <AusentesHojeTable
             title="Eventos no período (Atestados Médicos, Medidas Disciplinares e Acidentes)"
