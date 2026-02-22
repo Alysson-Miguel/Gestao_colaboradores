@@ -18,6 +18,14 @@ const daysInclusive = (inicio, fim) => {
   return Math.floor((b - a) / 86400000) + 1;
 };
 
+function agoraBrasil() {
+  const now = new Date();
+  const spString = now.toLocaleString("en-US", {
+    timeZone: "America/Sao_Paulo",
+  });
+  return new Date(spString);
+}
+
 function formatTempoEmpresa(dataAdmissao) {
   if (!dataAdmissao) return "-";
 
@@ -916,6 +924,7 @@ function buildEmpresasResumo({
     atestados,
     inicio,
     fim,
+    turnoSelecionado
   }) {
     const diasPeriodo = daysInclusive(inicio, fim);
 
@@ -1012,7 +1021,24 @@ function buildEmpresasResumo({
     // =============================
     // 4️⃣ OPERADORES + MÉTRICAS
     // =============================
-    colaboradores.forEach((c) => {
+
+    // 🔥 FILTRO DE TURNO APENAS PARA OPERADORES
+    const colaboradoresOperacionais =
+      !turnoSelecionado || turnoSelecionado === "ALL"
+        ? colaboradores
+        : colaboradores.filter((c) => {
+            const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
+
+            const isEstrutura =
+              cargo.includes("gerente") ||
+              cargo.includes("supervisor") ||
+              cargo.includes("líder");
+
+            if (isEstrutura) return false;
+
+            return c.turno?.nomeTurno === turnoSelecionado;
+          });
+    colaboradoresOperacionais.forEach((c) => {
       if (!c.idLider) return;
 
       const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
@@ -1098,7 +1124,7 @@ function buildEmpresasResumo({
         });
       });
     });
-
+    
     // =============================
     // 5️⃣ FINALIZAR ABSENTEÍSMO %
     // =============================
@@ -1117,18 +1143,27 @@ function buildEmpresasResumo({
     return Array.from(gerentesMap.values()).map((g) => {
       const gerenteFinal = finalizarMetricas(g);
 
-      return {
-        ...gerenteFinal,
-        supervisores: Array.from(g.supervisores.values()).map((s) => {
+      const supervisoresFiltrados = Array.from(g.supervisores.values())
+        .map((s) => {
           const supervisorFinal = finalizarMetricas(s);
+
+          const lideresFiltrados = Array.from(s.lideres.values())
+            .map((l) => finalizarMetricas(l))
+            .filter((l) => l.totalColaboradores > 0); // remove líderes vazios
 
           return {
             ...supervisorFinal,
-            lideres: Array.from(s.lideres.values()).map((l) =>
-              finalizarMetricas(l)
-            ),
+            lideres: lideresFiltrados,
           };
-        }),
+        })
+        .filter(
+          (s) =>
+            s.totalColaboradores > 0 || s.lideres.length > 0
+        ); // remove supervisor vazio
+
+      return {
+        ...gerenteFinal,
+        supervisores: supervisoresFiltrados,
       };
     });
   }
@@ -1157,8 +1192,33 @@ function buildEmpresasResumo({
 ===================================================== */
 const carregarDashboardAdmin = async (req, res) => {
   try {
-    const { inicio, fim } = getPeriodoFiltro(req.query);
-    const { turno } = req.query;
+    /* ===============================
+       📅 DATA PADRÃO = HOJE (BRASIL)
+    =============================== */
+    const agora = agoraBrasil();
+    const { inicio: inicioQuery, fim: fimQuery } = req.query;
+
+    let inicio;
+    let fim;
+
+    if (inicioQuery && fimQuery) {
+      inicio = new Date(inicioQuery);
+      inicio.setHours(0, 0, 0, 0);
+
+      fim = new Date(fimQuery);
+      fim.setHours(23, 59, 59, 999);
+    } else {
+      const base = new Date(agora);
+
+      inicio = new Date(base);
+      inicio.setHours(0, 0, 0, 0);
+
+      fim = new Date(base);
+      fim.setHours(23, 59, 59, 999);
+    }
+
+    const turnoSelecionado = req.query.turno || "ALL";
+    const isAll = turnoSelecionado === "ALL";
 
     /* ===============================
        COLABORADORES BASE
@@ -1166,9 +1226,6 @@ const carregarDashboardAdmin = async (req, res) => {
     const colaboradores = await prisma.colaborador.findMany({
       where: {
         status: { in: ["ATIVO", "FERIAS", "AFASTADO"] },
-        ...(turno && turno !== "ALL" && {
-          turno: { nomeTurno: turno },
-        }),
       },
       include: {
         empresa: true,
@@ -1188,9 +1245,22 @@ const carregarDashboardAdmin = async (req, res) => {
       },
     });
 
-    const colaboradoresAtivosGerais = colaboradores.filter(
+    /* 🔥 FILTRO DE TURNO CORRETO */
+    const colaboradoresTurno = isAll
+      ? colaboradores
+      : colaboradores.filter(
+          (c) => c.turno?.nomeTurno === turnoSelecionado
+        );
+
+    const colaboradoresBase =
+      !turnoSelecionado || turnoSelecionado === "ALL"
+      ? colaboradores
+      : colaboradores.filter(c => c.turno?.nomeTurno === turnoSelecionado);
+
+    const colaboradoresAtivosGerais = colaboradoresTurno.filter(
       c => c.status === "ATIVO"
     );
+
     const totalHeadCount = colaboradoresAtivosGerais.length;
     const totalOperacao = colaboradoresAtivosGerais.filter(
       c => isCargoElegivel(c.cargo?.nomeCargo)
@@ -1202,7 +1272,7 @@ const carregarDashboardAdmin = async (req, res) => {
         .includes("RETURN")
     ).length;
 
-    const colaboradoresFiltrados = colaboradores.filter(
+    const colaboradoresFiltrados = colaboradoresBase.filter(
       c => isCargoElegivel(c.cargo?.nomeCargo)
     );
 
@@ -1272,6 +1342,7 @@ const carregarDashboardAdmin = async (req, res) => {
       atestados,
       inicio,
       fim,
+      turnoSelecionado: turnoSelecionado, // 🔥 ESSENCIAL
     });
     const resumoHierarquia = buildResumoHierarquia(hierarquia);
 

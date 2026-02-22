@@ -111,7 +111,7 @@ export default function AtestadoCard({
         <div className="text-xs text-[#9CA3AF]">
           {isFinalizado && "Atestado Finalizado"}
           {isCancelado && "Atestado cancelado"}
-          {isAtivo && "Aguardando Ativo"}
+          {isAtivo && "Atestado Ativo"}
         </div>
 
         <div className="flex items-center gap-3">

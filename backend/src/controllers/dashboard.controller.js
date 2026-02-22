@@ -150,7 +150,14 @@ function getStatusDoDiaOperacional(f) {
         origem: "tipoAusencia",
       };
     }
-    
+    if (codigo === "BH" || desc.includes("Banco de Horas")) {
+      return {
+        label: "Banco de Horas",
+        contaComoEscalado: true,
+        impactaAbsenteismo: false,
+        origem: "tipoAusencia",
+      };
+    }
     // Qualquer outra ausência conta como falta operacional
     return {
       label: "Falta",
