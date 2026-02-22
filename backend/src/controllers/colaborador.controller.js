@@ -17,13 +17,45 @@ const {
 const HORARIOS_PERMITIDOS = ["05:25", "13:20", "21:00"];
 
 /* ================= HELPERS DE DATA (BR) ================= */
-function startOfDaySafe(date = new Date()) {
-  const d = new Date(date);
-
-  // força Brasil sem risco de UTC shift
+function startOfDayBR(date) {
+  const d = date ? new Date(date) : agoraBrasil();
   d.setHours(0, 0, 0, 0);
-
   return d;
+}
+
+function agoraBrasil() {
+  const now = new Date();
+  const spString = now.toLocaleString("en-US", {
+    timeZone: "America/Sao_Paulo",
+  });
+  return new Date(spString);
+}
+
+
+function aplicarStatusDinamico(colaborador) {
+  if (!colaborador) return colaborador;
+
+  const hoje = agoraBrasil(); // 🔥 usa Brasil
+  hoje.setHours(0, 0, 0, 0);
+
+
+  if (
+    (colaborador.status === "FERIAS" ||
+      colaborador.status === "AFASTADO") &&
+    colaborador.dataFimStatus
+  ) {
+    const fim = new Date(colaborador.dataFimStatus);
+    fim.setHours(0, 0, 0, 0);
+
+    if (hoje > fim) {
+      return {
+        ...colaborador,
+        status: "ATIVO",
+      };
+    }
+  }
+
+  return colaborador;
 }
 
 /* ================= GET ALL ================= */
@@ -53,7 +85,13 @@ const getAllColaboradores = async (req, res) => {
     ];
   }
 
-  if (status) where.status = status;
+  if (status) {
+    if (status === "ATIVO") {
+        where.status = { in: ["ATIVO", "FERIAS", "AFASTADO"] };
+      } else {
+        where.status = status;
+      }
+    }
   if (idSetor) where.idSetor = Number(idSetor);
   if (idCargo) where.idCargo = Number(idCargo);
   if (idEmpresa) where.idEmpresa = Number(idEmpresa);
@@ -90,8 +128,9 @@ const getAllColaboradores = async (req, res) => {
       }),
       prisma.colaborador.count({ where }),
     ]);
+    const dataAjustada = data.map(aplicarStatusDinamico);
 
-    return paginatedResponse(res, data, {
+    return paginatedResponse(res, dataAjustada, {
       page: Number(page),
       limit: Number(limit),
       total,
@@ -110,7 +149,7 @@ const getColaboradorByCpf = async (req, res) => {
     return errorResponse(res, "CPF inválido", 400);
   }
 
-  const colaborador = await prisma.colaborador.findFirst({
+  let colaborador = await prisma.colaborador.findFirst({
     where: { cpf: cpfLimpo },
     include: {
       empresa: true,
@@ -121,6 +160,8 @@ const getColaboradorByCpf = async (req, res) => {
       lider: true,
     },
   });
+
+  colaborador = aplicarStatusDinamico(colaborador);
 
   if (!colaborador) {
     return notFoundResponse(res, "Colaborador não encontrado");
@@ -139,7 +180,7 @@ const getColaboradorById = async (req, res) => {
   }
 
   try {
-    const colaborador = await prisma.colaborador.findUnique({
+    let colaborador = await prisma.colaborador.findUnique({
       where: { opsId },
       include: {
         empresa: true,
@@ -155,6 +196,7 @@ const getColaboradorById = async (req, res) => {
       },
     });
 
+    colaborador = aplicarStatusDinamico(colaborador);
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
@@ -164,7 +206,7 @@ const getColaboradorById = async (req, res) => {
     ===================================================== */
 
     // 📅 Hoje no padrão Brasil (sem UTC shift)
-    const hoje = new Date();
+    const hoje = agoraBrasil();
     hoje.setHours(0, 0, 0, 0);
 
     const [totalAtestados, ativos, finalizados] = await Promise.all([
