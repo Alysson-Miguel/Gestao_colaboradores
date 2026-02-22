@@ -11,8 +11,16 @@ const COLORS = {
   BPO: "#3B82F6",
 };
 
+function clampPercent(p) {
+  const n = Number(p);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+}
+
 export default function DistribuicaoVinculoChart({ title, data = [] }) {
-  if (!data || data.length === 0) {
+  const safeData = Array.isArray(data) ? data : [];
+
+  if (!safeData.length) {
     return (
       <div className="bg-[#1A1A1C] rounded-2xl p-4 sm:p-6 text-[#BFBFC3]">
         Nenhum dado disponível
@@ -20,15 +28,19 @@ export default function DistribuicaoVinculoChart({ title, data = [] }) {
     );
   }
 
-  const total = data.reduce((acc, cur) => acc + cur.value, 0);
+  const total = safeData.reduce((acc, cur) => acc + (Number(cur.value) || 0), 0);
 
-  const renderLabel = ({ value, percent }) => {
-    if (!value || !percent) return "";
-    return `${value} (${Math.round(percent * 100)}%)`;
+  // ✅ Label interno pra nunca “escapar” do card
+  const renderInnerLabel = ({ percent }) => {
+    const pct = clampPercent((percent || 0) * 100);
+
+    // 🔥 não mostra label em fatias muito pequenas (evita poluição visual)
+    if (pct < 6) return "";
+    return `${Math.round(pct)}%`;
   };
 
   return (
-    <section className="bg-[#1A1A1C] rounded-2xl p-4 sm:p-6 space-y-4 w-full">
+    <section className="bg-[#1A1A1C] rounded-2xl p-4 sm:p-6 space-y-4 w-full overflow-hidden">
       {title && (
         <h2 className="text-xs sm:text-sm font-semibold text-[#BFBFC3] uppercase tracking-wide">
           {title}
@@ -48,38 +60,43 @@ export default function DistribuicaoVinculoChart({ title, data = [] }) {
         </div>
 
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
             <Pie
-              data={data}
+              data={safeData}
               dataKey="value"
               nameKey="name"
-              innerRadius="60%"
-              outerRadius="85%"
-              paddingAngle={3}
-              label={renderLabel}
+              innerRadius="62%"
+              outerRadius="82%"
+              paddingAngle={4}
               labelLine={false}
+              // ✅ deixa os percentuais DENTRO do donut
+              label={renderInnerLabel}
+              // ✅ centraliza melhor em telas pequenas
+              cx="50%"
+              cy="50%"
             >
-              {data.map((entry) => (
+              {safeData.map((entry) => (
                 <Cell
                   key={entry.name}
                   fill={COLORS[entry.name] || "#888"}
+                  stroke="#0D0D0D"
+                  strokeWidth={2}
                 />
               ))}
             </Pie>
 
             <Tooltip
               formatter={(value, name) => {
-                const percent =
-                  total > 0
-                    ? ((value / total) * 100).toFixed(1)
-                    : 0;
-                return [`${value} (${percent}%)`, name];
+                const v = Number(value) || 0;
+                const percent = total > 0 ? (v / total) * 100 : 0;
+                return [`${v} (${percent.toFixed(1)}%)`, name];
               }}
               contentStyle={{
                 backgroundColor: "#FFFFFF",
                 border: "1px solid #3D3D40",
                 borderRadius: "8px",
               }}
+              labelStyle={{ color: "#111" }}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -87,23 +104,18 @@ export default function DistribuicaoVinculoChart({ title, data = [] }) {
 
       {/* 🔥 LEGENDA RESPONSIVA */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        {data.map((d) => {
-          const percent =
-            total > 0
-              ? Math.round((d.value / total) * 100)
-              : 0;
+        {safeData.map((d) => {
+          const value = Number(d.value) || 0;
+          const percent = total > 0 ? Math.round((value / total) * 100) : 0;
 
           return (
-            <div
-              key={d.name}
-              className="flex items-center gap-2 min-w-0"
-            >
+            <div key={d.name} className="flex items-center gap-2 min-w-0">
               <span
                 className="w-3 h-3 rounded-full shrink-0"
                 style={{ backgroundColor: COLORS[d.name] || "#888" }}
               />
               <span className="text-[#E5E5E5] truncate">
-                {d.name} — {d.value} ({percent}%)
+                {d.name} — {value} ({percent}%)
               </span>
             </div>
           );

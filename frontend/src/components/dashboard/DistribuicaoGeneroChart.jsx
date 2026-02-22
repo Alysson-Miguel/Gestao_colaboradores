@@ -43,7 +43,7 @@ export default function DistribuicaoGeneroChart({
               dataKey="value"
               nameKey="name"
               innerRadius="60%"
-              outerRadius="85%"
+              outerRadius="75%"
               paddingAngle={2}
               label={renderPercentLabel}
               labelLine={false}

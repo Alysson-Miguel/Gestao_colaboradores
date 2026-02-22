@@ -30,7 +30,16 @@ export default function HierarquiaSection({
   }, [hierarquia]);
 
   return (
-    <div className="bg-[#111111] rounded-2xl border border-[#1F1F1F] p-8 space-y-8">
+    <div className="
+      bg-[#111111]
+      rounded-2xl
+      border
+      border-[#1F1F1F]
+      p-4
+      sm:p-6
+      lg:p-8
+      space-y-6
+    ">
 
       {/* HEADER */}
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -56,7 +65,14 @@ export default function HierarquiaSection({
       </div>
 
       {/* MINI KPI CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+      <div className="
+        grid
+        grid-cols-1
+        sm:grid-cols-2
+        lg:grid-cols-3
+        gap-4
+        sm:gap-6"
+      >
         <MiniCard
           label="Gerentes"
           value={resumo?.totalGerentes || 0}
@@ -110,12 +126,19 @@ function ToggleButton({ active, children, onClick }) {
 ===================================================== */
 function MiniCard({ label, value, subtitle, color }) {
   return (
-    <div className="bg-[#0F0F0F] border border-[#1F1F1F] rounded-xl p-6">
+    <div className="
+      bg-[#0F0F0F]
+      border
+      border-[#1F1F1F]
+      rounded-xl
+      p-4
+      sm:p-6"
+    >
       <p className="text-xs text-[#7A7A7A] uppercase tracking-wide">
         {label}
       </p>
       <p
-        className="text-3xl font-semibold mt-2"
+        className="text-2xl sm:text-3xl font-semibold mt-2"
         style={{ color }}
       >
         {value}
@@ -178,7 +201,7 @@ function ArvoreHierarquica({ data }) {
                 const supOpen = openSupervisor[sup.id];
 
                 return (
-                  <div key={sup.id} className="ml-6 border-t border-[#1A1A1A]">
+                  <div key={sup.id} className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#1A1A1A]">
                     <div
                       onClick={() =>
                         setOpenSupervisor((prev) => ({
@@ -203,7 +226,7 @@ function ArvoreHierarquica({ data }) {
                         return (
                           <div
                             key={lider.id}
-                            className="ml-6 border-t border-[#181818]"
+                            className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#181818]"
                           >
                             <div
                               onClick={() =>
@@ -222,7 +245,7 @@ function ArvoreHierarquica({ data }) {
                             </div>
                     {/* SUPERVISIONADOS DIRETOS */}
                         {supOpen && sup.supervisionadosDiretos?.length > 0 && (
-                        <div className="ml-6 border-t border-[#181818]">
+                        <div className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#181818]">
                             <div className="p-4 bg-[#0B0B0B] space-y-2">
                             <p className="text-xs text-[#6B7280] mb-2">
                                 Supervisionados Diretos
@@ -244,7 +267,7 @@ function ArvoreHierarquica({ data }) {
                         )}
                     {/* OPERADORES */}
                             {liderOpen && (
-                              <div className="ml-6 p-4 space-y-2 bg-[#0B0B0B]">
+                              <div className="pl-4 sm:pl-6 lg:pl-8 p-4 space-y-2 bg-[#0B0B0B]">
                                 {lider.colaboradores.map((c) => (
                                   <div
                                     key={c.opsId}
@@ -280,7 +303,14 @@ function MetricasLinha({ node }) {
       : "text-green-400";
 
   return (
-    <div className="flex items-center gap-6 text-sm">
+    <div className="
+      flex
+      flex-wrap
+      gap-3
+      sm:gap-6
+      text-xs
+      sm:text-sm"
+    >
       <MetricItem label="COLAB" value={node.totalColaboradores} />
       <MetricItem label="FALTAS" value={node.faltas} color="text-red-400" />
       <MetricItem label="ATEST." value={node.atestados} color="text-yellow-400" />
@@ -291,7 +321,7 @@ function MetricasLinha({ node }) {
 
 function MetricItem({ label, value, color = "text-[#BFBFC3]" }) {
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-1 whitespace-nowrap">
       <span className="text-[#6B7280]">{label}</span>
       <span className={`font-semibold ${color}`}>
         {value}
@@ -309,7 +339,13 @@ function PorNivelHierarquia({ data }) {
   const lideres = supervisores.flatMap(s => s.lideres);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="
+      grid
+      grid-cols-1
+      md:grid-cols-2
+      2xl:grid-cols-3
+      gap-6"
+    >
 
       <NivelCard
         title="GERENTE × SUPERVISOR"
@@ -368,7 +404,13 @@ function NivelCard({ title, items, color }) {
               </div>
 
               {/* MÉTRICAS */}
-              <div className="flex gap-6 mt-2 text-xs">
+              <div className="
+                flex
+                flex-wrap
+                gap-4
+                mt-2
+                text-xs"
+              >
                 <span className="text-[#6B7280]">
                   Faltas:{" "}
                   <span className="text-red-400 font-semibold">

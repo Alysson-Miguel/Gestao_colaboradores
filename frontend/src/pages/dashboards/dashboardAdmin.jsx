@@ -302,17 +302,31 @@ export default function DashboardAdmin() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+    <div className="min-h-screen bg-[#0D0D0D] text-white overflow-x-hidden">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         navigate={navigate}
       />
 
-      <div className="flex-1 lg:ml-64">
+      <div className="lg:pl-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="p-8 space-y-10">
+        <main
+          className="
+            w-full
+            px-4
+            sm:px-6
+            lg:px-10
+            xl:px-14
+            2xl:px-20
+            py-8
+            space-y-10
+            max-w-[1600px]
+            2xl:max-w-[1750px]
+            mx-auto
+          "
+        >
           <DashboardHeader
             title="Dashboard Administrativo"
             subtitle="Período"
@@ -324,7 +338,14 @@ export default function DashboardAdmin() {
             badges={[`Turno: ${turno === "ALL" ? "Todos" : turno}`]}
           />
 
-          <div className="flex flex-wrap gap-6 items-center">
+          <div className="
+            flex
+            flex-col
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+            gap-6
+          ">
             <TurnoSelector
               value={turno}
               onChange={setTurno}
@@ -334,19 +355,30 @@ export default function DashboardAdmin() {
             <DateFilter value={dateRange} onApply={setDateRange} />
           </div>
           
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-stretch">
+          <div className="
+            grid
+            grid-cols-1
+            lg:grid-cols-3
+            2xl:grid-cols-3
+            gap-6
+          ">
 
           {/* ================= ESTRUTURA ================= */}
-          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F] h-full flex flex-col">
+          <div className="bg-[#111111] rounded-2xl p-6 border border-[#1F1F1F] h-full flex flex-col">
             <h3 className="text-sm text-[#BFBFC3] mb-8">
               Estrutura do Time
             </h3>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-6
+            ">
               {kpisEstrutura.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-4 min-h-[72px]">
+                  <div key={idx} className="flex items-center gap-4 min-h-16">
                     <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
                       <Icon size={20} className="text-[#BFBFC3]" />
                     </div>
@@ -363,16 +395,21 @@ export default function DashboardAdmin() {
           </div>
 
           {/* ================= PERFORMANCE ================= */}
-          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F] h-full flex flex-col">
+          <div className="bg-[#111111] rounded-2xl p-6 border border-[#1F1F1F] h-full flex flex-col">
             <h3 className="text-sm text-[#BFBFC3] mb-8">
               Performance Operacional
             </h3>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-6
+            ">
               {kpisPerformance.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-4 min-h-[72px]">
+                  <div key={idx} className="flex items-center gap-4 min-h-16">
                     <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
                       <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
                     </div>
@@ -393,16 +430,21 @@ export default function DashboardAdmin() {
           </div>
 
           {/* ================= PESSOAS ================= */}
-          <div className="bg-[#111111] rounded-2xl p-8 border border-[#1F1F1F] h-full flex flex-col">
+          <div className="bg-[#111111] rounded-2xl p-6 border border-[#1F1F1F] h-full flex flex-col">
             <h3 className="text-sm text-[#BFBFC3] mb-8">
               Pessoas & Saúde
             </h3>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-6
+            ">
               {kpisPessoas.map((item, idx) => {
                 const Icon = item.icon;
                 return (
-                  <div key={idx} className="flex items-center gap-4 min-h-[72px]">
+                  <div key={idx} className="flex items-center gap-4 min-h-16">
                     <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
                       <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
                     </div>
@@ -424,7 +466,13 @@ export default function DashboardAdmin() {
 
         </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="
+            grid
+            grid-cols-1
+            md:grid-cols-2
+            2xl:grid-cols-3
+            gap-6
+          ">
             <DistribuicaoGeneroChart
               title="Distribuição por Gênero"
               data={dados.genero}
@@ -445,7 +493,12 @@ export default function DashboardAdmin() {
 
           <EmpresasResumoSection empresas={dados.empresasResumo} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="
+            grid
+            grid-cols-1
+            md:grid-cols-2
+            gap-6
+          ">
             <ResumoOperacaoCard
               title="Escala × Colaborador"
               data={dados.escalas}
