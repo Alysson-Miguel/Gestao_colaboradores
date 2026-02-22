@@ -28,6 +28,9 @@ export default function EditarColaborador() {
     dataAdmissao: "",
     horarioInicioJornada: "",
     status: "ATIVO",
+    dataDemissao: "",
+    dataInicioStatus: "",
+    dataFimStatus: "",
   });
 
   /* ================= LOAD ================= */
@@ -60,6 +63,9 @@ export default function EditarColaborador() {
             ? c.horarioInicioJornada.substring(11, 16)
             : "",
           status: c.status || "ATIVO",
+          dataDemissao: c.dataDemissao ? c.dataDemissao.substring(0, 10) : "",
+          dataInicioStatus: c.dataInicioStatus ? c.dataInicioStatus.substring(0, 10) : "",
+          dataFimStatus: c.dataFimStatus ? c.dataFimStatus.substring(0, 10) : "",
         });
       } catch (err) {
         console.error(err);
@@ -80,6 +86,18 @@ export default function EditarColaborador() {
 
   async function handleSave() {
     try {
+
+      // 🔥 ===== VALIDAÇÃO FRONT =====
+      if (form.status === "INATIVO" && !form.dataDemissao) {
+        return alert("Informe a data de demissão.");
+      }
+
+      if (
+        (form.status === "FERIAS" || form.status === "AFASTADO") &&
+        (!form.dataInicioStatus || !form.dataFimStatus)
+      ) {
+        return alert("Informe data início e data fim.");
+      }
       const payload = {
         nomeCompleto: form.nomeCompleto || null,
         cpf: form.cpf || null,
@@ -90,13 +108,12 @@ export default function EditarColaborador() {
         contatoEmergenciaNome: form.contatoEmergenciaNome || null,
         contatoEmergenciaTelefone: form.contatoEmergenciaTelefone || null,
         idEscala: form.idEscala ? Number(form.idEscala) : null,
-        dataAdmissao: form.dataAdmissao
-          ? new Date(form.dataAdmissao)
-          : null,
-        horarioInicioJornada: form.horarioInicioJornada
-          ? new Date(`1970-01-01T${form.horarioInicioJornada}:00`)
-          : null,
+        dataAdmissao: form.dataAdmissao || null,
+        horarioInicioJornada: form.horarioInicioJornada || null,
         status: form.status,
+        dataDesligamento: form.dataDemissao || null,
+        dataInicioStatus: form.dataInicioStatus || null,
+        dataFimStatus: form.dataFimStatus || null,
       };
 
       await api.put(`/colaboradores/${opsId}`, payload);
@@ -225,6 +242,36 @@ export default function EditarColaborador() {
               onChange={handleChange}
               options={["ATIVO", "INATIVO", "AFASTADO", "FERIAS"]}
             />
+          
+           {form.status === "INATIVO" && (
+            <Input
+              type="date"
+              name="dataDemissao"
+              label="Data de Demissão *"
+              value={form.dataDemissao}
+              onChange={handleChange}
+            />
+          )}
+
+          {(form.status === "FERIAS" || form.status === "AFASTADO") && (
+            <>
+              <Input
+                type="date"
+                name="dataInicioStatus"
+                label="Data Início *"
+                value={form.dataInicioStatus}
+                onChange={handleChange}
+              />
+
+              <Input
+                type="date"
+                name="dataFimStatus"
+                label="Data Fim *"
+                value={form.dataFimStatus}
+                onChange={handleChange}
+              />
+            </>
+          )}
           </Section>
         </main>
       </div>
