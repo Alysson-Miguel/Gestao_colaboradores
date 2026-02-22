@@ -98,7 +98,7 @@ export default function DashboardColaboradoresExecutivo() {
           badges={[`Turno: ${turno === "ALL" ? "Todos" : turno}`]}
         />
 
-        <div className="flex flex-wrap gap-6 items-center">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:items-center">
           <TurnoSelector
             value={turno}
             onChange={setTurno}
@@ -109,7 +109,7 @@ export default function DashboardColaboradoresExecutivo() {
         </div>
 
           {/* ================= KPIs ================= */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             <KpiCard label="Colaboradores Ativos" value={kpis.ativos} />
             <KpiCard label="Turnover" value={`${Number(kpis.turnover ?? 0).toFixed(2)}%`} />
             <KpiCard label="Absenteísmo" value={`${kpis.absenteismoPeriodo}%`} />
@@ -119,7 +119,7 @@ export default function DashboardColaboradoresExecutivo() {
 
           {/* ================= HEADCOUNT + MOVIMENTAÇÃO ================= */}
           <Card title="Headcount & Movimentações">
-            <ResponsiveContainer width="100%" height={350}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 260 : 350}>
               <ComposedChart
                 data={headcountMensal.map((h, index) => ({
                   mes: h.mes,
@@ -194,7 +194,7 @@ export default function DashboardColaboradoresExecutivo() {
 
 
           {/* ================= DONUTS ================= */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
 
             {/* TEMPO DE CASA */}
             <Card title="Tempo de Casa">
@@ -204,9 +204,9 @@ export default function DashboardColaboradoresExecutivo() {
                     data={tempoCasaData}
                     dataKey="value"
                     nameKey="name"
-                    outerRadius={100}
-                    innerRadius={60}
-                    label
+                    outerRadius={window.innerWidth < 768 ? 70 : 100}
+                    innerRadius={window.innerWidth < 768 ? 40 : 60}
+                    label={window.innerWidth >= 768}
                   >
                     {tempoCasaData.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -271,7 +271,7 @@ export default function DashboardColaboradoresExecutivo() {
                     
           </div>
           {/* ================= HC POR LIDER / SETOR / ESCALA ================= */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
 
             <Card title="HC por Líder">
               <RankingListHC data={hcLider} />
@@ -329,7 +329,7 @@ function RankingList({ data }) {
     <div className="space-y-2">
       {data.map((item, i) => (
         <div key={i} className="flex justify-between text-sm">
-          <span>{item.colaborador}</span>
+          <span className="truncate max-w-[70%]">{item.colaborador}</span>
           <span className="text-[#FA4C00]">{item.qtd}</span>
         </div>
       ))}
