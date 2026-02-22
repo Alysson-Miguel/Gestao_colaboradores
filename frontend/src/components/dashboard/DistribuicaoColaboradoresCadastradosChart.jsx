@@ -6,13 +6,12 @@ import {
   Tooltip,
 } from "recharts";
 
-const COLORS = ["#FA4C00", "#0A84FF"]; // SPX | BPO
+const COLORS = ["#FA4C00", "#0A84FF"];
 
 export default function DistribuicaoColaboradoresCadastradosChart({
   title = "Colaboradores Ativos",
   data = [],
 }) {
-  // 🔒 garante apenas ATIVOS
   const dataAtivos = data.filter(
     (d) => d.status === "ATIVO" || d.status === undefined
   );
@@ -25,18 +24,19 @@ export default function DistribuicaoColaboradoresCadastradosChart({
   };
 
   return (
-    <div className="bg-[#1A1A1C] rounded-2xl p-6 space-y-4">
-      <h3 className="text-sm font-semibold text-[#BFBFC3] uppercase">
+    <div className="bg-[#1A1A1C] rounded-2xl p-4 sm:p-6 space-y-4 w-full">
+      <h3 className="text-xs sm:text-sm font-semibold text-[#BFBFC3] uppercase tracking-wide">
         {title}
       </h3>
 
-      <div className="h-[260px] relative">
+      {/* 🔥 ALTURA RESPONSIVA */}
+      <div className="h-60 sm:h-[280px] lg:h-80 relative">
         {/* TOTAL CENTRAL */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-3xl font-bold text-white">
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
             {totalAtivos}
           </span>
-          <span className="text-xs text-[#BFBFC3] tracking-wide">
+          <span className="text-[10px] sm:text-xs text-[#BFBFC3] tracking-wide">
             ATIVOS
           </span>
         </div>
@@ -47,8 +47,8 @@ export default function DistribuicaoColaboradoresCadastradosChart({
               data={dataAtivos}
               dataKey="value"
               nameKey="name"
-              innerRadius={70}
-              outerRadius={95}
+              innerRadius="60%"
+              outerRadius="85%"
               paddingAngle={3}
               label={renderLabel}
               labelLine={false}
@@ -79,20 +79,20 @@ export default function DistribuicaoColaboradoresCadastradosChart({
         </ResponsiveContainer>
       </div>
 
-      {/* LEGENDA */}
-      <div className="flex justify-center gap-6 text-xs">
+      {/* 🔥 LEGENDA RESPONSIVA */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         {dataAtivos.map((d, i) => {
           const pct = totalAtivos
             ? Math.round((d.value / totalAtivos) * 100)
             : 0;
 
           return (
-            <div key={d.name} className="flex items-center gap-2">
+            <div key={d.name} className="flex items-center gap-2 min-w-0">
               <span
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: COLORS[i] }}
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: COLORS[i % COLORS.length] }}
               />
-              <span className="text-[#BFBFC3]">
+              <span className="text-[#BFBFC3] truncate">
                 {d.name} — {d.value} ({pct}%)
               </span>
             </div>

@@ -4,22 +4,15 @@ export default function DashboardHeader({
   date,
   badges = [],
 }) {
-  /* =====================================================
-     FORMATADORES
-  ===================================================== */
-
   const formatDateBR = (value) => {
-  if (!value) return "-";
+    if (!value) return "-";
 
-  // Se já vier no formato YYYY-MM-DD
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [y, m, d] = value.split("-");
-    return `${d}/${m}/${y}`;
-  }
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split("-");
+      return `${d}/${m}/${y}`;
+    }
 
-  // Qualquer Date ou ISO → força locale BR (SEM UTC)
-  const d = new Date(value);
-
+    const d = new Date(value);
     if (isNaN(d.getTime())) return "-";
 
     return d.toLocaleDateString("pt-BR", {
@@ -30,35 +23,29 @@ export default function DashboardHeader({
   const renderPeriodo = () => {
     if (!date) return "-";
 
-    // String já no formato "inicio → fim"
     if (typeof date === "string" && date.includes("→")) {
-      const [inicio, fim] = date.split("→").map(v => v.trim());
+      const [inicio, fim] = date.split("→").map((v) => v.trim());
       return `${formatDateBR(inicio)} → ${formatDateBR(fim)}`;
     }
 
-    // Objeto { inicio, fim }
     if (typeof date === "object" && date.inicio && date.fim) {
       return `${formatDateBR(date.inicio)} → ${formatDateBR(date.fim)}`;
     }
 
-    // Data única
     return formatDateBR(date);
   };
 
-
-  /* =====================================================
-     RENDER
-  ===================================================== */
-
   return (
-    <div className="flex flex-col gap-1">
-      <h1 className="text-2xl font-semibold text-white">
+    <div className="flex flex-col gap-3 w-full">
+      {/* Título */}
+      <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">
         {title}
       </h1>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm text-[#BFBFC3]">
+      {/* Subtitulo + Badges */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-[#BFBFC3]">
         {(subtitle || date) && (
-          <span>
+          <span className="truncate">
             {subtitle}
             {date && `: ${renderPeriodo()}`}
           </span>
@@ -67,7 +54,15 @@ export default function DashboardHeader({
         {badges.map((badge, i) => (
           <span
             key={i}
-            className="px-2 py-0.5 rounded-md bg-[#2A2A2C] text-white"
+            className="
+              px-3 py-1
+              rounded-md
+              bg-[#2A2A2C]
+              text-white
+              text-xs
+              sm:text-sm
+              whitespace-nowrap
+            "
           >
             {badge}
           </span>

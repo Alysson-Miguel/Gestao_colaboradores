@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { Calendar, Check, X } from "lucide-react";
@@ -13,7 +13,7 @@ function toISO(date) {
   const y = date.getFullYear();
   const m = pad(date.getMonth() + 1);
   const d = pad(date.getDate());
-  return `${y}-${m}-${d}`; // ⚠️ SEM toISOString
+  return `${y}-${m}-${d}`;
 }
 
 function fromISO(iso) {
@@ -26,9 +26,9 @@ function fromISO(iso) {
 /* ================= COMPONENT ================= */
 export default function DateFilter({ value = {}, onApply }) {
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
 
   const initialRange = useMemo(() => {
-    // prioridade: data única
     if (value.data) {
       const d = fromISO(value.data);
       return { from: d, to: undefined };
@@ -38,13 +38,30 @@ export default function DateFilter({ value = {}, onApply }) {
       from: fromISO(value.dataInicio),
       to: fromISO(value.dataFim),
     };
-  }, [value.data, value.dataInicio, value.dataFim]);
+  }, [value]);
 
   const [range, setRange] = useState(initialRange);
 
   useEffect(() => {
     setRange(initialRange);
   }, [initialRange]);
+
+  // 🔥 Fecha ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   const label = useMemo(() => {
     if (!range?.from) return "Selecionar período";
@@ -60,22 +77,17 @@ export default function DateFilter({ value = {}, onApply }) {
     return "Selecionar período";
   }, [range]);
 
-  /* ================= APPLY CORRETO ================= */
   function apply() {
     if (!range?.from) return;
 
-    // 📅 DIA ÚNICO
     if (!range.to) {
       onApply({ data: toISO(range.from) });
-      setOpen(false);
-      return;
+    } else {
+      onApply({
+        dataInicio: toISO(range.from),
+        dataFim: toISO(range.to),
+      });
     }
-
-    // 📅 INTERVALO REAL
-    onApply({
-      dataInicio: toISO(range.from),
-      dataFim: toISO(range.to),
-    });
 
     setOpen(false);
   }
@@ -87,21 +99,48 @@ export default function DateFilter({ value = {}, onApply }) {
   }
 
   return (
-    <div className="relative">
+    <div ref={wrapperRef} className="relative w-full sm:w-auto">
       {/* BOTÃO */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 bg-[#1A1A1C] border border-[#2A2A2C] rounded-xl px-4 py-3 text-sm text-[#E5E5EA] hover:border-[#3A3A3C]"
+        className="
+          w-full sm:w-auto
+          flex items-center justify-center sm:justify-start
+          gap-2
+          bg-[#1A1A1C]
+          border border-[#2A2A2C]
+          rounded-xl
+          px-4 py-3
+          text-sm
+          text-[#E5E5EA]
+          hover:border-[#3A3A3C]
+          transition
+        "
       >
         <Calendar size={18} className="text-[#BFBFC3]" />
-        <span>{label}</span>
+        <span className="truncate">{label}</span>
       </button>
 
       {/* POPOVER */}
       {open && (
-        <div className="absolute z-50 mt-3 w-[360px] rounded-2xl border border-[#2A2A2C] bg-[#121214] shadow-xl p-3">
-          <div className="text-xs text-[#BFBFC3] px-2 pb-2">
+        <div
+          className="
+            absolute sm:right-0
+            left-1/2 sm:left-auto
+            -translate-x-1/2 sm:translate-x-0
+            z-50
+            mt-3
+            w-[95vw] sm:w-[360px]
+            max-w-[420px]
+            rounded-2xl
+            border border-[#2A2A2C]
+            bg-[#121214]
+            shadow-2xl
+            p-4
+          "
+        >
+          <div className="text-xs text-[#BFBFC3] pb-2">
             Selecione um dia ou intervalo
           </div>
 
@@ -115,7 +154,7 @@ export default function DateFilter({ value = {}, onApply }) {
             />
           </div>
 
-          <div className="flex items-center justify-between pt-3">
+          <div className="flex items-center justify-between pt-4">
             <button
               onClick={clear}
               className="flex items-center gap-1 text-sm text-[#BFBFC3] hover:text-white"
@@ -127,7 +166,16 @@ export default function DateFilter({ value = {}, onApply }) {
             <button
               onClick={apply}
               disabled={!range?.from}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-[#FA4C00] text-white disabled:opacity-40"
+              className="
+                inline-flex items-center gap-2
+                rounded-xl
+                px-4 py-2
+                text-sm font-medium
+                bg-[#FA4C00]
+                text-white
+                disabled:opacity-40
+                transition
+              "
             >
               <Check size={16} />
               Aplicar

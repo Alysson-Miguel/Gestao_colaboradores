@@ -293,16 +293,23 @@ export default function DashboardOperacional() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+    <div className="flex min-h-screen bg-[#0D0D0D] text-white overflow-x-hidden">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1 lg:ml-64 min-w-0">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-          <main
-            id="dashboard-operacional-export"
-            className="p-8 space-y-10"
-          >
+      <main
+        id="dashboard-operacional-export"
+        className="
+          p-6 
+          xl:p-10 
+          2xl:px-20
+          space-y-10
+          max-w-[1600px]
+          mx-auto
+        "
+      >
           <DashboardHeader
             title="Dashboard Operacional"
             subtitle="Dia operacional"
@@ -330,7 +337,7 @@ export default function DashboardOperacional() {
                   mode="range"
                   selected={draftRange}
                   onSelect={setDraftRange}
-                  numberOfMonths={2}
+                  numberOfMonths={window.innerWidth < 768 ? 1 : 2}
                   locale={ptBR}
                 />
 
@@ -363,7 +370,7 @@ export default function DashboardOperacional() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <TurnoSelector
               value={turnoSelecionado}
               onChange={setTurnoSelecionado}
@@ -393,7 +400,7 @@ export default function DashboardOperacional() {
 
           <EmpresasSection title="Quantidade por Empresa" items={empresasItems} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
             <DistribuicaoGeneroChart
               title="Distribuição por Gênero"
               data={dados.generoPorTurno?.[turnoSelecionado] || []}
