@@ -17,6 +17,12 @@ const daysInclusive = (inicio, fim) => {
   b.setHours(0, 0, 0, 0);
   return Math.floor((b - a) / 86400000) + 1;
 };
+const norm = (s) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .toLowerCase()
+    .trim();
 
 function agoraBrasil() {
   const now = new Date();
@@ -935,8 +941,15 @@ function buildEmpresasResumo({
       freqMap[f.opsId].push(f);
     });
 
-    // 🔹 Mapear atestados por opsId
-    const atestadoSet = new Set(atestados.map((a) => a.opsId));
+    //  Mapear quantidade real de atestados por colaborador
+    const atestadoCountMap = new Map();
+
+    atestados.forEach((a) => {
+      atestadoCountMap.set(
+        a.opsId,
+        (atestadoCountMap.get(a.opsId) || 0) + 1
+      );
+    });
 
     const gerentesMap = new Map();
 
@@ -966,10 +979,8 @@ function buildEmpresasResumo({
       const gerenteNode = gerentesMap.get(c.idLider);
       if (!gerenteNode) return;
 
-      const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
-
-      const isSupervisor =
-        cargo.includes("supervisor");
+      const cargo = norm(c.cargo?.nomeCargo);
+      const isSupervisor = cargo.includes("supervisor");
 
       if (!isSupervisor) return; // 🔥 CORREÇÃO PRINCIPAL
 
@@ -993,8 +1004,8 @@ function buildEmpresasResumo({
     colaboradores.forEach((c) => {
       if (!c.idLider) return;
 
-      const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
-      const isLider = cargo.includes("líder");
+      const cargo = norm(c.cargo?.nomeCargo);
+      const isLider = cargo.includes("lider");
 
       if (!isLider) return;
 
@@ -1027,12 +1038,12 @@ function buildEmpresasResumo({
       !turnoSelecionado || turnoSelecionado === "ALL"
         ? colaboradores
         : colaboradores.filter((c) => {
-            const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
+            const cargo = norm(c.cargo?.nomeCargo);
 
             const isEstrutura =
               cargo.includes("gerente") ||
               cargo.includes("supervisor") ||
-              cargo.includes("líder");
+              cargo.includes("lider");
 
             if (isEstrutura) return false;
 
@@ -1041,11 +1052,12 @@ function buildEmpresasResumo({
     colaboradoresOperacionais.forEach((c) => {
       if (!c.idLider) return;
 
-      const cargo = c.cargo?.nomeCargo?.toLowerCase() || "";
+      const cargo = norm(c.cargo?.nomeCargo);
 
       const isGerente = !c.idLider;
       const isSupervisor = cargo.includes("supervisor");
-      const isLider = cargo.includes("líder");
+      const isLider = cargo.includes("lider"); // ✅
+
 
       // 🔥 Apenas operadores entram aqui
       if (isGerente || isSupervisor || isLider) return;
@@ -1063,7 +1075,7 @@ function buildEmpresasResumo({
         if (status.code === "F" || status.code === "FJ") faltas++;
       });
 
-      const atestado = atestadoSet.has(c.opsId) ? 1 : 0;
+      const atestado = atestadoCountMap.get(c.opsId) || 0;
 
       gerentesMap.forEach((g) => {
         g.supervisores.forEach((s) => {
@@ -1095,7 +1107,27 @@ function buildEmpresasResumo({
 
           // 🔹 2️⃣ Se responde a um líder
           const liderNode = s.lideres.get(c.idLider);
-          if (!liderNode) return;
+          if (!liderNode) {
+            // fallback: conta no supervisor direto (não perde o operador)
+            s.supervisionadosDiretos.push({
+              opsId: c.opsId,
+              nome: c.nomeCompleto,
+              setor: c.setor?.nomeSetor || "-",
+              empresa: c.empresa?.razaoSocial || "-",
+            });
+
+            s.totalColaboradores++;
+            s.faltas += faltas;
+            s.atestados += atestado;
+            s.absDias += absDias;
+
+            g.totalColaboradores++;
+            g.faltas += faltas;
+            g.atestados += atestado;
+            g.absDias += absDias;
+
+            return;
+          }
 
           liderNode.colaboradores.push({
             opsId: c.opsId,
@@ -1192,33 +1224,50 @@ function buildEmpresasResumo({
 ===================================================== */
 const carregarDashboardAdmin = async (req, res) => {
   try {
-    /* ===============================
-       📅 DATA PADRÃO = HOJE (BRASIL)
-    =============================== */
-    const agora = agoraBrasil();
-    const { inicio: inicioQuery, fim: fimQuery } = req.query;
+  /* ===============================
+    📅 DATA PADRÃO = HOJE (BRASIL)
+  ================================ */
+  const agora = agoraBrasil();
 
-    let inicio;
-    let fim;
+  //  ACEITA TANTO inicio/fim QUANTO dataInicio/dataFim
+  const {
+    inicio,
+    fim,
+    dataInicio,
+    dataFim,
+    turno,
+  } = req.query;
 
-    if (inicioQuery && fimQuery) {
-      inicio = new Date(inicioQuery);
-      inicio.setHours(0, 0, 0, 0);
+  // Normaliza parâmetros de data
+  const inicioQuery = inicio || dataInicio;
+  const fimQuery = fim || dataFim;
 
-      fim = new Date(fimQuery);
-      fim.setHours(23, 59, 59, 999);
-    } else {
-      const base = new Date(agora);
+  let inicioFinal;
+  let fimFinal;
 
-      inicio = new Date(base);
-      inicio.setHours(0, 0, 0, 0);
+  if (inicioQuery && fimQuery) {
+    inicioFinal = new Date(inicioQuery);
+    inicioFinal.setHours(0, 0, 0, 0);
 
-      fim = new Date(base);
-      fim.setHours(23, 59, 59, 999);
-    }
+    fimFinal = new Date(fimQuery);
+    fimFinal.setHours(23, 59, 59, 999);
+  } else {
+    const base = new Date(agora);
 
-    const turnoSelecionado = req.query.turno || "ALL";
-    const isAll = turnoSelecionado === "ALL";
+    inicioFinal = new Date(base);
+    inicioFinal.setHours(0, 0, 0, 0);
+
+    fimFinal = new Date(base);
+    fimFinal.setHours(23, 59, 59, 999);
+  }
+
+  // 🔎 DEBUG
+  console.log("Query recebida:", req.query);
+  console.log("Período usado:", inicioFinal, fimFinal);
+
+  // 🔥 NORMALIZA TURNO
+  const turnoSelecionado = String(turno || "ALL").toUpperCase();
+  const isAll = turnoSelecionado === "ALL";
 
     /* ===============================
        COLABORADORES BASE
@@ -1282,7 +1331,7 @@ const carregarDashboardAdmin = async (req, res) => {
       return res.json({
         success: true,
         data: {
-          periodo: { inicio: isoDate(inicio), fim: isoDate(fim) },
+          periodo: { inicio: isoDate(inicioFinal), fim: isoDate(fimFinal) },
           kpis: {},
           statusColaboradores: {},
           genero: [],
@@ -1308,7 +1357,7 @@ const carregarDashboardAdmin = async (req, res) => {
     const frequencias = await prisma.frequencia.findMany({
       where: {
         opsId: { in: opsIds },
-        dataReferencia: { gte: inicio, lte: fim },
+        dataReferencia: { gte: inicioFinal, lte: fimFinal },
       },
       include: { tipoAusencia: true },
     });
@@ -1329,8 +1378,8 @@ const carregarDashboardAdmin = async (req, res) => {
     const atestados = await prisma.atestadoMedico.findMany({
       where: {
         opsId: { in: opsIds },
-        dataInicio: { lte: fim },
-        dataFim: { gte: inicio },
+        dataInicio: { lte: fimFinal },
+        dataFim: { gte: inicioFinal },
       },
     });
 
@@ -1340,8 +1389,8 @@ const carregarDashboardAdmin = async (req, res) => {
       colaboradores: colaboradoresEstrutura,
       frequencias,
       atestados,
-      inicio,
-      fim,
+      inicio: inicioFinal,
+      fim: fimFinal,
       turnoSelecionado: turnoSelecionado, // 🔥 ESSENCIAL
     });
     const resumoHierarquia = buildResumoHierarquia(hierarquia);
@@ -1349,31 +1398,35 @@ const carregarDashboardAdmin = async (req, res) => {
     const medidas = await prisma.medidaDisciplinar.findMany({
       where: {
         opsId: { in: opsIds },
-        dataAplicacao: { gte: inicio, lte: fim },
+        dataAplicacao: { gte: inicioFinal, lte: fimFinal },
       },
     });
 
     const acidentes = await prisma.acidenteTrabalho.findMany({
       where: {
         opsIdColaborador: { in: opsIds },
-        dataOcorrencia: { gte: inicio, lte: fim },
+        dataOcorrencia: { gte: inicioFinal, lte: fimFinal },
       },
     });
 
     const desligados = await prisma.colaborador.findMany({
       where: {
         status: "INATIVO",
-        dataDesligamento: { gte: inicio, lte: fim },
+        dataDesligamento: { gte: inicioFinal, lte: fimFinal },
       },
     });
 
     const admitidos = await prisma.colaborador.findMany({
       where: {
-        dataAdmissao: { gte: inicio, lte: fim },
+        dataAdmissao: { gte: inicioFinal, lte: fimFinal },
       },
     });
 
-    const overview = buildOverview({ frequencias, inicio, fim });
+    const overview = buildOverview({
+      frequencias,
+      inicio: inicioFinal,
+      fim: fimFinal
+    });
 
     /* ===============================
        RESPONSE FINAL
@@ -1381,7 +1434,10 @@ const carregarDashboardAdmin = async (req, res) => {
     return res.json({
       success: true,
       data: {
-        periodo: { inicio: isoDate(inicio), fim: isoDate(fim) },
+        periodo: {
+          inicio: isoDate(inicioFinal),
+          fim: isoDate(fimFinal),
+        },
 
         kpis: {
           headcountTotal: totalHeadCount,
@@ -1402,7 +1458,7 @@ const carregarDashboardAdmin = async (req, res) => {
           medidasDisciplinares: medidas.length,
           acidentes: acidentes.length,
           idadeMedia: buildIdadeMedia(colaboradoresPeriodo),
-          tempoMedioEmpresaDias: buildTempoMedioEmpresa(colaboradoresPeriodo, fim),
+          tempoMedioEmpresaDias: buildTempoMedioEmpresa(colaboradoresPeriodo),
         },
 
         statusColaboradores: buildStatusColaboradores({
@@ -1421,13 +1477,30 @@ const carregarDashboardAdmin = async (req, res) => {
           acidentes,
           desligados,
           admitidos,
-          inicio,
-          fim,
+          inicio: inicioFinal,
+          fim: fimFinal,
         }),
         
-        escalas: buildEscalasResumo({ frequencias, colaboradoresMap, inicio, fim }),
-        setores: buildSetoresResumo({ frequencias, colaboradoresMap, inicio, fim }),
-        lideres: buildLideresResumo({ frequencias, colaboradoresMap, inicio, fim }),
+        escalas: buildEscalasResumo({
+          frequencias,
+          colaboradoresMap,
+          inicio: inicioFinal,
+          fim: fimFinal
+        }),
+
+        setores: buildSetoresResumo({
+          frequencias,
+          colaboradoresMap,
+          inicio: inicioFinal,
+          fim: fimFinal
+        }),
+
+        lideres: buildLideresResumo({
+          frequencias,
+          colaboradoresMap,
+          inicio: inicioFinal,
+          fim: fimFinal
+        }),
         hierarquia,
         resumoHierarquia,
 
