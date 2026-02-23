@@ -530,6 +530,7 @@ function buildOverview({ frequencias, inicio, fim }) {
       presentes: 0,
       absenteismo: 0,
       faltas: 0,
+      diasEscalados: 0,
     };
   }
 
@@ -966,6 +967,7 @@ function buildEmpresasResumo({
           faltas: 0,
           atestados: 0,
           absDias: 0,
+          diasEscalados: 0,
         });
       }
     });
@@ -994,6 +996,7 @@ function buildEmpresasResumo({
           faltas: 0,
           atestados: 0,
           absDias: 0,
+          diasEscalados: 0,
         });
       }
     });
@@ -1024,6 +1027,7 @@ function buildEmpresasResumo({
             faltas: 0,
             atestados: 0,
             absDias: 0,
+            diasEscalados: 0,
           });
         }
       });
@@ -1065,10 +1069,13 @@ function buildEmpresasResumo({
 
       let absDias = 0;
       let faltas = 0;
+      let diasEscalados = 0;
 
       freqs.forEach((f) => {
         const status = getStatusDoDia(f);
         if (!status.contaComoEscalado) return;
+
+        diasEscalados++;
 
         if (status.impactaAbsenteismo) absDias++;
         if (status.code === "F" || status.code === "FJ") faltas++;
@@ -1122,6 +1129,7 @@ function buildEmpresasResumo({
         liderNode.faltas += faltas;
         liderNode.atestados += atestado;
         liderNode.absDias += absDias;
+        liderNode.diasEscalados += diasEscalados;
       }
 
       // Métricas supervisor
@@ -1129,25 +1137,26 @@ function buildEmpresasResumo({
       supervisorNode.faltas += faltas;
       supervisorNode.atestados += atestado;
       supervisorNode.absDias += absDias;
+      supervisorNode.diasEscalados += diasEscalados;
 
       // Métricas gerente
       gerenteNode.totalColaboradores++;
       gerenteNode.faltas += faltas;
       gerenteNode.atestados += atestado;
       gerenteNode.absDias += absDias;
+      gerenteNode.diasEscalados += diasEscalados;
+      
     });
     
     // =============================
-    // 5️⃣ FINALIZAR ABSENTEÍSMO %
+    // 5️⃣ FINALIZAR ABSENTEÍSMO % (CORRIGIDO)
     // =============================
     const finalizarMetricas = (node) => {
-      const diasEsperados = node.totalColaboradores * diasPeriodo;
-
       return {
         ...node,
         absenteismo:
-          diasEsperados > 0
-            ? Number(((node.absDias / diasEsperados) * 100).toFixed(2))
+          node.diasEscalados > 0
+            ? Number(((node.absDias / node.diasEscalados) * 100).toFixed(2))
             : 0,
       };
     };
@@ -1161,7 +1170,7 @@ function buildEmpresasResumo({
 
           const lideresFiltrados = Array.from(s.lideres.values())
             .map((l) => finalizarMetricas(l))
-            .filter((l) => l.totalColaboradores > 0); // remove líderes vazios
+            .filter((l) => l.totalColaboradores > 0);
 
           return {
             ...supervisorFinal,
@@ -1171,7 +1180,7 @@ function buildEmpresasResumo({
         .filter(
           (s) =>
             s.totalColaboradores > 0 || s.lideres.length > 0
-        ); // remove supervisor vazio
+        );
 
       return {
         ...gerenteFinal,
