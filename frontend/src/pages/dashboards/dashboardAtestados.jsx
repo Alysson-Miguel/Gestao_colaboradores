@@ -378,7 +378,7 @@ function BarBlock({ data }) {
   const maxValue = Math.max(...safeData.map((d) => d.value || 0))
 
   return (
-    <div className="h-[240px] sm:h-[280px] lg:h-[320px]">
+    <div className="h-60 sm:h-[280px] lg:h-80">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={safeData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.08)" />
@@ -424,7 +424,7 @@ function PieBlock({ data }) {
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="h-[220px] sm:h-[240px] w-full">
+      <div className="h-[220px] sm:h-60 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -563,7 +563,7 @@ function BarBlockHorizontal({ data }) {
   const formatted = safeData.map((d) => ({ ...d, name: formatName(d.name) }))
 
   return (
-    <div className="h-[280px] sm:h-[320px] lg:h-[360px]">
+    <div className="h-[280px] sm:h-80 lg:h-[360px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={formatted} layout="vertical" margin={{ left: 20, right: 20 }}>
           <CartesianGrid stroke="rgba(255,255,255,0.08)" />

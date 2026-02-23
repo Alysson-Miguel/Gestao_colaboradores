@@ -7,11 +7,15 @@ import {
   Tooltip,
   CartesianGrid,
   LabelList,
+  Area,
 } from "recharts";
 
-export default function TendenciaAbsenteismoChart({ title, data = [] }) {
+export default function TendenciaAbsenteismoChart({
+  title,
+  data = [],
+}) {
   const CustomLabel = ({ x, y, value }) => {
-    if (value === undefined || value === null) return null;
+    if (value == null) return null;
 
     const num = Number(value);
     if (Number.isNaN(num)) return null;
@@ -19,7 +23,7 @@ export default function TendenciaAbsenteismoChart({ title, data = [] }) {
     return (
       <text
         x={x}
-        y={Math.max(y - 8, 12)} // 🔑 impede sair do topo
+        y={Math.max(y - 10, 12)}
         textAnchor="middle"
         fill="#FFFFFF"
         fontSize={11}
@@ -31,44 +35,99 @@ export default function TendenciaAbsenteismoChart({ title, data = [] }) {
   };
 
   return (
-    <div className="bg-[#1A1A1C] rounded-xl p-6 space-y-4">
-      <h3 className="text-lg font-semibold">{title}</h3>
+    <div
+      className="
+        bg-[#1A1A1C]
+        border border-[#2A2A2C]
+        rounded-2xl
+        p-6
+        space-y-6
+      "
+    >
+      {title && (
+        <h2 className="text-xs sm:text-sm font-semibold text-[#BFBFC3] uppercase tracking-wide">
+          {title}
+        </h2>
+      )}
 
-      <div className="h-[260px]">
+      <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
-            margin={{ top: 24, right: 16, left: 0, bottom: 0 }} // 🔑 espaço real
+            margin={{ top: 30, right: 20, left: 0, bottom: 10 }}
           >
-            <CartesianGrid stroke="#2A2A2C" strokeDasharray="3 3" />
+            <defs>
+              <linearGradient
+                id="absGradient"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop offset="0%" stopColor="#FA4C00" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#FA4C00" stopOpacity={0} />
+              </linearGradient>
+            </defs>
 
-            <XAxis dataKey="data" stroke="#BFBFC3" tick={{ fontSize: 12 }} />
+            <CartesianGrid
+              stroke="#2A2A2C"
+              strokeDasharray="2 4"
+              vertical={false}
+            />
+
+            <XAxis
+              dataKey="data"
+              stroke="#8E8E93"
+              tick={{ fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
+            />
 
             <YAxis
-              stroke="#BFBFC3"
+              stroke="#8E8E93"
               tick={{ fontSize: 12 }}
               domain={[0, "auto"]}
-              padding={{ top: 20 }} // 🔑 espaço interno
               tickFormatter={(v) => `${v}%`}
+              axisLine={false}
+              tickLine={false}
             />
 
             <Tooltip
               contentStyle={{
-                backgroundColor: "#1A1A1C",
+                backgroundColor: "#121214",
                 border: "1px solid #2A2A2C",
-                borderRadius: 8,
+                borderRadius: 10,
               }}
-              labelStyle={{ color: "#fff" }}
+              labelStyle={{ color: "#FFFFFF" }}
               formatter={(v) => [`${v}%`, "Absenteísmo"]}
             />
 
+            {/* Área suave */}
+            <Area
+              type="monotone"
+              dataKey="percentual"
+              stroke="none"
+              fill="url(#absGradient)"
+              isAnimationActive={false}
+            />
+
+            {/* Linha principal */}
             <Line
               type="monotone"
               dataKey="percentual"
               stroke="#FA4C00"
               strokeWidth={3}
-              dot={{ r: 3 }}
-              activeDot={{ r: 6 }}
+              dot={{
+                r: 4,
+                strokeWidth: 2,
+                fill: "#1A1A1C",
+              }}
+              activeDot={{
+                r: 6,
+                fill: "#FA4C00",
+                stroke: "#1A1A1C",
+                strokeWidth: 2,
+              }}
               isAnimationActive={false}
             >
               <LabelList content={CustomLabel} />

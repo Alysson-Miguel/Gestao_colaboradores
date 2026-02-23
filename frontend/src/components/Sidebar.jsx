@@ -110,11 +110,11 @@ export default function Sidebar({ isOpen, onClose }) {
         `}
       >
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-6 flex-shrink-0">
+        <div className="h-16 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FA4C00]" />
             <span className="font-semibold text-white tracking-wide">
-              COPPEOPLE
+              COPEOPLE
             </span>
           </div>
 
@@ -400,7 +400,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
         </nav>
          {/* Footer com créditos */}
-        <div className="px-6 py-4 border-t border-white/5 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-white/5 shrink-0">
           <p className="text-xs text-[#BFBFC3]">
             Desenvolvido por:{" "}
             <span className="text-[#FA4C00] font-medium">

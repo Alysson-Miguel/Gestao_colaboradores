@@ -17,13 +17,45 @@ const {
 const HORARIOS_PERMITIDOS = ["05:25", "13:20", "21:00"];
 
 /* ================= HELPERS DE DATA (BR) ================= */
-function startOfDaySafe(date = new Date()) {
-  const d = new Date(date);
-
-  // força Brasil sem risco de UTC shift
+function startOfDayBR(date) {
+  const d = date ? new Date(date) : agoraBrasil();
   d.setHours(0, 0, 0, 0);
-
   return d;
+}
+
+function agoraBrasil() {
+  const now = new Date();
+  const spString = now.toLocaleString("en-US", {
+    timeZone: "America/Sao_Paulo",
+  });
+  return new Date(spString);
+}
+
+
+function aplicarStatusDinamico(colaborador) {
+  if (!colaborador) return colaborador;
+
+  const hoje = agoraBrasil(); // 🔥 usa Brasil
+  hoje.setHours(0, 0, 0, 0);
+
+
+  if (
+    (colaborador.status === "FERIAS" ||
+      colaborador.status === "AFASTADO") &&
+    colaborador.dataFimStatus
+  ) {
+    const fim = new Date(colaborador.dataFimStatus);
+    fim.setHours(0, 0, 0, 0);
+
+    if (hoje > fim) {
+      return {
+        ...colaborador,
+        status: "ATIVO",
+      };
+    }
+  }
+
+  return colaborador;
 }
 
 /* ================= GET ALL ================= */
@@ -53,7 +85,13 @@ const getAllColaboradores = async (req, res) => {
     ];
   }
 
-  if (status) where.status = status;
+  if (status) {
+    if (status === "ATIVO") {
+        where.status = { in: ["ATIVO", "FERIAS", "AFASTADO"] };
+      } else {
+        where.status = status;
+      }
+    }
   if (idSetor) where.idSetor = Number(idSetor);
   if (idCargo) where.idCargo = Number(idCargo);
   if (idEmpresa) where.idEmpresa = Number(idEmpresa);
@@ -90,8 +128,9 @@ const getAllColaboradores = async (req, res) => {
       }),
       prisma.colaborador.count({ where }),
     ]);
+    const dataAjustada = data.map(aplicarStatusDinamico);
 
-    return paginatedResponse(res, data, {
+    return paginatedResponse(res, dataAjustada, {
       page: Number(page),
       limit: Number(limit),
       total,
@@ -110,7 +149,7 @@ const getColaboradorByCpf = async (req, res) => {
     return errorResponse(res, "CPF inválido", 400);
   }
 
-  const colaborador = await prisma.colaborador.findFirst({
+  let colaborador = await prisma.colaborador.findFirst({
     where: { cpf: cpfLimpo },
     include: {
       empresa: true,
@@ -121,6 +160,8 @@ const getColaboradorByCpf = async (req, res) => {
       lider: true,
     },
   });
+
+  colaborador = aplicarStatusDinamico(colaborador);
 
   if (!colaborador) {
     return notFoundResponse(res, "Colaborador não encontrado");
@@ -139,7 +180,7 @@ const getColaboradorById = async (req, res) => {
   }
 
   try {
-    const colaborador = await prisma.colaborador.findUnique({
+    let colaborador = await prisma.colaborador.findUnique({
       where: { opsId },
       include: {
         empresa: true,
@@ -155,6 +196,7 @@ const getColaboradorById = async (req, res) => {
       },
     });
 
+    colaborador = aplicarStatusDinamico(colaborador);
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
@@ -164,7 +206,7 @@ const getColaboradorById = async (req, res) => {
     ===================================================== */
 
     // 📅 Hoje no padrão Brasil (sem UTC shift)
-    const hoje = new Date();
+    const hoje = agoraBrasil();
     hoje.setHours(0, 0, 0, 0);
 
     const [totalAtestados, ativos, finalizados] = await Promise.all([
@@ -380,11 +422,18 @@ const updateColaborador = async (req, res) => {
       horarioInicioJornada,
       contatoEmergenciaNome,
       contatoEmergenciaTelefone,
+
+      // 🔥 NOVOS CAMPOS
+      dataDemissao,
+      dataInicioStatus,
+      dataFimStatus,
     } = req.body;
 
     const data = {};
 
-    /* ===== CAMPOS SIMPLES ===== */
+    /* =============================
+       CAMPOS SIMPLES
+    ============================== */
     if (nomeCompleto !== undefined) data.nomeCompleto = nomeCompleto;
     if (cpf !== undefined) data.cpf = cpf || null;
     if (email !== undefined) data.email = email || null;
@@ -392,9 +441,9 @@ const updateColaborador = async (req, res) => {
     if (genero !== undefined) data.genero = genero || null;
     if (matricula !== undefined) data.matricula = matricula;
     if (status !== undefined) data.status = status;
+
     if (contatoEmergenciaNome !== undefined) {
-      data.contatoEmergenciaNome =
-        contatoEmergenciaNome?.trim() || null;
+      data.contatoEmergenciaNome = contatoEmergenciaNome?.trim() || null;
     }
 
     if (contatoEmergenciaTelefone !== undefined) {
@@ -402,16 +451,89 @@ const updateColaborador = async (req, res) => {
         contatoEmergenciaTelefone?.trim() || null;
     }
 
-    /* ===== ESCALA ===== */
+    /* =============================
+       VALIDAÇÕES POR STATUS
+    ============================== */
+    if (status) {
+      // 🔴 INATIVO → obrigatória dataDemissao
+      if (status === "INATIVO") {
+        if (!dataDemissao) {
+          return errorResponse(
+            res,
+            "Data de demissão é obrigatória para status INATIVO",
+            400
+          );
+        }
+
+        const dt = new Date(dataDemissao);
+        if (isNaN(dt.getTime())) {
+          return errorResponse(res, "Data de demissão inválida", 400);
+        }
+
+        data.dataDesligamento = dt;
+
+        // limpa campos de período
+        data.dataInicioStatus = null;
+        data.dataFimStatus = null;
+      }
+
+      // 🟡 FERIAS ou AFASTADO
+      if (status === "FERIAS" || status === "AFASTADO") {
+        if (!dataInicioStatus || !dataFimStatus) {
+          return errorResponse(
+            res,
+            "Data início e data fim são obrigatórias para FÉRIAS ou AFASTADO",
+            400
+          );
+        }
+
+        const inicio = new Date(dataInicioStatus);
+        const fim = new Date(dataFimStatus);
+
+        if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) {
+          return errorResponse(res, "Datas inválidas", 400);
+        }
+
+        if (fim < inicio) {
+          return errorResponse(
+            res,
+            "Data final não pode ser menor que data inicial",
+            400
+          );
+        }
+
+        data.dataInicioStatus = inicio;
+        data.dataFimStatus = fim;
+
+        // limpa demissão
+        data.dataDesligamento = null;
+      }
+
+      // 🟢 ATIVO → limpa todos os campos de status temporário
+      if (status === "ATIVO") {
+        data.dataDesligamento = null;
+        data.dataInicioStatus = null;
+        data.dataFimStatus = null;
+      }
+    }
+
+    /* =============================
+       ESCALA
+    ============================== */
     if (idEscala !== undefined) {
-      const parsed = idEscala === null || idEscala === "" ? null : Number(idEscala);
+      const parsed =
+        idEscala === null || idEscala === "" ? null : Number(idEscala);
+
       if (parsed !== null && isNaN(parsed)) {
         return errorResponse(res, "Escala inválida", 400);
       }
+
       data.idEscala = parsed;
     }
 
-    /* ===== DATA ADMISSÃO (ACEITA ISO OU YYYY-MM-DD) ===== */
+    /* =============================
+       DATA ADMISSÃO
+    ============================== */
     if (dataAdmissao !== undefined) {
       let dt = null;
 
@@ -425,13 +547,14 @@ const updateColaborador = async (req, res) => {
       data.dataAdmissao = dt;
     }
 
-    /* ===== HORÁRIO (ACEITA ISO OU HH:mm) ===== */
+    /* =============================
+       HORÁRIO
+    ============================== */
     if (horarioInicioJornada !== undefined) {
       let time = null;
 
       if (horarioInicioJornada) {
         if (horarioInicioJornada.includes("T")) {
-          // ISO → extrai HH:mm
           const d = new Date(horarioInicioJornada);
           if (isNaN(d.getTime())) {
             return errorResponse(res, "Horário inválido", 400);
@@ -440,7 +563,6 @@ const updateColaborador = async (req, res) => {
           const mm = String(d.getMinutes()).padStart(2, "0");
           time = new Date(`1970-01-01T${hh}:${mm}:00`);
         } else {
-          // HH:mm
           time = new Date(`1970-01-01T${horarioInicioJornada}:00`);
           if (isNaN(time.getTime())) {
             return errorResponse(res, "Horário inválido", 400);

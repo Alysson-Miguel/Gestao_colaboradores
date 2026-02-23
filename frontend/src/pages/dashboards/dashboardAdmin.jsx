@@ -23,6 +23,7 @@ import AusentesHojeTable from "../../components/dashboard/AusentesHojeTable";
 import EmpresasResumoSection from "../../components/dashboard/EmpresasResumoSection";
 import ResumoOperacaoCard from "../../components/dashboard/ResumoOperacaoCard";
 import DistribuicaoColaboradoresCadastradosChart from "../../components/dashboard/DistribuicaoColaboradoresCadastradosChart";
+import HierarquiaSection from "../../components/HierarquiaSection";
 
 
 import { AuthContext } from "../../context/AuthContext";
@@ -35,6 +36,9 @@ const INITIAL_DATA = {
   periodo: { inicio: "", fim: "" },
 
   kpis: {
+    headcountTotal: 0,
+    headcountOperacao: 0,
+    headcountReturns: 0,
     totalColaboradores: 0,
     presentes: 0,
     absenteismo: 0,
@@ -89,7 +93,7 @@ export default function DashboardAdmin() {
 
         setDados({
           ...INITIAL_DATA,
-          ...res.data.data,
+          ...res.data?.data,
         });
       } catch (e) {
         if (e.response?.status === 401) {
@@ -106,78 +110,105 @@ export default function DashboardAdmin() {
     load();
   }, [turno, dateRange, logout, navigate]);
 
- /* ================= KPIs ================= */
-const kpis = useMemo(() => {
-  const k = dados.kpis;
+  /* ================= KPI CARDS ================= */
+  const kpisEstrutura = useMemo(() => {
+    const k = dados.kpis;
 
-  const idadeMedia = Number.isFinite(k.idadeMedia)
-    ? Math.round(k.idadeMedia)
-    : 0;
+    return [
+      {
+        icon: Users,
+        label: "Headcount Total (Ativos)",
+        value: k.headcountTotal || 0,
+      },
+      {
+        icon: Users,
+        label: "Operação",
+        value: k.headcountOperacao || 0,
+        color: "#3b82f6",
+      },
+      {
+        icon: Users,
+        label: "Returns",
+        value: k.headcountReturns || 0,
+        color: "#FA4C00",
+      },
+      {
+        icon: Users,
+        label: "HC Operacional Escalado",
+        value: k.totalColaboradores || 0,
+      },
+    ];
+  }, [dados.kpis]);
 
-  // conversão correta: dias → meses reais
-  const mesesEmpresa = Number.isFinite(k.tempoMedioEmpresaDias)
-    ? Math.max(
-        0,
-        Math.round(k.tempoMedioEmpresaDias / 30.44)
-      )
-    : 0;
+  const kpisPerformance = useMemo(() => {
+    const k = dados.kpis;
 
-  return [
-    {
-      icon: Users,
-      label: "Colaboradores",
-      value: k.totalColaboradores || 0,
-    },
-    {
-      icon: TrendingUp,
-      label: "Absenteísmo",
-      value: k.absenteismo || 0,
-      suffix: "%",
-      color: k.absenteismo > 10 ? "#FF453A" : "#34C759",
-    },
-    {
-      icon: TrendingUp,
-      label: "Turnover",
-      value: k.turnover || 0,
-      suffix: "%",
-      color: k.turnover > 5 ? "#FF9F0A" : "#34C759",
-    },
-    {
-      icon: FileText,
-      label: "Atestados",
-      value: k.atestados || 0,
-    },
-    {
-      icon: ShieldAlert,
-      label: "Medidas Disciplinares",
-      value: k.medidasDisciplinares || 0,
-    },
-    {
-      icon: AlertTriangle,
-      label: "Acidentes",
-      value: k.acidentes || 0,
-      color: "#FFD60A",
-    },
-    {
-      icon: AlertTriangle,
-      label: "Faltas",
-      value: k.faltas || 0,
-      color: "#FF453A", // vermelho Shopee
-    },
-    {
-      icon: User,
-      label: "Idade Média",
-      value: idadeMedia,
-      suffix: " anos",
-    },
-    {
-      icon: Clock,
-      label: "Tempo Médio de Empresa",
-      value: mesesEmpresa,
-      suffix: " meses",
-    },
-  ];
-}, [dados.kpis]);
+    return [
+      {
+        icon: TrendingUp,
+        label: "Absenteísmo",
+        value: k.absenteismo || 0,
+        suffix: "%",
+        color: k.absenteismo > 10 ? "#FF453A" : "#34C759",
+      },
+      {
+        icon: TrendingUp,
+        label: "Turnover",
+        value: k.turnover || 0,
+        suffix: "%",
+        color: k.turnover > 5 ? "#FF9F0A" : "#34C759",
+      },
+      {
+        icon: AlertTriangle,
+        label: "Faltas",
+        value: k.faltas || 0,
+        color: "#FF453A",
+      },
+      {
+        icon: FileText,
+        label: "Atestados",
+        value: k.atestados || 0,
+      },
+    ];
+  }, [dados.kpis]);
+
+  const kpisPessoas = useMemo(() => {
+    const k = dados.kpis;
+
+    const idadeMedia = Number.isFinite(k.idadeMedia)
+      ? Math.round(k.idadeMedia)
+      : 0;
+
+    const mesesEmpresa = Number.isFinite(k.tempoMedioEmpresaDias)
+      ? Math.max(0, Math.round(k.tempoMedioEmpresaDias / 30.44))
+      : 0;
+
+    return [
+      {
+        icon: ShieldAlert,
+        label: "Medidas Disciplinares",
+        value: k.medidasDisciplinares || 0,
+      },
+      {
+        icon: AlertTriangle,
+        label: "Acidentes",
+        value: k.acidentes || 0,
+        color: "#FFD60A",
+      },
+      {
+        icon: User,
+        label: "Idade Média",
+        value: idadeMedia,
+        suffix: " anos",
+      },
+      {
+        icon: Clock,
+        label: "Tempo Médio de Empresa",
+        value: mesesEmpresa,
+        suffix: " meses",
+      },
+    ];
+  }, [dados.kpis]);
 
   /* ================= COLABORADORES CADASTRADOS ================= */
   const colaboradoresCadastradosData = useMemo(() => {
@@ -271,17 +302,31 @@ const kpis = useMemo(() => {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+    <div className="min-h-screen bg-[#0D0D0D] text-white overflow-x-hidden">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         navigate={navigate}
       />
 
-      <div className="flex-1 lg:ml-64">
+      <div className="lg:pl-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="p-8 space-y-10">
+        <main
+          className="
+            w-full
+            px-4
+            sm:px-6
+            lg:px-10
+            xl:px-14
+            2xl:px-20
+            py-8
+            space-y-10
+            max-w-[1600px]
+            2xl:max-w-[1750px]
+            mx-auto
+          "
+        >
           <DashboardHeader
             title="Dashboard Administrativo"
             subtitle="Período"
@@ -293,7 +338,14 @@ const kpis = useMemo(() => {
             badges={[`Turno: ${turno === "ALL" ? "Todos" : turno}`]}
           />
 
-          <div className="flex flex-wrap gap-6 items-center">
+          <div className="
+            flex
+            flex-col
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+            gap-6
+          ">
             <TurnoSelector
               value={turno}
               onChange={setTurno}
@@ -302,10 +354,125 @@ const kpis = useMemo(() => {
 
             <DateFilter value={dateRange} onApply={setDateRange} />
           </div>
+          
+          <div className="
+            grid
+            grid-cols-1
+            lg:grid-cols-3
+            2xl:grid-cols-3
+            gap-6
+          ">
 
-          <KpiCardsRow items={kpis} />
+          {/* ================= ESTRUTURA ================= */}
+          <div className="bg-[#111111] rounded-2xl p-6 border border-[#1F1F1F] h-full flex flex-col">
+            <h3 className="text-sm text-[#BFBFC3] mb-8">
+              Estrutura do Time
+            </h3>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-6
+            ">
+              {kpisEstrutura.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-4 min-h-16">
+                    <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
+                      <Icon size={20} className="text-[#BFBFC3]" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#BFBFC3] leading-tight">{item.label}</p>
+                      <p className="text-2xl font-semibold text-white">
+                        {item.value}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ================= PERFORMANCE ================= */}
+          <div className="bg-[#111111] rounded-2xl p-6 border border-[#1F1F1F] h-full flex flex-col">
+            <h3 className="text-sm text-[#BFBFC3] mb-8">
+              Performance Operacional
+            </h3>
+
+            <div className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-6
+            ">
+              {kpisPerformance.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-4 min-h-16">
+                    <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
+                      <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#BFBFC3] leading-tight">{item.label}</p>
+                      <p
+                        className="text-2xl font-semibold"
+                        style={{ color: item.color || "white" }}
+                      >
+                        {item.value}
+                        {item.suffix || ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ================= PESSOAS ================= */}
+          <div className="bg-[#111111] rounded-2xl p-6 border border-[#1F1F1F] h-full flex flex-col">
+            <h3 className="text-sm text-[#BFBFC3] mb-8">
+              Pessoas & Saúde
+            </h3>
+
+            <div className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              gap-6
+            ">
+              {kpisPessoas.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <div key={idx} className="flex items-center gap-4 min-h-16">
+                    <div className="w-12 h-12 rounded-xl bg-[#1A1A1A] flex items-center justify-center">
+                      <Icon size={20} className={item.color || "text-[#BFBFC3]"} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#BFBFC3] leading-tight">{item.label}</p>
+                      <p
+                        className="text-2xl font-semibold"
+                        style={{ color: item.color || "white" }}
+                      >
+                        {item.value}
+                        {item.suffix || ""}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+
+          <div className="
+            grid
+            grid-cols-1
+            md:grid-cols-2
+            2xl:grid-cols-3
+            gap-6
+          ">
             <DistribuicaoGeneroChart
               title="Distribuição por Gênero"
               data={dados.genero}
@@ -326,7 +493,12 @@ const kpis = useMemo(() => {
 
           <EmpresasResumoSection empresas={dados.empresasResumo} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="
+            grid
+            grid-cols-1
+            md:grid-cols-2
+            gap-6
+          ">
             <ResumoOperacaoCard
               title="Escala × Colaborador"
               data={dados.escalas}
@@ -338,13 +510,12 @@ const kpis = useMemo(() => {
               data={dados.setores}
               labelKey="setor"
             />
-
-            <ResumoOperacaoCard
-              title="Líder × Colaborador"
-              data={dados.lideres}
-              labelKey="lider"
-            />
           </div>
+
+          <HierarquiaSection
+            resumo={dados.resumoHierarquia}
+            hierarquia={dados.hierarquia}
+          />
 
           <AusentesHojeTable
             title="Eventos no período (Atestados Médicos, Medidas Disciplinares e Acidentes)"

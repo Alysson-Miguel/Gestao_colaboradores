@@ -1,59 +1,103 @@
 export default function StatusColaboradoresSection({
   title = "Status dos Colaboradores",
-  items = [], // [{ label, value }] OU [{ status, quantidade }]
+  items = [],
   footer = "",
-  percentual = null,
 }) {
   if (!items || items.length === 0) return null;
 
-  const footerColor =
-    typeof percentual === "number"
-      ? percentual > 10
-        ? "#FF453A"
-        : percentual > 5
-        ? "#FF9F0A"
-        : "#34C759"
-      : "#BFBFC3";
+  const total = items.reduce(
+    (acc, cur) => acc + (cur.value ?? cur.quantidade ?? 0),
+    0
+  );
+
+  const getColor = (label) => {
+    const l = String(label).toUpperCase();
+    if (l.includes("ATIVO")) return "#34C759";
+    if (l.includes("FÉR")) return "#0A84FF";
+    if (l.includes("AFAST")) return "#AF52DE";
+    if (l.includes("INSS")) return "#FF6B00";
+    if (l.includes("INAT")) return "#8E8E93";
+    return "#FA4C00";
+  };
 
   return (
-    <div className="bg-[#1A1A1C] rounded-2xl p-6">
+    <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-2xl p-6 space-y-6">
       {title && (
-        <h2 className="text-sm font-semibold text-[#BFBFC3] mb-4 uppercase">
+        <h2 className="text-xs sm:text-sm font-semibold text-[#BFBFC3] uppercase tracking-wide">
           {title}
         </h2>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {items.map((item, i) => {
           const label = item.label ?? item.status ?? "-";
           const value = item.value ?? item.quantidade ?? 0;
 
+          const percentage =
+            total > 0 ? (value / total) * 100 : 0;
+
+          const color = getColor(label);
+
+          const circumference = 2 * Math.PI * 18;
+          const offset =
+            circumference - (percentage / 100) * circumference;
+
           return (
             <div
               key={`${label}-${i}`}
-              className="flex justify-between items-center"
+              className="flex items-center justify-between bg-[#121214] border border-[#2A2A2C] rounded-xl px-6 py-5 hover:border-[#3A3A3C] transition"
             >
-              <span className="text-[#BFBFC3] text-sm">
+              {/* Label */}
+              <div className="text-sm text-[#BFBFC3] w-40">
                 {label}
-              </span>
+              </div>
 
-              <span className="text-2xl font-semibold text-white">
+              {/* Número */}
+              <div
+                className="text-3xl font-semibold text-center flex-1"
+                style={{ color }}
+              >
                 {value}
-              </span>
+              </div>
+
+              {/* Indicador circular */}
+              <div className="relative w-12 h-12 flex items-center justify-center">
+                <svg width="44" height="44">
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r="18"
+                    stroke="#2A2A2C"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  {percentage > 0 && (
+                    <circle
+                      cx="22"
+                      cy="22"
+                      r="18"
+                      stroke={color}
+                      strokeWidth="4"
+                      fill="none"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={offset}
+                      strokeLinecap="round"
+                      transform="rotate(-90 22 22)"
+                    />
+                  )}
+                </svg>
+                <div className="absolute text-[11px] text-[#BFBFC3] font-medium">
+                  {percentage.toFixed(1)}%
+                </div>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* 🔍 INSIGHT FINAL */}
       {footer && (
-        <div className="mt-4 pt-3 border-t border-[#2A2A2C]">
-          <p
-            className="text-sm font-medium"
-            style={{ color: footerColor }}
-          >
-            {footer}
-          </p>
+        <div className="pt-4 border-t border-[#2A2A2C] text-sm text-[#BFBFC3]">
+          {footer}
         </div>
       )}
     </div>

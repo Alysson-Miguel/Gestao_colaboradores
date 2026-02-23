@@ -42,6 +42,8 @@ const presignUpload = async (req, res) => {
   try {
     const { cpf, files } = req.body;
 
+    /* ================= VALIDAÇÕES INICIAIS ================= */
+
     if (!cpf) {
       return errorResponse(res, "CPF não informado", 400);
     }
@@ -51,12 +53,23 @@ const presignUpload = async (req, res) => {
     }
 
     if (files.length > 5) {
-      return errorResponse(res, "Máximo de 5 fotos permitido", 400);
+      return errorResponse(res, "Máximo de 5 imagens permitido", 400);
     }
 
+    if (!process.env.R2_WORKER_UPLOAD_URL) {
+      return errorResponse(
+        res,
+        "R2_WORKER_UPLOAD_URL não configurado",
+        500
+      );
+    }
+
+    /* ================= CPF ================= */
+
     const cpfLimpo = cpf.replace(/\D/g, "");
+
     if (cpfLimpo.length !== 11) {
-      return errorResponse(res, 400, "CPF inválido");
+      return errorResponse(res, "CPF inválido", 400);
     }
 
     const colaborador = await prisma.colaborador.findFirst({
@@ -68,38 +81,58 @@ const presignUpload = async (req, res) => {
     }
 
     const opsId = colaborador.opsId;
-    const r2 = getR2Client();
 
-    const uploads = await Promise.all(
-      files.map(async ({ filename, contentType, size }) => {
-        const allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-        if (!allowed.includes(contentType)) {
-          throw new Error("Formato de imagem não permitido");
-        }
+    /* ================= VALIDAÇÃO DE ARQUIVOS ================= */
 
-        if (size > 5 * 1024 * 1024) {
-          throw new Error("Imagem excede 5MB");
-        }
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/jpg",
+    ];
 
-        const id = crypto.randomUUID();
-        const key = `acidentes/${opsId}/${id}-${filename}`;
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-        const command = new PutObjectCommand({
-          Bucket: BUCKET,
-          Key: key,
-          ContentType: contentType,
-        });
+    const uploads = files.map(({ filename, contentType, size }) => {
+      if (!filename || !contentType) {
+        throw new Error("Arquivo inválido");
+      }
 
-        const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 300 });
+      if (!allowedTypes.includes(contentType)) {
+        throw new Error(
+          `Formato não permitido (${filename}). Apenas JPG, PNG ou WEBP`
+        );
+      }
 
-        return { key, uploadUrl };
-      })
-    );
+      if (size && Number(size) > MAX_SIZE) {
+        throw new Error(
+          `Arquivo ${filename} excede o limite de 5MB`
+        );
+      }
+
+      // 🔒 Sanitiza nome do arquivo
+      const safeName = filename
+        .replace(/\s+/g, "-")
+        .replace(/[^\w.\-]/g, "")
+        .toLowerCase();
+
+      const id = crypto.randomUUID();
+      const key = `acidentes/${opsId}/${id}-${safeName}`;
+
+      return {
+        key,
+        uploadUrl: `${process.env.R2_WORKER_UPLOAD_URL}/${key}`,
+      };
+    });
 
     return successResponse(res, uploads);
   } catch (err) {
     console.error("❌ PRESIGN UPLOAD ACIDENTE:", err);
-    return errorResponse(res, err.message || "Erro no upload", 500);
+    return errorResponse(
+      res,
+      err.message || "Erro ao gerar URL de upload",
+      500
+    );
   }
 };
 

@@ -4,12 +4,16 @@ export default function KpiCardsRow({ items = [] }) {
   if (!items.length) return null;
 
   return (
-    <div className="bg-[#1A1A1C] rounded-2xl p-6">
+    <div className="bg-[#1A1A1C] rounded-2xl p-4 sm:p-6">
       <div
         className="
           grid
           gap-4
-          grid-cols-[repeat(auto-fit,minmax(160px,1fr))]
+          sm:gap-5
+          grid-cols-1
+          sm:grid-cols-2
+          lg:grid-cols-3
+          xl:grid-cols-4
         "
       >
         {items.map((item, i) => (

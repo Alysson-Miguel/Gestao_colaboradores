@@ -2,7 +2,6 @@ export default function EmpresasSection({
   title = "Quantidade por Empresa",
   items = [],
   emptyMessage = "Nenhum registro encontrado",
-  columns = 2,
 }) {
   if (!items || items.length === 0) {
     return (
@@ -12,75 +11,73 @@ export default function EmpresasSection({
     );
   }
 
-  // 🔥 Evita problema de grid dinâmico no Tailwind
-  const gridCols =
-    columns === 3
-      ? "md:grid-cols-3"
-      : columns === 4
-      ? "md:grid-cols-4"
-      : "md:grid-cols-2";
-
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       {title && (
-        <h2 className="text-sm font-semibold text-[#BFBFC3] uppercase">
+        <h2 className="text-xs sm:text-sm font-semibold text-[#BFBFC3] uppercase tracking-wide">
           {title}
         </h2>
       )}
 
-      <div className={`grid grid-cols-1 ${gridCols} gap-6`}>
+      {/* 🔥 GRID RESPONSIVO BALANCEADO */}
+      <div
+        className="
+          grid
+          grid-cols-1
+          sm:grid-cols-2
+          lg:grid-cols-3
+          2xl:grid-cols-3
+          gap-6
+        "
+      >
         {items.map((item, i) => {
           const faltas = item.faltas ?? 0;
           const atestados = item.atestados ?? 0;
           const ausencias = item.ausencias ?? faltas + atestados;
-          const absenteismo = item.absenteismo ?? 0;
+          const absenteismo = Number(item.absenteismo ?? 0);
 
           const absColor =
-            absenteismo <= 3.4 ? "#34C759" : "#d6000e";
+            absenteismo <= 3.4
+              ? "#34C759"
+              : absenteismo <= 6
+              ? "#FF9F0A"
+              : "#FF453A";
 
           return (
             <div
               key={`${item.empresa}-${i}`}
-              className="rounded-xl bg-[#1A1A1C] p-5 space-y-3 border border-[#2A2A2C]"
+              className="
+                rounded-2xl
+                bg-[#1A1A1C]
+                p-5
+                space-y-4
+                border border-[#2A2A2C]
+                transition
+                hover:border-[#3A3A3C]
+                w-full
+                min-h-[200px]
+              "
             >
               {/* Empresa */}
-              <div className="text-sm text-[#E5E5E5] font-medium">
+              <div className="text-sm sm:text-base text-[#E5E5E5] font-medium truncate">
                 {item.empresa}
               </div>
 
               {/* Total */}
-              <div className="text-2xl font-semibold text-white">
+              <div className="text-3xl font-semibold text-white">
                 {item.total}
               </div>
 
               {/* Métricas */}
-              <div className="space-y-1 text-xs text-[#BFBFC3]">
+              <div className="space-y-2 text-sm text-[#BFBFC3]">
+                <Metric label="Faltas" value={faltas} color="#FF453A" />
+                <Metric label="Atestados" value={atestados} color="#FF9F0A" />
+                <Metric label="Ausências" value={ausencias} color="#d6000e" />
 
-                <div className="flex justify-between">
-                  <span>Faltas</span>
-                  <strong className="text-[#FF453A]">
-                    {faltas}
-                  </strong>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>Atestados</span>
-                  <strong className="text-[#FF9F0A]">
-                    {atestados}
-                  </strong>
-                </div>
-
-                <div className="flex justify-between">
-                  <span>Ausências</span>
-                  <strong className="text-[#d6000e]">
-                    {ausencias}
-                  </strong>
-                </div>
-
-                <div className="flex justify-between pt-2 border-t border-[#2A2A2C]">
+                <div className="flex justify-between pt-3 border-t border-[#2A2A2C]">
                   <span>Absenteísmo</span>
                   <strong style={{ color: absColor }}>
-                    {absenteismo}%
+                    {absenteismo.toFixed(2)}%
                   </strong>
                 </div>
               </div>
@@ -91,3 +88,10 @@ export default function EmpresasSection({
     </section>
   );
 }
+
+const Metric = ({ label, value, color }) => (
+  <div className="flex justify-between min-w-0">
+    <span className="truncate">{label}</span>
+    <strong style={{ color }}>{value}</strong>
+  </div>
+);

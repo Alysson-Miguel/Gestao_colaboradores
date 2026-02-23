@@ -32,35 +32,19 @@ function dateOnlyBrasil(dateStr) {
 ===================================================== */
 const presignUpload = async (req, res) => {
   try {
-    const { cpf, filename, contentType, size } = req.body;
+    const { cpf } = req.body;
 
-    if (!BUCKET) {
-      return errorResponse(res, "R2_BUCKET_NAME não configurado", 500);
-    }
-
-    if (!cpf || !filename || !contentType) {
-      return errorResponse(
-        res,
-        "CPF, filename e contentType são obrigatórios",
-        400
-      );
-    }
-
-    if (contentType !== "application/pdf") {
-      return errorResponse(res, "Apenas arquivos PDF são permitidos", 400);
-    }
-
-    const maxBytes = 5 * 1024 * 1024;
-    if (size && Number(size) > maxBytes) {
-      return errorResponse(res, "O PDF excede o limite de 5MB", 400);
+    if (!cpf) {
+      return errorResponse(res, "CPF é obrigatório", 400);
     }
 
     const cpfLimpo = cpf.replace(/\D/g, "");
+
     if (cpfLimpo.length !== 11) {
       return errorResponse(res, "CPF inválido", 400);
     }
 
-    const colaborador = await prisma.colaborador.findUnique({
+    const colaborador = await prisma.colaborador.findFirst({
       where: { cpf: cpfLimpo },
     });
 
@@ -68,24 +52,22 @@ const presignUpload = async (req, res) => {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
 
+    if (!process.env.R2_WORKER_UPLOAD_URL) {
+      return errorResponse(
+        res,
+        "R2_WORKER_UPLOAD_URL não configurado",
+        500
+      );
+    }
+
     const key = `medidas-disciplinares/${colaborador.opsId}/${crypto.randomUUID()}.pdf`;
-
-    const r2 = getR2Client();
-    const command = new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      ContentType: "application/pdf",
-    });
-
-    const uploadUrl = await getSignedUrl(r2, command, { expiresIn: 300 });
 
     return successResponse(res, {
       key,
-      uploadUrl,
-      expiresIn: 300,
+      uploadUrl: `${process.env.R2_WORKER_UPLOAD_URL}/${key}`,
     });
   } catch (err) {
-    console.error("❌ PRESIGN UPLOAD MD:", err);
+    console.error("❌ presignUpload MD:", err);
     return errorResponse(res, "Erro ao gerar URL de upload", 500);
   }
 };
@@ -146,7 +128,7 @@ const createMedida = async (req, res) => {
       return errorResponse(res, "CPF inválido", 400);
     }
 
-    const colaborador = await prisma.colaborador.findUnique({
+    const colaborador = await prisma.colaborador.findFirst({
       where: { cpf: cpfLimpo },
     });
 
@@ -189,7 +171,7 @@ const getAllMedidas = async (req, res) => {
         return errorResponse(res, "CPF inválido", 400);
       }
 
-      const colab = await prisma.colaborador.findUnique({
+      const colab = await prisma.colaborador.findFirst({
         where: { cpf: cpfLimpo },
       });
 
