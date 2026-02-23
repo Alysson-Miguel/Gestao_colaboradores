@@ -424,7 +424,7 @@ const updateColaborador = async (req, res) => {
       contatoEmergenciaTelefone,
 
       // 🔥 NOVOS CAMPOS
-      dataDemissao,
+      dataDesligamento,
       dataInicioStatus,
       dataFimStatus,
     } = req.body;
@@ -455,9 +455,9 @@ const updateColaborador = async (req, res) => {
        VALIDAÇÕES POR STATUS
     ============================== */
     if (status) {
-      // 🔴 INATIVO → obrigatória dataDemissao
+      // 🔴 INATIVO → obrigatória dataDesligamento
       if (status === "INATIVO") {
-        if (!dataDemissao) {
+        if (!dataDesligamento) {
           return errorResponse(
             res,
             "Data de demissão é obrigatória para status INATIVO",
@@ -465,7 +465,7 @@ const updateColaborador = async (req, res) => {
           );
         }
 
-        const dt = new Date(dataDemissao);
+        const dt = new Date(dataDesligamento);
         if (isNaN(dt.getTime())) {
           return errorResponse(res, "Data de demissão inválida", 400);
         }
