@@ -1029,11 +1029,7 @@ function buildEmpresasResumo({
       });
     });
 
-    // =============================
-    // 4️⃣ OPERADORES + MÉTRICAS
-    // =============================
-
-    // 🔥 FILTRO DE TURNO APENAS PARA OPERADORES
+    // 🔥 FILTRO DE TURNO PARA OPERADORES
     const colaboradoresOperacionais =
       !turnoSelecionado || turnoSelecionado === "ALL"
         ? colaboradores
@@ -1049,18 +1045,21 @@ function buildEmpresasResumo({
 
             return c.turno?.nomeTurno === turnoSelecionado;
           });
+
+    // =============================
+    // 4️⃣ OPERADORES + MÉTRICAS (CORRIGIDO)
+    // =============================
+
     colaboradoresOperacionais.forEach((c) => {
       if (!c.idLider) return;
 
       const cargo = norm(c.cargo?.nomeCargo);
 
-      const isGerente = !c.idLider;
       const isSupervisor = cargo.includes("supervisor");
-      const isLider = cargo.includes("lider"); // ✅
+      const isLider = cargo.includes("lider");
 
-
-      // 🔥 Apenas operadores entram aqui
-      if (isGerente || isSupervisor || isLider) return;
+      // Só operadores
+      if (isSupervisor || isLider) return;
 
       const freqs = freqMap[c.opsId] || [];
 
@@ -1077,84 +1076,65 @@ function buildEmpresasResumo({
 
       const atestado = atestadoCountMap.get(c.opsId) || 0;
 
+      // 🔎 1️⃣ Encontrar supervisor correto
+      let supervisorNode = null;
+      let gerenteNode = null;
+      let liderNode = null;
+
       gerentesMap.forEach((g) => {
+        const sup = g.supervisores.get(c.idLider);
+
+        if (sup) {
+          supervisorNode = sup;
+          gerenteNode = g;
+        }
+
         g.supervisores.forEach((s) => {
-
-          // 🔹 1️⃣ Se responde direto ao supervisor
-          if (c.idLider === s.id) {
-
-            s.supervisionadosDiretos.push({
-              opsId: c.opsId,
-              nome: c.nomeCompleto,
-              setor: c.setor?.nomeSetor || "-",
-              empresa: c.empresa?.razaoSocial || "-",
-            });
-
-            // Métricas Supervisor
-            s.totalColaboradores++;
-            s.faltas += faltas;
-            s.atestados += atestado;
-            s.absDias += absDias;
-
-            // Métricas Gerente
-            g.totalColaboradores++;
-            g.faltas += faltas;
-            g.atestados += atestado;
-            g.absDias += absDias;
-
-            return;
+          const l = s.lideres.get(c.idLider);
+          if (l) {
+            liderNode = l;
+            supervisorNode = s;
+            gerenteNode = g;
           }
-
-          // 🔹 2️⃣ Se responde a um líder
-          const liderNode = s.lideres.get(c.idLider);
-          if (!liderNode) {
-            // fallback: conta no supervisor direto (não perde o operador)
-            s.supervisionadosDiretos.push({
-              opsId: c.opsId,
-              nome: c.nomeCompleto,
-              setor: c.setor?.nomeSetor || "-",
-              empresa: c.empresa?.razaoSocial || "-",
-            });
-
-            s.totalColaboradores++;
-            s.faltas += faltas;
-            s.atestados += atestado;
-            s.absDias += absDias;
-
-            g.totalColaboradores++;
-            g.faltas += faltas;
-            g.atestados += atestado;
-            g.absDias += absDias;
-
-            return;
-          }
-
-          liderNode.colaboradores.push({
-            opsId: c.opsId,
-            nome: c.nomeCompleto,
-            setor: c.setor?.nomeSetor || "-",
-            empresa: c.empresa?.razaoSocial || "-",
-          });
-
-          // Métricas Líder
-          liderNode.totalColaboradores++;
-          liderNode.faltas += faltas;
-          liderNode.atestados += atestado;
-          liderNode.absDias += absDias;
-
-          // Métricas Supervisor
-          s.totalColaboradores++;
-          s.faltas += faltas;
-          s.atestados += atestado;
-          s.absDias += absDias;
-
-          // Métricas Gerente
-          g.totalColaboradores++;
-          g.faltas += faltas;
-          g.atestados += atestado;
-          g.absDias += absDias;
         });
       });
+
+      if (!supervisorNode || !gerenteNode) return;
+
+      // 🔹 Se for operador direto do supervisor
+      if (!liderNode) {
+        supervisorNode.supervisionadosDiretos.push({
+          opsId: c.opsId,
+          nome: c.nomeCompleto,
+          setor: c.setor?.nomeSetor || "-",
+          empresa: c.empresa?.razaoSocial || "-",
+        });
+      } else {
+        liderNode.colaboradores.push({
+          opsId: c.opsId,
+          nome: c.nomeCompleto,
+          setor: c.setor?.nomeSetor || "-",
+          empresa: c.empresa?.razaoSocial || "-",
+        });
+
+        // Métricas líder
+        liderNode.totalColaboradores++;
+        liderNode.faltas += faltas;
+        liderNode.atestados += atestado;
+        liderNode.absDias += absDias;
+      }
+
+      // Métricas supervisor
+      supervisorNode.totalColaboradores++;
+      supervisorNode.faltas += faltas;
+      supervisorNode.atestados += atestado;
+      supervisorNode.absDias += absDias;
+
+      // Métricas gerente
+      gerenteNode.totalColaboradores++;
+      gerenteNode.faltas += faltas;
+      gerenteNode.atestados += atestado;
+      gerenteNode.absDias += absDias;
     });
     
     // =============================
