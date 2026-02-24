@@ -224,6 +224,13 @@ const createAtestado = async (req, res) => {
     const inicio = dateOnlyBrasil(dataInicio);
     const fim = dateOnlyBrasil(dataFim);
 
+    if (dias >= 16) {
+      await tx.colaborador.update({
+        where: { opsId },
+        data: { status: "AFASTADO" }
+      });
+    }
+
     /* ============================================
        🔥 TRANSACTION — cria atestado + ajusta frequência
     ============================================ */
@@ -422,13 +429,17 @@ const cancelarAtestado = async (req, res) => {
     const { opsId, dataInicio, dataFim } = atestado;
 
     await prisma.$transaction(async (tx) => {
-      // 1️⃣ Atualiza status do atestado
+      /* ===============================
+         1️⃣ Cancela o atestado
+      =============================== */
       await tx.atestadoMedico.update({
         where: { idAtestado: Number(id) },
         data: { status: "CANCELADO" },
       });
 
-      // 2️⃣ Percorre período
+      /* ===============================
+         2️⃣ Limpa frequência no período
+      =============================== */
       let current = new Date(dataInicio);
       const fim = new Date(dataFim);
 
@@ -444,7 +455,7 @@ const cancelarAtestado = async (req, res) => {
           },
         });
 
-        // 🔒 Só limpa se ainda for ATESTADO
+        // 🔒 Só remove se ainda for atestado
         if (freq && freq.idTipoAusencia === 5) {
           await tx.frequencia.update({
             where: {
@@ -464,9 +475,37 @@ const cancelarAtestado = async (req, res) => {
 
         current.setDate(current.getDate() + 1);
       }
+
+      /* ===============================
+         3️⃣ Verifica se ainda existe INSS ativo
+      =============================== */
+      const atestadosAtivos = await tx.atestadoMedico.findMany({
+        where: {
+          opsId,
+          status: "ATIVO",
+        },
+      });
+
+      const aindaINSS = atestadosAtivos.some(
+        (a) => a.diasAfastamento >= 16
+      );
+
+      /* ===============================
+         4️⃣ Atualiza status do colaborador
+      =============================== */
+      if (!aindaINSS) {
+        await tx.colaborador.update({
+          where: { opsId },
+          data: { status: "ATIVO" },
+        });
+      }
     });
 
-    return successResponse(res, null, "Atestado cancelado e frequência restaurada");
+    return successResponse(
+      res,
+      null,
+      "Atestado cancelado e status do colaborador revalidado"
+    );
   } catch (err) {
     console.error("❌ CANCELAR ATESTADO:", err);
     return errorResponse(res, "Erro ao cancelar atestado", 500);

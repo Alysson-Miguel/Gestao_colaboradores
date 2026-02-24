@@ -322,6 +322,7 @@ const getRiscoAtestados = async (req, res) => {
           include: {
             empresa: true,
             setor: true,
+            turno: true,
           },
         },
       },
@@ -343,6 +344,7 @@ const getRiscoAtestados = async (req, res) => {
           nome: c.nomeCompleto || "N/I",
           empresa: c.empresa?.razaoSocial || "N/I",
           setor: c.setor?.nomeSetor || "N/I",
+          turno: c.turno?.nomeTurno || "N/I",
           totalAtestados: 0,
           diasAfastados: 0,
           dataAdmissao: c.dataAdmissao || null,
@@ -384,6 +386,7 @@ const getRiscoAtestados = async (req, res) => {
           nome: c.nome,
           empresa: c.empresa,
           setor: c.setor,
+          turno: c.turno,
           totalAtestados: c.totalAtestados,
           diasAfastados: c.diasAfastados,
           diasEmpresa,
