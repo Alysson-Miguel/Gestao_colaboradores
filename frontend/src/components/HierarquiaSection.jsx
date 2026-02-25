@@ -190,6 +190,14 @@ function ArvoreHierarquica({ data }) {
                 <span className="text-orange-400 font-semibold">
                   {gerente.nome}
                 </span>
+
+                <span className="text-xs text-[#6B7280] bg-[#1A1A1A] px-2 py-0.5 rounded-md">
+                  {gerente.totalColaboradores ?? 0} colab
+                </span>
+
+                <span className="text-xs text-[#6B7280] transition-transform">
+                  {gerenteOpen ? "▲" : "▼"}
+                </span>
               </div>
 
               <MetricasLinha node={gerente} />
@@ -335,8 +343,15 @@ function MetricItem({ label, value, color = "text-[#BFBFC3]" }) {
 ===================================================== */
 function PorNivelHierarquia({ data }) {
   const gerentes = data;
-  const supervisores = data.flatMap(g => g.supervisores);
-  const lideres = supervisores.flatMap(s => s.lideres);
+  const supervisores = useMemo(
+    () => data.flatMap(g => g.supervisores),
+    [data]
+  );
+
+  const lideres = useMemo(
+    () => supervisores.flatMap(s => s.lideres),
+    [supervisores]
+  );
 
   return (
     <div className="

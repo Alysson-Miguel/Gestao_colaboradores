@@ -131,7 +131,7 @@ export default function ColaboradoresPage() {
       <div className="flex-1 lg:ml-64">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
+        <main className="px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-7xl mx-auto">
 
           {/* HEADER */}
           <div>
@@ -141,104 +141,85 @@ export default function ColaboradoresPage() {
             </p>
           </div>
 
-          {/* FILTROS + CTA */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
+  {/* FILTROS + CTA */}
+  <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
 
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* BUSCA */}
-              <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl">
-                <Search size={16} className="text-[#BFBFC3]" />
-                <input
-                  value={query}
-                  onChange={(e) => handleQueryChange(e.target.value)}
-                  placeholder="Buscar colaborador..."
-                  className="bg-transparent outline-none text-sm text-white placeholder-[#BFBFC3]"
-                />
-              </div>
+    {/* FILTROS */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full xl:w-auto">
 
-              {/* TURNO */}
-              <select
-                value={turnoSelecionado}
-                onChange={(e) => handleTurnoChange(e.target.value)}
-                className="
-                  bg-[#1A1A1C]
-                  text-sm
-                  px-4 py-2
-                  rounded-xl
-                  text-[#BFBFC3]
-                  outline-none
-                  hover:bg-[#2A2A2C]
-                "
-              >
-                {turnos.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              
-              {/* ESCALA */}
-              <select
-                value={escalaSelecionada}
-                onChange={(e) => handleEscalaChange(e.target.value)}
-                className="
-                  bg-[#1A1A1C]
-                  text-sm
-                  px-4 py-2
-                  rounded-xl
-                  text-[#BFBFC3]
-                  outline-none
-                  hover:bg-[#2A2A2C]
-                "
-              >
-                <option value="TODOS">Escalas</option>
-                <option value="A">Escala A</option>
-                <option value="B">Escala B</option>
-                <option value="C">Escala C</option>
-              </select>
+      {/* BUSCA */}
+      <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl">
+        <Search size={16} className="text-[#BFBFC3]" />
+        <input
+          value={query}
+          onChange={(e) => handleQueryChange(e.target.value)}
+          placeholder="Buscar colaborador..."
+          className="bg-transparent outline-none text-sm text-white placeholder-[#BFBFC3] w-full"
+        />
+      </div>
 
-              {/* LÍDER */}
-              <select
-                value={liderSelecionado}
-                onChange={(e) => handleLiderChange(e.target.value)}
-                className="
-                  bg-[#1A1A1C]
-                  text-sm
-                  px-4 py-2
-                  rounded-xl
-                  text-[#BFBFC3]
-                  outline-none
-                  hover:bg-[#2A2A2C]
-                "
-              >
-                <option value="TODOS">Líderes</option>
-                {lideres.map((lider) => (
-                  <option key={lider.opsId} value={lider.opsId}>
-                    {lider.nomeCompleto}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* TURNO */}
+      <select
+        value={turnoSelecionado}
+        onChange={(e) => handleTurnoChange(e.target.value)}
+        className="bg-[#1A1A1C] text-sm px-4 py-2 rounded-xl text-[#BFBFC3] outline-none hover:bg-[#2A2A2C] w-full"
+      >
+        {turnos.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
+      </select>
 
-            {/* NOVO COLABORADOR */}
-            {permissions.isAdmin && (
-              <button
-              onClick={() => navigate("/colaboradores/novo")}
-              className="
-                inline-flex items-center gap-2
-                px-5 py-2.5
-                bg-[#FA4C00]
-                hover:bg-[#ff5a1a]
-                text-sm font-medium
-                rounded-xl
-                transition
-              "
-            >
-              <Plus size={16} />
-              Novo Colaborador
-            </button>
-            )}
-          </div>
+      {/* ESCALA */}
+      <select
+        value={escalaSelecionada}
+        onChange={(e) => handleEscalaChange(e.target.value)}
+        className="bg-[#1A1A1C] text-sm px-4 py-2 rounded-xl text-[#BFBFC3] outline-none hover:bg-[#2A2A2C] w-full"
+      >
+        <option value="TODOS">Escalas</option>
+        <option value="A">Escala A</option>
+        <option value="B">Escala B</option>
+        <option value="C">Escala C</option>
+      </select>
+
+      {/* LÍDER */}
+      <select
+        value={liderSelecionado}
+        onChange={(e) => handleLiderChange(e.target.value)}
+        className="bg-[#1A1A1C] text-sm px-4 py-2 rounded-xl text-[#BFBFC3] outline-none hover:bg-[#2A2A2C] w-full"
+      >
+        <option value="TODOS">Líderes</option>
+        {lideres.map((lider) => (
+          <option key={lider.opsId} value={lider.opsId}>
+            {lider.nomeCompleto}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* BOTÃO */}
+    {permissions.isAdmin && (
+      <div className="w-full xl:w-auto">
+        <button
+          onClick={() => navigate("/colaboradores/novo")}
+          className="
+            w-full xl:w-auto
+            inline-flex items-center justify-center gap-2
+            px-5 py-2.5
+            bg-[#FA4C00]
+            hover:bg-[#ff5a1a]
+            text-sm font-medium
+            rounded-xl
+            transition
+          "
+        >
+          <Plus size={16} />
+          Novo Colaborador
+        </button>
+      </div>
+    )}
+  </div>
 
           {/* LISTA */}
           <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">

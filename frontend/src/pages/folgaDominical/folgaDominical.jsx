@@ -1,7 +1,7 @@
 // src/pages/folgaDominical/folgaDominical.jsx
 "use client";
 
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect, useState, useCallback, useContext, useMemo } from "react";
 import { CalendarDays, RefreshCcw, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -53,6 +53,8 @@ export default function FolgaDominicalPage() {
   const [loading, setLoading] = useState(false);
   const [resumo, setResumo] = useState(null);
   const [erro, setErro] = useState("");
+  const [domingoSelecionado, setDomingoSelecionado] = useState(null);
+  const [turnoSelecionado, setTurnoSelecionado] = useState("");
 
   /* ================= LOAD (igual DW) ================= */
   const load = useCallback(async () => {
@@ -73,7 +75,11 @@ export default function FolgaDominicalPage() {
   useEffect(() => {
     load();
   }, [load]);
-
+  
+  useEffect(() => {
+    setDomingoSelecionado(null);
+    setTurnoSelecionado("");
+  }, [ano, mes]);
   async function gerar() {
     if (!isAdmin) return;
     if (!window.confirm("Deseja gerar o planejamento deste mês?")) return;
@@ -113,8 +119,25 @@ export default function FolgaDominicalPage() {
     }
   }
 
-  const total = resumo?.total ?? 0;
-  const porDomingo = resumo?.porDomingo ?? {};
+    const total = resumo?.total ?? 0;
+    const porDomingo = resumo?.porDomingo ?? {};
+    const colaboradoresFiltrados = useMemo(() => {
+    if (!resumo?.colaboradores) return [];
+
+    return resumo.colaboradores.filter((c) => {
+        const data = new Date(c.dataDomingo)
+        .toISOString()
+        .split("T")[0];
+
+        const matchDomingo =
+        !domingoSelecionado || data === domingoSelecionado;
+
+        const matchTurno =
+        !turnoSelecionado || c.turno === turnoSelecionado;
+
+        return matchDomingo && matchTurno;
+    });
+    }, [resumo, domingoSelecionado, turnoSelecionado]);
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
@@ -132,7 +155,7 @@ export default function FolgaDominicalPage() {
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
           {/* HEADER */}
           <div>
-            <h1 className="text-2xl font-semibold">Folga Dominical</h1>
+            <h1 className="text-2xl font-semibold">Planejamento de Folgas</h1>
             <p className="text-sm text-[#BFBFC3]">
               Distribuição automática de DSR aos domingos (Escala B)
             </p>
@@ -232,77 +255,147 @@ export default function FolgaDominicalPage() {
               {/* CARDS RESPONSIVOS (igual vibe DW) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Card
-                  title="Total Colaboradores"
-                  value={total}
-                  highlight
+                    title="Total Colaboradores"
+                    value={total}
+                    highlight={!domingoSelecionado}
                 />
 
-                {Object.entries(porDomingo).map(([data, qtd]) => (
-                  <Card
+                {Object.entries(porDomingo).map(([data, qtd]) => {
+                const ativo = domingoSelecionado === data;
+
+                return (
+                    <div
                     key={data}
-                    title={formatDateBR(data)}
-                    value={qtd}
-                  />
-                ))}
+                    onClick={() =>
+                        setDomingoSelecionado(ativo ? null : data)
+                    }
+                    className="cursor-pointer"
+                    >
+                    <Card
+                        title={formatDateBR(data)}
+                        value={qtd}
+                        highlight={ativo}
+                    />
+                    </div>
+                );
+                })}
               </div>
             </div>
           )}
-          {/* ================= TABELA COLABORADORES ================= */}
-        {!loading && resumo?.colaboradores?.length > 0 && (
-        <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#2A2A2C]">
-            <h2 className="text-lg font-semibold">
-                Colaboradores no Planejamento
-            </h2>
-            <p className="text-xs text-[#BFBFC3]">
-                Lista de colaboradores elegíveis (Escala B)
-            </p>
-            </div>
+            {/* ================= TABELA COLABORADORES ================= */}
+            {!loading && resumo && (
+            <div className="bg-[#1A1A1C] rounded-2xl overflow-hidden">
 
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-                <thead className="border-b border-[#2A2A2C] text-[#BFBFC3]">
-                <tr>
-                    <th className="px-6 py-4 text-left">OPS ID</th>
-                    <th className="px-6 py-4 text-left">Nome Completo</th>
-                    <th className="px-6 py-4 text-center">Turno</th>
-                    <th className="px-6 py-4 text-left">Líder</th>
-                    <th className="px-6 py-4 text-left">Setor</th>
-                </tr>
-                </thead>
+                {/* HEADER */}
+                <div className="px-6 py-4 border-b border-[#2A2A2C] flex items-center justify-between flex-wrap gap-4">
+                
+                <div>
+                    <h2 className="text-lg font-semibold">
+                    Colaboradores no Planejamento
+                    </h2>
+                    <p className="text-xs text-[#BFBFC3]">
+                    Mostrando {colaboradoresFiltrados.length} de{" "}
+                    {resumo?.colaboradores?.length ?? 0} colaboradores
+                    </p>
+                </div>
 
-                <tbody>
-                {resumo.colaboradores.map((colab, index) => (
-                    <tr
-                    key={index}
-                    className="border-t border-[#2A2A2C] hover:bg-[#242426] transition"
+                <div className="flex items-center gap-4 flex-wrap">
+
+                    {/* FILTRO TURNO */}
+                    <select
+                    value={turnoSelecionado}
+                    onChange={(e) => setTurnoSelecionado(e.target.value)}
+                    className="bg-[#242426] text-sm px-3 py-2 rounded-lg text-white outline-none hover:bg-[#2A2A2C] transition"
                     >
-                    <td className="px-6 py-4 font-semibold text-[#FA4C00]">
-                        {colab.opsId}
-                    </td>
+                    <option value="">Todos os turnos</option>
+                    <option value="T1">T1</option>
+                    <option value="T2">T2</option>
+                    <option value="T3">T3</option>
+                    </select>
 
-                    <td className="px-6 py-4">
-                        {colab.nome}
-                    </td>
+                    {/* FILTRO DOMINGO */}
+                    {domingoSelecionado && (
+                    <div className="text-sm text-[#FA4C00] flex items-center gap-2">
+                        <span>{formatDateBR(domingoSelecionado)}</span>
 
-                    <td className="px-6 py-4 text-center">
-                        {colab.turno || "-"}
-                    </td>
+                        <button
+                        onClick={() => setDomingoSelecionado(null)}
+                        className="text-xs underline hover:text-white transition"
+                        >
+                        Limpar domingo
+                        </button>
+                    </div>
+                    )}
 
-                    <td className="px-6 py-4">
-                        {colab.lider || "-"}
-                    </td>
+                    {/* LIMPAR TURNO */}
+                    {turnoSelecionado && (
+                    <button
+                        onClick={() => setTurnoSelecionado("")}
+                        className="text-xs underline text-[#BFBFC3] hover:text-white transition"
+                    >
+                        Limpar turno
+                    </button>
+                    )}
 
-                    <td className="px-6 py-4">
-                        {colab.setor || "-"}
-                    </td>
+                </div>
+                </div>
+
+                {/* TABELA */}
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="border-b border-[#2A2A2C] text-[#BFBFC3]">
+                    <tr>
+                        <th className="px-6 py-4 text-left">OPS ID</th>
+                        <th className="px-6 py-4 text-left">Nome Completo</th>
+                        <th className="px-6 py-4 text-center">Turno</th>
+                        <th className="px-6 py-4 text-left">Líder</th>
+                        <th className="px-6 py-4 text-left">Setor</th>
                     </tr>
-                ))}
-                </tbody>
-            </table>
+                    </thead>
+
+                    <tbody>
+                    {colaboradoresFiltrados.length === 0 ? (
+                        <tr>
+                        <td
+                            colSpan="5"
+                            className="px-6 py-8 text-center text-[#BFBFC3]"
+                        >
+                            Nenhum colaborador encontrado com os filtros aplicados.
+                        </td>
+                        </tr>
+                    ) : (
+                        colaboradoresFiltrados.map((colab) => (
+                        <tr
+                            key={`${colab.opsId}-${colab.dataDomingo}`}
+                            className="border-t border-[#2A2A2C] hover:bg-[#242426] transition"
+                        >
+                            <td className="px-6 py-4 font-semibold text-[#FA4C00]">
+                            {colab.opsId}
+                            </td>
+
+                            <td className="px-6 py-4">
+                            {colab.nome}
+                            </td>
+
+                            <td className="px-6 py-4 text-center">
+                            {colab.turno || "-"}
+                            </td>
+
+                            <td className="px-6 py-4">
+                            {colab.lider || "-"}
+                            </td>
+
+                            <td className="px-6 py-4">
+                            {colab.setor || "-"}
+                            </td>
+                        </tr>
+                        ))
+                    )}
+                    </tbody>
+                </table>
+                </div>
             </div>
-        </div>
-        )}
+            )}
         </main>
       </div>
     </div>

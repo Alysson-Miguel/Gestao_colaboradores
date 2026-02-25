@@ -194,6 +194,9 @@ const registrarPontoCPF = async (req, res) => {
       where: {
         opsId: colaborador.opsId,
         horaSaida: null,
+        dataReferencia: {
+          lte: dataReferenciaOperacional,
+        },
       },
       orderBy: {
         dataReferencia: "desc",
@@ -320,22 +323,55 @@ const registrarPontoCPF = async (req, res) => {
       where: { codigo: "P" },
     });
 
-    const registro = await prisma.frequencia.create({
-      data: {
-        opsId: colaborador.opsId,
-        dataReferencia: dataReferenciaOperacional,
-        horaEntrada: horaAgora,
-        idTipoAusencia: tipoPresenca?.idTipoAusencia ?? null,
-        registradoPor: colaborador.opsId,
-        validado: false,
-      },
-    });
+    try {
+      const registro = await prisma.frequencia.create({
+        data: {
+          opsId: colaborador.opsId,
+          dataReferencia: dataReferenciaOperacional,
+          horaEntrada: horaAgora,
+          idTipoAusencia: tipoPresenca?.idTipoAusencia ?? null,
+          registradoPor: colaborador.opsId,
+          validado: false,
+        },
+      });
 
-    console.log(
-      `[${reqId}] ENTRADA registrada dia=${ymd(dataReferenciaOperacional)} freq=${registro.idFrequencia}`
-    );
+      console.log(
+        `[${reqId}] ENTRADA registrada dia=${ymd(dataReferenciaOperacional)} freq=${registro.idFrequencia}`
+      );
 
-    return createdResponse(res, registro, "Entrada registrada com sucesso");
+      return createdResponse(res, registro, "Entrada registrada com sucesso");
+
+    } catch (errCreate) {
+
+      if (errCreate?.code === "P2002") {
+
+        // Já foi criado por outro request
+        const registroExistente = await prisma.frequencia.findUnique({
+          where: {
+            opsId_dataReferencia: {
+              opsId: colaborador.opsId,
+              dataReferencia: dataReferenciaOperacional,
+            },
+          },
+        });
+
+        if (registroExistente?.horaEntrada && !registroExistente?.horaSaida) {
+
+          const atualizado = await prisma.frequencia.update({
+            where: { idFrequencia: registroExistente.idFrequencia },
+            data: {
+              horaSaida: horaAgora,
+            },
+          });
+
+          console.log(`[${reqId}] SAÍDA automática após P2002`);
+
+          return successResponse(res, atualizado, "Saída registrada com sucesso");
+        }
+      }
+
+      throw errCreate;
+    }
   } catch (err) {
     console.error(`[${reqId}] ❌ ERRO registrarPontoCPF:`, err);
 
