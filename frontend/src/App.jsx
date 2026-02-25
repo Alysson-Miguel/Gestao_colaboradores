@@ -50,6 +50,9 @@ import DwNovoPage from "./pages/DailyWorks/dwNovo";
 /* ================= SSO - SEGURANÇA E SAÚDE OCUPACIONAL ================= */
 import SPI from "./pages/spi/SPI";
 
+/* ================= Folga-Dominical ============================*/
+import FolgaDominicalPage from "./pages/folgaDominical/folgaDominical";
+
 /* ================= PROTEÇÃO ================= */
 import ProtectedRoute from "./routes/ProtectedRoute";
 import ReportRoute from "./routes/report";
@@ -258,7 +261,14 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-
+      <Route
+        path="/folga-dominical"
+        element={
+          <ProtectedRoute roles={["ADMIN", "LIDERANCA"]}>
+            <FolgaDominicalPage />
+          </ProtectedRoute>
+        }
+      />
       {/* ================= ESTRUTURA ================= */}
       <Route
         path="/empresas"
