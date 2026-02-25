@@ -155,7 +155,7 @@ export default function FolgaDominicalPage() {
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
           {/* HEADER */}
           <div>
-            <h1 className="text-2xl font-semibold">Planejamento de Folgas</h1>
+            <h1 className="text-2xl font-semibold">Projeção de Folgas</h1>
             <p className="text-sm text-[#BFBFC3]">
               Distribuição automática de DSR aos domingos (Escala B)
             </p>
