@@ -22,9 +22,9 @@ export default function PresencaToolbar({
   const turnos = ["TODOS", "T1", "T2", "T3"];
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       {/* FILTROS */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
         {/* EXPORTAR GOOGLE SHEETS */}
         <button
           onClick={onExportarSheets}
@@ -169,19 +169,13 @@ export default function PresencaToolbar({
       </div>
 
       {/* BUSCA */}
-      <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl">
+      <div className="flex items-center gap-2 bg-[#1A1A1C] px-4 py-2 rounded-xl w-full sm:w-auto">
         <Search size={16} className="text-[#BFBFC3]" />
         <input
           value={busca}
           onChange={(e) => onBuscaChange(e.target.value)}
           placeholder="Buscar colaborador..."
-          className="
-            bg-transparent
-            outline-none
-            text-sm
-            text-white
-            placeholder-[#BFBFC3]
-          "
+          className="bg-transparent outline-none text-sm text-white placeholder-[#BFBFC3] w-full sm:w-56"
         />
       </div>
     </div>

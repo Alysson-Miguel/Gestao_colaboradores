@@ -8,8 +8,8 @@ export default function PresencaGrid({
   canEdit = false,
 }) {
   return (
-    <div className="overflow-auto max-h-[70vh] rounded-2xl border border-[#2A2A2C]">
-      <table className="min-w-full text-sm border-separate border-spacing-0">
+    <div className="overflow-auto max-h-[70vh] rounded-2xl border border-[#2A2A2C] touch-pan-x touch-pan-y">
+      <table className="w-max min-w-full text-sm border-separate border-spacing-0">
         <PresencaHeader
           dias={dias}
           ano={colaboradores[0]?.ano}

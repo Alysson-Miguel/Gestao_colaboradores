@@ -55,168 +55,266 @@ export default function AtaTreinamentoTemplate({
         <title>Ata de Treinamento</title>
 
         <style>{`
-          /* ===== PRINT SETUP ===== */
-          @page { size: A4; margin: 14mm; }
-          * { box-sizing: border-box; }
-          body {
-            font-family: Arial, Helvetica, sans-serif;
-            color: #111;
-            margin: 0;
-            padding: 0;
-            background: #fff;
-          }
-          .page { width: 100%; }
+/* ===== PRINT SETUP ===== */
+@page { size: A4; margin: 14mm; }
 
-          /* ===== HEADER ===== */
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 12px;
-            border-bottom: 2px solid #FA4C00;
-            padding-bottom: 10px;
-            margin-bottom: 14px;
-          }
-          .brand {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-          }
-          .brand .company {
-            font-size: 16px;
-            font-weight: 700;
-            letter-spacing: .2px;
-          }
-          .brand .sub {
-            font-size: 12px;
-            color: #444;
-          }
-          .doc-title {
-            text-align: right;
-          }
-          .doc-title .title {
-            font-size: 18px;
-            font-weight: 800;
-            margin: 0;
-          }
-          .doc-title .meta {
-            font-size: 11px;
-            color: #444;
-            margin-top: 4px;
-          }
+* { box-sizing: border-box; }
 
-          /* ===== SECTIONS ===== */
-          .section {
-            margin: 12px 0;
-          }
-          .section h2 {
-            font-size: 12px;
-            margin: 0 0 6px 0;
-            text-transform: uppercase;
-            letter-spacing: .6px;
-            color: #222;
-          }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #111;
+  margin: 0;
+  padding: 0;
+  background: #f4f6f8; /* fundo tela */
+}
 
-          .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px 14px;
-            font-size: 12px;
-          }
-          .field {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 8px 10px;
-          }
-          .label {
-            font-size: 10px;
-            color: #555;
-            text-transform: uppercase;
-            letter-spacing: .4px;
-            margin-bottom: 4px;
-          }
-          .value {
-            font-size: 12px;
-            font-weight: 700;
-            color: #111;
-            word-break: break-word;
-          }
+/* ===== PAGE CONTAINER ===== */
+.page {
+  width: 100%;
+  max-width: 210mm; /* largura A4 */
+  margin: 24px auto;
+  padding: 24px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  border-radius: 12px;
+}
 
-          .chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 6px;
-          }
-          .chip {
-            border: 1px solid #ddd;
-            border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 11px;
-          }
+/* ===== HEADER ===== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 2px solid #FA4C00;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
 
-          /* ===== TABLE ===== */
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-          }
-          thead th {
-            text-align: left;
-            padding: 8px 8px;
-            border-bottom: 2px solid #111;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-          }
-          tbody td {
-            padding: 8px 8px;
-            border-bottom: 1px solid #ddd;
-            vertical-align: top;
-          }
-          .sig {
-            height: 22px;
-            border-bottom: 1px solid #111;
-          }
+.brand .company {
+  font-size: 18px;
+  font-weight: 700;
+}
 
-          /* ===== FOOTER SIGNATURES ===== */
-          .sign-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-top: 16px;
-          }
-          .sign {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px;
-          }
-          .sign .line {
-            border-bottom: 1px solid #111;
-            height: 18px;
-            margin: 10px 0 6px 0;
-          }
-          .sign .who {
-            font-size: 11px;
-            font-weight: 700;
-          }
-          .sign .role {
-            font-size: 10px;
-            color: #444;
-          }
+.brand .sub {
+  font-size: 13px;
+  color: #444;
+}
 
-          /* ===== NOTES ===== */
-          .notes {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px;
-            min-height: 70px;
-            font-size: 11px;
-            line-height: 1.4;
-          }
+.doc-title {
+  text-align: right;
+}
 
-          /* Hide non-print stuff if needed */
-          .no-print { display: none; }
+.doc-title .title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.doc-title .meta {
+  font-size: 12px;
+  color: #444;
+  margin-top: 4px;
+}
+
+/* ===== SECTIONS ===== */
+.section {
+  margin: 18px 0;
+}
+
+.section h2 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: #222;
+}
+
+/* ===== GRID ===== */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.field {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fafafa;
+}
+
+.label {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.value {
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+/* ===== CHIPS ===== */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.chip {
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #fff;
+}
+
+/* ===== TABLE RESPONSIVA ===== */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 600px; /* evita esmagar colunas */
+}
+
+thead th {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 2px solid #111;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+tbody td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.sig {
+  height: 22px;
+  border-bottom: 1px solid #111;
+}
+
+/* ===== ASSINATURAS ===== */
+.sign-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.sign {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.sign .line {
+  border-bottom: 1px solid #111;
+  height: 18px;
+  margin: 10px 0 6px 0;
+}
+
+.sign .who {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sign .role {
+  font-size: 11px;
+  color: #666;
+}
+
+/* ===== NOTES ===== */
+.notes {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 90px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #fafafa;
+}
+
+/* ===== FOOTER ===== */
+.footer {
+  margin-top: 18px;
+  font-size: 11px;
+  color: #666;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .page {
+    margin: 16px;
+    padding: 18px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sign-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-title {
+    text-align: left;
+    margin-top: 10px;
+  }
+
+  table {
+    font-size: 11px;
+  }
+}
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+  }
+}
+/* ===== PRINT MODE ===== */
+@media print {
+
+  body {
+    background: #fff;
+  }
+
+  .page {
+    box-shadow: none;
+    margin: 0;
+    border-radius: 0;
+    max-width: 100%;
+  }
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  } 
+
+  thead {
+    display: table-header-group;
+  }
+
+}
         `}</style>
       </head>
 
@@ -283,29 +381,30 @@ export default function AtaTreinamentoTemplate({
           {/* PARTICIPANTES */}
           <div className="section">
             <h2>Lista de Participantes</h2>
-
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ width: "38%" }}>Nome</th>
-                  <th style={{ width: "18%" }}>CPF</th>
-                  <th style={{ width: "22%" }}>Setor</th>
-                  <th style={{ width: "22%" }}>Assinatura</th>
-                </tr>
-              </thead>
-              <tbody>
-                {participantes.map((p, idx) => (
-                  <tr key={`${p.cpf}-${idx}`}>
-                    <td>{p.nome}</td>
-                    <td>{p.cpf}</td>
-                    <td>{p.setor}</td>
-                    <td>
-                      <div className="sig" />
-                    </td>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: "38%" }}>Nome</th>
+                    <th style={{ width: "18%" }}>CPF</th>
+                    <th style={{ width: "22%" }}>Setor</th>
+                    <th style={{ width: "22%" }}>Assinatura</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {participantes.map((p, idx) => (
+                    <tr key={`${p.cpf}-${idx}`}>
+                      <td>{p.nome}</td>
+                      <td>{p.cpf}</td>
+                      <td>{p.setor}</td>
+                      <td>
+                        <div className="sig" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* OBSERVAÇÕES */}

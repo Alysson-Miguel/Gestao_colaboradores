@@ -25,7 +25,7 @@ const STATUS_CONFIG = {
   BH:  { label: "Banco de Horas", short: "BH", bg: "bg-yellow-600/20", text: "text-yellow-400" },
   FO:  { label: "Folga", short: "FO", bg: "bg-slate-600/20", text: "text-slate-400" },
   TR:  { label: "Transferido", short: "TR", bg: "bg-neutral-600/20", text: "text-neutral-400" },
-  S1:  { label: "Sinergia", short: "S1", bg: "bg-lime-600/20", text: "text-lime-400" },
+  S1:  { label: "Sinergia", short: "S1", bg: "bg-pink-600/40", text: "text-red-400" },
   ON:  { label: "Onboarding", short: "ON", bg: "bg-orange-600/20", text: "text-orange-400" },
 };
 
@@ -107,13 +107,13 @@ export default function PresencaCell({
   const showTooltip = hover && (canEdit || registro);
 
   return (
-    <td className="border-r border-[#2A2A2C]">
+    <td className="border-r border-[#2A2A2C] min-w-12 sm:min-w-14">
       <div
         className={clsx(
           "relative px-2 py-2 text-center cursor-pointer select-none transition",
           cfg.bg,
           cfg.text,
-          weekend && "bg-[#141416]",
+          weekend && status === "-" && "bg-[#141416]",
           disabled && "opacity-40 cursor-not-allowed",
           canEdit && "hover:ring-1 hover:ring-[#FA4C00]"
         )}
@@ -121,7 +121,7 @@ export default function PresencaCell({
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       >
-        <span className="text-xs font-semibold">{cfg.short}</span>
+        <span className="text-xs font-semibold whitespace-nowrap">{cfg.short}</span>
 
         <PresencaTooltip open={showTooltip}>
           <div className="space-y-2">

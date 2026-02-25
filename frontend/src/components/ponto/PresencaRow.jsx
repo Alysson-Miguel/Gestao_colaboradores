@@ -9,7 +9,7 @@ export default function PresencaRow({
   return (
     <tr className="border-t border-[#2A2A2C]">
       {/* COLABORADOR */}
-      <td className="bg-[#1A1A1C] px-4 py-3 border-r border-[#2A2A2C] whitespace-nowrap">
+      <td className="bg-[#1A1A1C] px-4 py-3 border-r border-[#2A2A2C] whitespace-nowrap min-w-[220px] sm:min-w-[260px]">
         <div className="font-medium">
           {colaborador.nome || colaborador.nomeCompleto}
         </div>

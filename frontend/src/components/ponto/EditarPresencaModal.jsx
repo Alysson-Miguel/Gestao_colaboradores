@@ -171,8 +171,20 @@ export default function EditarPresencaModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-md bg-[#1A1A1C] rounded-2xl shadow-xl p-6 space-y-6">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start sm:items-center justify-center pt-10 sm:pt-0 p-4">
+      <div
+        className="
+          w-full 
+          max-w-md 
+          max-h-[90vh] 
+          overflow-y-auto
+          bg-[#1A1A1C] 
+          rounded-2xl 
+          shadow-xl 
+          p-6 
+          space-y-6
+        "
+      >
 
         {/* HEADER */}
         <div className="flex items-center justify-between">
@@ -207,7 +219,7 @@ export default function EditarPresencaModal({
         </div>
 
         {/* HORÁRIOS */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-[#BFBFC3]">
               Hora Entrada
@@ -261,7 +273,7 @@ export default function EditarPresencaModal({
         </div>
 
         {/* ACTIONS */}
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
           <button
             onClick={onClose}
             disabled={loading}
