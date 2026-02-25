@@ -27,7 +27,6 @@ export default function AcidenteCard({ acidente }) {
 
   const tipo = acidente.tipoOcorrencia || "-";
 
-  // 🔥 Cor dinâmica por tipo (opcional)
   const tipoColor =
     tipo.toLowerCase().includes("grave")
       ? "text-red-400"
@@ -36,106 +35,125 @@ export default function AcidenteCard({ acidente }) {
       : "text-orange-400";
 
   return (
-    <div className="
-      bg-linear-to-br from-[#1A1A1C] to-[#151517]
-      border border-[#2F2F33]
-      rounded-2xl
-      p-6
-      transition-all
-      hover:border-[#FA4C00]/40
-      hover:shadow-lg
-      hover:shadow-[#FA4C00]/5
-    ">
+    <div
+      className="
+        bg-linear-to-br from-[#1A1A1C] to-[#151517]
+        border border-[#2F2F33]
+        rounded-2xl
+        p-4 sm:p-5 lg:p-6
+        transition-all
+        hover:border-[#FA4C00]/40
+        hover:shadow-lg
+        hover:shadow-[#FA4C00]/5
+      "
+    >
       {/* HEADER */}
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex items-start gap-4">
+      <div className="flex flex-col md:flex-row md:justify-between gap-6">
+        
+        {/* BLOCO ESQUERDO */}
+        <div className="flex items-start gap-4 min-w-0">
+          
           {/* Ícone */}
-          <div className="
-            w-11 h-11
-            rounded-xl
-            bg-[#2A2A2C]
-            flex items-center justify-center
-            border border-[#3D3D40]
-          ">
+          <div
+            className="
+              shrink-0
+              w-10 h-10 sm:w-11 sm:h-11
+              rounded-xl
+              bg-[#2A2A2C]
+              flex items-center justify-center
+              border border-[#3D3D40]
+            "
+          >
             <AlertTriangle size={18} className="text-[#FA4C00]" />
           </div>
 
-          <div>
+          <div className="min-w-0">
             {/* Nome */}
-            <p className="text-base font-semibold text-white">
+            <p className="text-sm sm:text-base font-semibold text-white truncate">
               {nome}
             </p>
 
             {/* Tipo */}
-            <p className={`text-sm font-medium mt-1 ${tipoColor}`}>
+            <p className={`text-xs sm:text-sm font-medium mt-1 ${tipoColor}`}>
               {tipo}
             </p>
 
-            {/* Meta info */}
-            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#9CA3AF] mt-3">
-              <span className="flex items-center gap-1">
-                <Calendar size={14} /> {dt}
+            {/* Meta */}
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] sm:text-xs text-[#9CA3AF] mt-3">
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <Calendar size={13} /> {dt}
               </span>
 
-              <span className="flex items-center gap-1">
-                <Clock size={14} /> {hora}
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <Clock size={13} /> {hora}
               </span>
 
-              <span className="flex items-center gap-1">
-                <MapPin size={14} /> {acidente.localOcorrencia || "-"}
+              <span className="flex items-center gap-1 truncate">
+                <MapPin size={13} />{" "}
+                <span className="truncate">
+                  {acidente.localOcorrencia || "-"}
+                </span>
               </span>
             </div>
           </div>
         </div>
 
-        {/* Lado direito */}
-        <div className="text-right space-y-3">
+        {/* BLOCO DIREITO */}
+        <div className="flex md:flex-col justify-between md:items-end gap-4 md:text-right">
+          
           {/* Registrado por */}
           <div>
             <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">
               Registrado por
             </p>
-            <p className="text-sm font-medium text-white flex items-center gap-1 justify-end">
+
+            <p className="text-xs sm:text-sm font-medium text-white flex items-center gap-1 md:justify-end">
               <User size={14} />
-              {registradoPor}
+              <span className="truncate max-w-[140px] sm:max-w-none">
+                {registradoPor}
+              </span>
             </p>
           </div>
 
           {/* Evidências */}
-          <div className="
-            inline-flex items-center gap-2
-            px-3 py-1.5
-            rounded-full
-            bg-[#2A2A2C]
-            border border-[#3D3D40]
-            text-xs
-            text-[#BFBFC3]
-          ">
-            <Camera size={14} />
+          <div
+            className="
+              inline-flex items-center gap-2
+              px-3 py-1.5
+              rounded-full
+              bg-[#2A2A2C]
+              border border-[#3D3D40]
+              text-[11px] sm:text-xs
+              text-[#BFBFC3]
+            "
+          >
+            <Camera size={13} />
             {fotosCount} foto{fotosCount !== 1 ? "s" : ""}
           </div>
         </div>
       </div>
 
       {/* DESCRIÇÃO */}
-      <div className="
-        mt-5
-        bg-[#0D0D0D]
-        border border-[#2F2F33]
-        rounded-xl
-        p-4
-      ">
-        <p className="text-[11px] uppercase tracking-wide text-[#6B7280]">
+      <div
+        className="
+          mt-5
+          bg-[#0D0D0D]
+          border border-[#2F2F33]
+          rounded-xl
+          p-3 sm:p-4
+        "
+      >
+        <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">
           Ações Imediatas
         </p>
 
-        <p className="text-sm text-white mt-2 leading-relaxed line-clamp-3">
+        <p className="text-xs sm:text-sm text-white mt-2 leading-relaxed line-clamp-3">
           {acidente.acoesImediatas || "-"}
         </p>
       </div>
 
-      {/* Integração */}
-      <div className="mt-4 flex items-center justify-between text-xs text-[#9CA3AF]">
+      {/* INTEGRAÇÃO */}
+      <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] sm:text-xs text-[#9CA3AF]">
         <span>
           Integração:{" "}
           <span className="text-white font-medium">
@@ -144,7 +162,7 @@ export default function AcidenteCard({ acidente }) {
         </span>
 
         {acidente.parteCorpoAtingida && (
-          <span>
+          <span className="truncate">
             Parte afetada:{" "}
             <span className="text-white font-medium">
               {acidente.parteCorpoAtingida}

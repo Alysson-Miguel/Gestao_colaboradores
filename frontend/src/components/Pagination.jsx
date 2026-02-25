@@ -14,88 +14,125 @@ export default function Pagination({
   onPageChange,
   onLimitChange,
 }) {
-  const isFirst = page === 1;
-  const isLast = page === totalPages;
-
-  // Evita divisão por zero ou páginas inválidas
+  const isFirst = page <= 1;
   const effectiveTotalPages = Math.max(1, totalPages);
+  const isLast = page >= effectiveTotalPages;
 
   return (
-    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
-      
-      {/* INFO */}
-      <div className="text-sm text-[#BFBFC3]">
-        Total: <span className="text-white">{totalItems}</span> registros
+    <div
+      className="
+        mt-6
+        bg-[#141416]
+        border border-[#2A2A2D]
+        rounded-2xl
+        p-4
+        space-y-4
+      "
+    >
+      {/* ================= MOBILE LAYOUT ================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+        {/* INFO */}
+        <div className="text-sm text-[#BFBFC3] text-center sm:text-left">
+          Total: <span className="text-white font-medium">{totalItems}</span>{" "}
+          registros
+        </div>
+
+        {/* LIMIT */}
+        <div className="flex items-center justify-center sm:justify-end gap-2 text-sm">
+          <span className="text-[#BFBFC3]">Mostrar</span>
+          <select
+            value={limit}
+            onChange={(e) => onLimitChange(Number(e.target.value))}
+            className="
+              bg-[#1A1A1C]
+              border border-[#3D3D40]
+              rounded-lg
+              px-3 py-1.5
+              text-white
+              outline-none
+              focus:ring-1 focus:ring-[#FA4C00]
+            "
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={100}>100</option>
+          </select>
+          <span className="text-[#BFBFC3]">por página</span>
+        </div>
       </div>
 
-      {/* CONTROLES */}
-      <div className="flex items-center gap-2">
+      {/* ================= CONTROLES ================= */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
 
-        {/* PRIMEIRA */}
-        <button
-          disabled={isFirst}
-          onClick={() => onPageChange(1)}
-          className={`p-2 rounded-lg border border-[#3D3D40]
-            ${isFirst ? "opacity-40 cursor-not-allowed" : "hover:bg-[#2A2A2C]"}`}
-        >
-          <ChevronsLeft size={16} />
-        </button>
+        <div className="flex items-center gap-2">
 
-        {/* ANTERIOR */}
-        <button
-          disabled={isFirst}
-          onClick={() => onPageChange(page - 1)}
-          className={`p-2 rounded-lg border border-[#3D3D40]
-            ${isFirst ? "opacity-40 cursor-not-allowed" : "hover:bg-[#2A2A2C]"}`}
-        >
-          <ChevronLeft size={16} />
-        </button>
+          {/* PRIMEIRA */}
+          <IconButton
+            disabled={isFirst}
+            onClick={() => onPageChange(1)}
+          >
+            <ChevronsLeft size={16} />
+          </IconButton>
 
-        {/* PAGINA ATUAL */}
-        <span className="px-3 text-sm">
-          Página <strong>{page}</strong> de <strong>{effectiveTotalPages}</strong>
-        </span>
+          {/* ANTERIOR */}
+          <IconButton
+            disabled={isFirst}
+            onClick={() => onPageChange(page - 1)}
+          >
+            <ChevronLeft size={16} />
+          </IconButton>
 
-        {/* PRÓXIMA */}
-        <button
-          disabled={isLast}
-          onClick={() => onPageChange(page + 1)}
-          className={`p-2 rounded-lg border border-[#3D3D40]
-            ${isLast ? "opacity-40 cursor-not-allowed" : "hover:bg-[#2A2A2C]"}`}
-        >
-          <ChevronRight size={16} />
-        </button>
+          {/* PÁGINA ATUAL */}
+          <div className="px-4 py-2 text-sm bg-[#1A1A1C] rounded-xl border border-[#2A2A2D]">
+            Página <span className="text-white font-semibold">{page}</span> de{" "}
+            <span className="text-white font-semibold">
+              {effectiveTotalPages}
+            </span>
+          </div>
 
-        {/* ÚLTIMA */}
-        <button
-          disabled={isLast}
-          onClick={() => onPageChange(effectiveTotalPages)}
-          className={`p-2 rounded-lg border border-[#3D3D40]
-            ${isLast ? "opacity-40 cursor-not-allowed" : "hover:bg-[#2A2A2C]"}`}
-        >
-          <ChevronsRight size={16} />
-        </button>
-      </div>
+          {/* PRÓXIMA */}
+          <IconButton
+            disabled={isLast}
+            onClick={() => onPageChange(page + 1)}
+          >
+            <ChevronRight size={16} />
+          </IconButton>
 
-      {/* LIMIT */}
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-[#BFBFC3]">Mostrar</span>
-        <select
-          value={limit}
-          onChange={(e) => onLimitChange(Number(e.target.value))}
-          className="
-            bg-[#1A1A1C]
-            border border-[#3D3D40]
-            rounded-lg px-2 py-1
-            outline-none
-          "
-        >
-          <option value={10}>10</option>
-          <option value={25}>25</option>
-          <option value={100}>100</option>
-        </select>
-        <span className="text-[#BFBFC3]">por página</span>
+          {/* ÚLTIMA */}
+          <IconButton
+            disabled={isLast}
+            onClick={() => onPageChange(effectiveTotalPages)}
+          >
+            <ChevronsRight size={16} />
+          </IconButton>
+        </div>
       </div>
     </div>
+  );
+}
+
+/* ================= BOTÃO PADRÃO ================= */
+
+function IconButton({ disabled, onClick, children }) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className={`
+        w-9 h-9
+        flex items-center justify-center
+        rounded-xl
+        border border-[#3D3D40]
+        transition-all
+        ${
+          disabled
+            ? "opacity-40 cursor-not-allowed"
+            : "hover:bg-[#2A2A2C] hover:border-[#FA4C00]/50"
+        }
+      `}
+    >
+      {children}
+    </button>
   );
 }

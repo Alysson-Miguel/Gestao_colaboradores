@@ -283,9 +283,9 @@ export default function Sidebar({ isOpen, onClose }) {
                 }
               `}
             >
-              <div className="flex items-center gap-3">
-                <ClipboardList size={18} />
-                Planejamento
+              <div className="flex items-center gap-2">
+                <ClipboardList size={16} />
+                Planejamento e Controle
               </div>
               <ChevronDown
                 size={16}
@@ -301,7 +301,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   onClick={() => go("/dw")}
                 />
                 <SidebarSubItem
-                  label="Folga Dominical"
+                  label="Planejamento de Folgas"
                   active={isActive("folga-dominical")}
                   onClick={() => go("/folga-dominical")}
                 />
