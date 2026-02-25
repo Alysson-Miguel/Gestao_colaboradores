@@ -300,6 +300,11 @@ export default function Sidebar({ isOpen, onClose }) {
                   active={isActive("/dw")}
                   onClick={() => go("/dw")}
                 />
+                <SidebarSubItem
+                  label="Folga Dominical"
+                  active={isActive("folga-dominical")}
+                  onClick={() => go("/folga-dominical")}
+                />
               </div>
             )}
           </div>

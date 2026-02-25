@@ -104,16 +104,17 @@ model HistoricoMovimentacao {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      UserRole @default(USER)
-  avatar    String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  opsId     String?  @map("ops_id") @db.VarChar(50)
+  id                      String           @id @default(uuid())
+  name                    String
+  email                   String           @unique
+  password                String
+  role                    UserRole         @default(USER)
+  avatar                  String?
+  isActive                Boolean          @default(true)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  opsId                   String?          @map("ops_id") @db.VarChar(50)
+  folgasDominicaisCriadas FolgaDominical[]
 
   @@index([opsId], map: "idx_users_ops_id")
   @@map("users")
@@ -223,8 +224,8 @@ model Colaborador {
   matricula                 String                    @unique @db.VarChar(50)
   dataAdmissao              DateTime                  @map("data_admissao") @db.Date
   dataDesligamento          DateTime?                 @map("data_desligamento") @db.Date
-  dataInicioStatus DateTime?                          @map("data_inicio_status") @db.Date
-  dataFimStatus    DateTime?                          @map("data_fim_status") @db.Date
+  dataInicioStatus          DateTime?                 @map("data_inicio_status") @db.Date
+  dataFimStatus             DateTime?                 @map("data_fim_status") @db.Date
   horarioInicioJornada      DateTime                  @map("horario_inicio_jornada") @db.Time(6)
   primeiroDiaPosDsr         DateTime?                 @map("primeiro_dia_pos_dsr") @db.Date
   idSetor                   Int?                      @map("id_setor")
@@ -262,6 +263,7 @@ model Colaborador {
   medidasDisciplinares      MedidaDisciplinar[]
   treinamentosLiderados     Treinamento[]             @relation("TreinamentoLider")
   treinamentosParticipou    TreinamentoParticipante[]
+  folgasDominicais          FolgaDominical[]
 
   @@index([matricula])
   @@index([status])
@@ -463,6 +465,23 @@ model DwReal {
 
   @@unique([data, idTurno, idEmpresa], map: "uq_dw_real")
   @@map("dw_real")
+}
+
+model FolgaDominical {
+  id          String   @id @default(uuid())
+  opsId       String
+  ano         Int
+  mes         Int
+  dataDomingo DateTime
+  criadoEm    DateTime @default(now())
+
+  criadoPorId String?
+  criadoPor   User?   @relation(fields: [criadoPorId], references: [id])
+
+  colaborador Colaborador @relation(fields: [opsId], references: [opsId])
+
+  @@unique([opsId, ano, mes])
+  @@index([ano, mes])
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.

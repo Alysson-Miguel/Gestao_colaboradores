@@ -75,6 +75,14 @@ function getStatusDoDia(f) {
     };
   }
 
+  if (f?.idTipoAusencia === 5) {
+    return {
+      code: "AM",
+      contaComoEscalado: true,
+      impactaAbsenteismo: true, 
+    };
+  }
+
   if (f?.tipoAusencia) {
     const codigo = String(f.tipoAusencia.codigo || "").toUpperCase();
     const desc = String(f.tipoAusencia.descricao || "").toUpperCase();
@@ -124,15 +132,6 @@ function getStatusDoDia(f) {
       };
     }
 
-    // Atestado
-    if (codigo === "AM" || desc.includes("ATEST")) {
-      return {
-        code: "AM",
-        contaComoEscalado: true,
-        impactaAbsenteismo: true,
-      };
-    }
-
     // F / FJ
     return {
       code: codigo,
@@ -148,8 +147,6 @@ function getStatusDoDia(f) {
     impactaAbsenteismo: true,
   };
 }
-
-
 
 /* =====================================================
    BUILDERS
@@ -935,22 +932,31 @@ function buildEmpresasResumo({
   }) {
     const diasPeriodo = daysInclusive(inicio, fim);
 
-    // 🔹 Mapear frequências por opsId
-    const freqMap = {};
-    frequencias.forEach((f) => {
-      if (!freqMap[f.opsId]) freqMap[f.opsId] = [];
-      freqMap[f.opsId].push(f);
-    });
+  // 🔹 Mapear frequências por opsId
+  const freqMap = {};
+  frequencias.forEach((f) => {
+    if (!freqMap[f.opsId]) freqMap[f.opsId] = [];
+    freqMap[f.opsId].push(f);
+  });
 
-    //  Mapear quantidade real de atestados por colaborador
-    const atestadoCountMap = new Map();
+  // ✅ 1) Mapear status do colaborador por opsId
+  const colabStatusMap = new Map();
+  colaboradores.forEach((c) => colabStatusMap.set(c.opsId, c.status));
 
-    atestados.forEach((a) => {
-      atestadoCountMap.set(
-        a.opsId,
-        (atestadoCountMap.get(a.opsId) || 0) + 1
-      );
-    });
+  // ✅ 2) Contar atestados apenas para quem NÃO está AFASTADO (INSS)
+  const atestadoCountMap = new Map();
+
+  atestados.forEach((a) => {
+    const statusColab = colabStatusMap.get(a.opsId);
+
+    // 🔥 regra operacional: não contar INSS/AFASTADO
+    if (statusColab === "AFASTADO") return;
+
+    atestadoCountMap.set(
+      a.opsId,
+      (atestadoCountMap.get(a.opsId) || 0) + 1
+    );
+  });
 
     const gerentesMap = new Map();
 
@@ -1056,6 +1062,7 @@ function buildEmpresasResumo({
 
     colaboradoresOperacionais.forEach((c) => {
       if (!c.idLider) return;
+      if (c.status === "AFASTADO") return;
 
       const cargo = norm(c.cargo?.nomeCargo);
 

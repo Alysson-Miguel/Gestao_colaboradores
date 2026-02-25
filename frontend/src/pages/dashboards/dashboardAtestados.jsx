@@ -497,13 +497,14 @@ function TopOfensoresTable({ rows, loading }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[780px] w-full text-sm">
+      <table className="min-w-[880px] w-full text-sm">
         <thead className="text-white/60">
           <tr>
             <th className="text-left py-2 w-10">#</th>
             <th className="text-left py-2">Colaborador</th>
             <th className="text-left py-2">Empresa</th>
             <th className="text-left py-2">Setor</th>
+            <th className="text-left py-2">Turno</th>
             <th className="text-left py-2">Tempo Casa</th>
             <th className="text-right py-2">Atest.</th>
             <th className="text-right py-2">Dias</th>
@@ -520,6 +521,7 @@ function TopOfensoresTable({ rows, loading }) {
               <td className="py-2 font-medium">{r.nome}</td>
               <td className="py-2 text-white/80">{r.empresa || "N/I"}</td>
               <td className="py-2 text-white/80">{r.setor || "N/I"}</td>
+              <td className="py-2 text-white/80">{r.turno || "N/I"}</td>
 
               <td className="py-2">
                 <span
@@ -537,7 +539,7 @@ function TopOfensoresTable({ rows, loading }) {
                   {r.tempoCasaFaixa || "N/I"}
                 </span>
               </td>
-
+                    
               <td className="py-2 text-right font-semibold">{r.totalAtestados}</td>
               <td className="py-2 text-right font-semibold text-[#FA4C00]">
                 {r.diasAfastados}

@@ -203,9 +203,8 @@ const createAtestado = async (req, res) => {
     const cpfLimpo = cpf.replace(/\D/g, "");
 
     if (cpfLimpo.length !== 11) {
-      return errorResponse(res, 400, "CPF inválido");
+      return errorResponse(res, "CPF inválido", 400);
     }
-
 
     const colaborador = await prisma.colaborador.findFirst({
       where: { cpf: cpfLimpo },
@@ -214,27 +213,77 @@ const createAtestado = async (req, res) => {
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
-    const opsId = colaborador.opsId
+
+    const opsId = colaborador.opsId;
 
     const dias =
       diasAfastamento && Number(diasAfastamento) > 0
         ? Number(diasAfastamento)
         : calcDias(dataInicio, dataFim);
 
-    const atestado = await prisma.atestadoMedico.create({
-      data: {
-        opsId,
-        dataInicio: dateOnlyBrasil(dataInicio),
-        dataFim: dateOnlyBrasil(dataFim),
-        diasAfastamento: dias,
-        cid: cid || null,
-        observacao: observacao || null,
-        documentoAnexo: documentoKey,
-        status: "ATIVO",
-      },
+    const inicio = dateOnlyBrasil(dataInicio);
+    const fim = dateOnlyBrasil(dataFim);
+
+    if (dias >= 16) {
+      await tx.colaborador.update({
+        where: { opsId },
+        data: { status: "AFASTADO" }
+      });
+    }
+
+    /* ============================================
+       🔥 TRANSACTION — cria atestado + ajusta frequência
+    ============================================ */
+    const resultado = await prisma.$transaction(async (tx) => {
+      const atestado = await tx.atestadoMedico.create({
+        data: {
+          opsId,
+          dataInicio: inicio,
+          dataFim: fim,
+          diasAfastamento: dias,
+          cid: cid || null,
+          observacao: observacao || null,
+          documentoAnexo: documentoKey,
+          status: "ATIVO",
+        },
+      });
+
+      // 🔁 Atualiza frequência dia a dia
+      let current = new Date(inicio);
+
+      while (current <= fim) {
+        const dataReferencia = new Date(current);
+
+        await tx.frequencia.upsert({
+          where: {
+            opsId_dataReferencia: {
+              opsId,
+              dataReferencia,
+            },
+          },
+          update: {
+            idTipoAusencia: 5, // 👈 ID correto do ATESTADO
+            justificativa: "ATESTADO_MEDICO",
+            horaEntrada: null,
+            horaSaida: null,
+          },
+          create: {
+            opsId,
+            dataReferencia,
+            idTipoAusencia: 5,
+            justificativa: "ATESTADO_MEDICO",
+            horaEntrada: null,
+            horaSaida: null,
+          },
+        });
+
+        current.setDate(current.getDate() + 1);
+      }
+
+      return atestado;
     });
 
-    return createdResponse(res, atestado, "Atestado criado com sucesso");
+    return createdResponse(res, resultado, "Atestado criado com sucesso");
   } catch (err) {
     console.error("❌ CREATE ATESTADO:", err);
     return errorResponse(res, "Erro ao criar atestado", 500);
@@ -366,12 +415,101 @@ const finalizarAtestado = async (req, res) => {
 };
 
 const cancelarAtestado = async (req, res) => {
-  const { id } = req.params;
-  const atestado = await prisma.atestadoMedico.update({
-    where: { idAtestado: Number(id) },
-    data: { status: "CANCELADO" },
-  });
-  return successResponse(res, atestado, "Atestado cancelado");
+  try {
+    const { id } = req.params;
+
+    const atestado = await prisma.atestadoMedico.findUnique({
+      where: { idAtestado: Number(id) },
+    });
+
+    if (!atestado) {
+      return notFoundResponse(res, "Atestado não encontrado");
+    }
+
+    const { opsId, dataInicio, dataFim } = atestado;
+
+    await prisma.$transaction(async (tx) => {
+      /* ===============================
+         1️⃣ Cancela o atestado
+      =============================== */
+      await tx.atestadoMedico.update({
+        where: { idAtestado: Number(id) },
+        data: { status: "CANCELADO" },
+      });
+
+      /* ===============================
+         2️⃣ Limpa frequência no período
+      =============================== */
+      let current = new Date(dataInicio);
+      const fim = new Date(dataFim);
+
+      while (current <= fim) {
+        const dataReferencia = new Date(current);
+
+        const freq = await tx.frequencia.findUnique({
+          where: {
+            opsId_dataReferencia: {
+              opsId,
+              dataReferencia,
+            },
+          },
+        });
+
+        // 🔒 Só remove se ainda for atestado
+        if (freq && freq.idTipoAusencia === 5) {
+          await tx.frequencia.update({
+            where: {
+              opsId_dataReferencia: {
+                opsId,
+                dataReferencia,
+              },
+            },
+            data: {
+              idTipoAusencia: null,
+              justificativa: null,
+              horaEntrada: null,
+              horaSaida: null,
+            },
+          });
+        }
+
+        current.setDate(current.getDate() + 1);
+      }
+
+      /* ===============================
+         3️⃣ Verifica se ainda existe INSS ativo
+      =============================== */
+      const atestadosAtivos = await tx.atestadoMedico.findMany({
+        where: {
+          opsId,
+          status: "ATIVO",
+        },
+      });
+
+      const aindaINSS = atestadosAtivos.some(
+        (a) => a.diasAfastamento >= 16
+      );
+
+      /* ===============================
+         4️⃣ Atualiza status do colaborador
+      =============================== */
+      if (!aindaINSS) {
+        await tx.colaborador.update({
+          where: { opsId },
+          data: { status: "ATIVO" },
+        });
+      }
+    });
+
+    return successResponse(
+      res,
+      null,
+      "Atestado cancelado e status do colaborador revalidado"
+    );
+  } catch (err) {
+    console.error("❌ CANCELAR ATESTADO:", err);
+    return errorResponse(res, "Erro ao cancelar atestado", 500);
+  }
 };
 
 module.exports = {
