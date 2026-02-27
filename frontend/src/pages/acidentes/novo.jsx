@@ -167,38 +167,52 @@ export default function NovoAcidente() {
             body: file,
           });
 
+          const text = await put.text().catch(() => "");
+          console.log("[UPLOAD]", file.name, {
+            status: put.status,
+            ok: put.ok,
+            uploadUrl,
+            resp: text?.slice(0, 500),
+          });
+
           if (!put.ok) {
-            alert(`Falha ao enviar imagem: ${file.name}`);
-            return;
+            throw new Error(`Falha ao enviar imagem (${put.status}): ${text || file.name}`);
           }
 
           uploadedKeys.push(key);
         }
 
         setUploading(false);
-
+        console.log("Payload acidente:", {
+        cpf: cpfLimpo,
+        nomeRegistrante: registrador?.name || "Sistema",
+        setor: colaborador?.setor?.nomeSetor || "",
+        cargo: colaborador?.cargo?.nomeCargo || "",
+        evidencias: uploadedKeys,
+      });
         /* 2️⃣ Criação do acidente */
-        await AcidentesAPI.criar({
-          cpf: cpfLimpo,
-          nomeRegistrante: registrador?.name || "Sistema",
-          setor: colaborador?.setor?.nomeSetor || "",
-          cargo: colaborador?.cargo?.nomeCargo || "",
-          participouIntegracao: form.participouIntegracao === "true",
-          tipoOcorrencia: form.tipoOcorrencia,
-          dataOcorrencia: form.dataOcorrencia,
-          horarioOcorrencia: form.horarioOcorrencia,
-          dataComunicacaoHSE: form.dataComunicacaoHSE,
-          localOcorrencia: form.localOcorrencia,
-          situacaoGeradora: form.situacaoGeradora,
-          agenteCausador: form.agenteCausador,
-          parteCorpoAtingida: form.parteCorpoAtingida,
-          lateralidade: form.lateralidade,
-          tipoLesao: form.tipoLesao,
-          acoesImediatas: form.acoesImediatas,
-          evidencias: uploadedKeys,
-        });
+      const created = await AcidentesAPI.criar({
+        cpf: cpfLimpo,
+        nomeRegistrante: registrador?.name || "Sistema",
+        setor: colaborador?.setor?.nomeSetor || "",
+        cargo: colaborador?.cargo?.nomeCargo || "",
+        participouIntegracao: form.participouIntegracao === "true",
+        tipoOcorrencia: form.tipoOcorrencia,
+        dataOcorrencia: form.dataOcorrencia,
+        horarioOcorrencia: form.horarioOcorrencia,
+        dataComunicacaoHSE: form.dataComunicacaoHSE,
+        localOcorrencia: form.localOcorrencia,
+        situacaoGeradora: form.situacaoGeradora,
+        agenteCausador: form.agenteCausador,
+        parteCorpoAtingida: form.parteCorpoAtingida,
+        lateralidade: form.lateralidade,
+        tipoLesao: form.tipoLesao,
+        acoesImediatas: form.acoesImediatas,
+        evidencias: uploadedKeys,
+      });
 
-        navigate("/acidentes");
+      console.log("Acidente Criado:", created);
+      navigate("/acidentes");
       } catch (err) {
         console.error("Erro ao salvar acidente:", err);
         alert("Erro ao salvar acidente.");

@@ -198,6 +198,9 @@ const createAcidente = async (req, res) => {
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
+    if (!dataComunicacaoHSE) {
+      return errorResponse(res, "Data de comunicação HSE é obrigatória", 400);
+    }
 
     const acidente = await prisma.acidenteTrabalho.create({
       data: {
@@ -209,9 +212,7 @@ const createAcidente = async (req, res) => {
         tipoOcorrencia,
         dataOcorrencia: normalizeDateOnly(dataOcorrencia),
         horarioOcorrencia: normalizeTimeOnly(horarioOcorrencia),
-        dataComunicacaoHSE: dataComunicacaoHSE
-          ? normalizeDateOnly(dataComunicacaoHSE)
-          : null,
+        dataComunicacaoHSE: normalizeDateOnly(dataComunicacaoHSE),
         localOcorrencia,
         situacaoGeradora,
         agenteCausador,
@@ -230,7 +231,8 @@ const createAcidente = async (req, res) => {
     return createdResponse(res, acidente, "Acidente registrado com sucesso");
   } catch (err) {
     console.error("❌ CREATE ACIDENTE:", err);
-    return errorResponse(res, "Erro ao registrar acidente", 500);
+    console.error("❌ CREATE ACIDENTE:", err);
+    return errorResponse(res, err?.message || "Erro ao registrar acidente", 500, err);
   }
 };
 
@@ -248,7 +250,7 @@ const getAllAcidentes = async (req, res) => {
     if (cpf) {
       const cpfLimpo = cpf.replace(/\D/g, "");
       if (cpfLimpo.length !== 11) {
-        return errorResponse(res, 400, "CPF inválido");
+        return errorResponse(res, "CPF inválido", 400);
       }
 
       const colab = await prisma.colaborador.findFirst({
