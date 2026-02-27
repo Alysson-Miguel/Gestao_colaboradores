@@ -89,6 +89,7 @@ const presignUpload = async (req, res) => {
       "image/png",
       "image/webp",
       "image/jpg",
+      "application/pdf",
     ];
 
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB

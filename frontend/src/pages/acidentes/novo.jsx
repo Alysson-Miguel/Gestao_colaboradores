@@ -15,6 +15,7 @@ const ACCEPTED_TYPES = [
   "image/jpg",
   "image/heic",
   "image/heif",
+  "application/pdf",
 ];
 
 function isImageType(type) {
@@ -454,7 +455,7 @@ export default function NovoAcidente() {
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   className="hidden"
                   onChange={(e) => handleFotosChange(e.target.files)}
                 />
