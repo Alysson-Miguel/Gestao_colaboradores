@@ -284,6 +284,23 @@ export default function DashboardAdmin() {
     []
   );
 
+  const eventosOrdenados = useMemo(() => {
+    return [...(dados.eventos || [])].sort((a, b) => {
+      const peso = (row) => {
+        if (row.reincidente) {
+          return row.qtdeEventos || 1;
+        }
+        return 0;
+      };
+
+      const diff = peso(b) - peso(a);
+
+      if (diff !== 0) return diff;
+
+      // desempate por data (mais recente primeiro)
+      return new Date(b.data) - new Date(a.data);
+    });
+  }, [dados.eventos]);
   /* ================= RENDER ================= */
   if (loading) {
     return (
@@ -519,7 +536,7 @@ export default function DashboardAdmin() {
 
           <AusentesHojeTable
             title="Eventos no período (Atestados Médicos, Medidas Disciplinares e Acidentes)"
-            data={dados.eventos}
+            data={eventosOrdenados}
             columns={tableColumns}
             getRowKey={(row) => row.id}
             emptyMessage="Nenhum evento no período"

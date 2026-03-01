@@ -1376,6 +1376,7 @@ const carregarDashboardAdmin = async (req, res) => {
         opsId: { in: opsIds },
         dataInicio: { lte: fimFinal },
         dataFim: { gte: inicioFinal },
+        status: { in: ["ATIVO", "FINALIZADO"] },
       },
     });
 
