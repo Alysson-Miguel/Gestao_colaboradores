@@ -27,6 +27,38 @@ const normalizeTurno = (t) => {
   return "Sem turno";
 };
 
+/* =====================================================
+   ⏳ TEMPO DE CASA
+===================================================== */
+function calcularTempoDeCasa(dataAdmissao) {
+  if (!dataAdmissao) {
+    return {
+      faixa: "-",
+      dias: 0,
+    };
+  }
+
+  const hoje = agoraBrasil();
+  const adm = new Date(dataAdmissao);
+
+  const diffMs = hoje - adm;
+  const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  let faixa = "-";
+
+  if (dias <= 30) faixa = "0 a 30 Dias";
+  else if (dias <= 90) faixa = "1 a 3 meses";
+  else if (dias <= 180) faixa = "3 a 6 meses";
+  else if (dias <= 360) faixa = "6 a 12 meses";
+  else if (dias <= 720) faixa = "1 a 2 anos";
+  else faixa = "2 anos +";
+
+  return {
+    faixa,
+    dias,
+  };
+}
+
 const isoDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 const daysInclusive = (inicio, fim) => {
@@ -404,7 +436,8 @@ const carregarDashboard = async (req, res) => {
       const setor = getSetor(registroSnapshot, c);
       turnoSetorAgg[turno].setores[setor] =
         (turnoSetorAgg[turno].setores[setor] || 0) + 1;
-
+      console.log("ADMISSAO:", c.nomeCompleto, c.dataAdmissao);
+      const tempoCasa = calcularTempoDeCasa(c.dataAdmissao);
       // Status do snapshot (4 estados)
       statusPorTurno[turno][sSnap.label] =
         (statusPorTurno[turno][sSnap.label] || 0) + 1;
@@ -412,7 +445,7 @@ const carregarDashboard = async (req, res) => {
       if (sSnap.label === "Presente") {
         turnoSetorAgg[turno].presentes++;
       } else if (sSnap.impactaAbsenteismo) {
-        turnoSetorAgg[turno].ausentes++;
+        turnoSetorAgg[turno].ausentes++;  
 
         // Lista de ausências do dia (Falta / Atestado)
         ausenciasHoje.push({
@@ -425,6 +458,8 @@ const carregarDashboard = async (req, res) => {
           admissao: c.dataAdmissao,
           lider: normalize(c.lider?.nomeCompleto),
           origem: sSnap.origem,
+          tempoCasa: tempoCasa.faixa,
+          diasCasa: tempoCasa.dias,
         });
       }
     });
