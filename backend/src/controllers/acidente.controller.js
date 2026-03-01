@@ -1,7 +1,7 @@
 /**
- * Controller de Acidentes de Trabalho
+ * Controller de Acidentes de Trabalho - VERSÃO MELHORADA
+ * Retorna URLs presignadas automaticamente nas listagens
  */
-
 const { prisma } = require("../config/database");
 const {
   successResponse,
@@ -9,7 +9,6 @@ const {
   errorResponse,
   notFoundResponse,
 } = require("../utils/response");
-
 const crypto = require("crypto");
 const { PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
@@ -18,15 +17,10 @@ const { getR2Client } = require("../services/r2");
 const BUCKET = process.env.R2_BUCKET_NAME;
 
 /* ================= UTIL ================= */
-
 // Data somente (Brasil safe)
 function normalizeDateOnly(dateStr) {
   if (!dateStr) return null;
-
   const [y, m, d] = dateStr.split("-").map(Number);
-
-  // ⛔ nunca usar meia-noite
-  // ✅ meio-dia evita qualquer problema de timezone
   return new Date(y, m - 1, d, 12, 0, 0);
 }
 
@@ -36,6 +30,43 @@ function normalizeTimeOnly(timeStr) {
   return new Date(`1970-01-01T${timeStr}:00`);
 }
 
+/* ================= GERAR URL PRESIGNADA ================= */
+async function gerarUrlPresignada(key) {
+  try {
+    if (!key) return null;
+    
+    const r2 = getR2Client();
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+    });
+    
+    const url = await getSignedUrl(r2, command, { expiresIn: 3600 }); // 1 hora
+    return url;
+  } catch (error) {
+    console.error(`❌ Erro ao gerar URL presignada para ${key}:`, error);
+    return null;
+  }
+}
+
+/* ================= ENRIQUECER EVIDÊNCIAS COM URLs ================= */
+async function enriquecerEvidencias(evidencias) {
+  if (!Array.isArray(evidencias) || evidencias.length === 0) {
+    return [];
+  }
+
+  const evidenciasComUrl = await Promise.all(
+    evidencias.map(async (evidencia) => {
+      const urlImagem = await gerarUrlPresignada(evidencia.arquivoUrl);
+      return {
+        ...evidencia,
+        urlImagem, // Adiciona URL presignada
+      };
+    })
+  );
+
+  return evidenciasComUrl;
+}
 
 /* ================= PRESIGN UPLOAD ================= */
 const presignUpload = async (req, res) => {
@@ -43,19 +74,15 @@ const presignUpload = async (req, res) => {
     const { cpf, files } = req.body;
 
     /* ================= VALIDAÇÕES INICIAIS ================= */
-
     if (!cpf) {
       return errorResponse(res, "CPF não informado", 400);
     }
-
     if (!Array.isArray(files) || files.length === 0) {
       return errorResponse(res, "Nenhum arquivo informado", 400);
     }
-
     if (files.length > 5) {
       return errorResponse(res, "Máximo de 5 imagens permitido", 400);
     }
-
     if (!process.env.R2_WORKER_UPLOAD_URL) {
       return errorResponse(
         res,
@@ -65,9 +92,7 @@ const presignUpload = async (req, res) => {
     }
 
     /* ================= CPF ================= */
-
     const cpfLimpo = cpf.replace(/\D/g, "");
-
     if (cpfLimpo.length !== 11) {
       return errorResponse(res, "CPF inválido", 400);
     }
@@ -83,7 +108,6 @@ const presignUpload = async (req, res) => {
     const opsId = colaborador.opsId;
 
     /* ================= VALIDAÇÃO DE ARQUIVOS ================= */
-
     const allowedTypes = [
       "image/jpeg",
       "image/png",
@@ -91,20 +115,17 @@ const presignUpload = async (req, res) => {
       "image/jpg",
       "application/pdf",
     ];
-
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
     const uploads = files.map(({ filename, contentType, size }) => {
       if (!filename || !contentType) {
         throw new Error("Arquivo inválido");
       }
-
       if (!allowedTypes.includes(contentType)) {
         throw new Error(
           `Formato não permitido (${filename}). Apenas JPG, PNG ou WEBP`
         );
       }
-
       if (size && Number(size) > MAX_SIZE) {
         throw new Error(
           `Arquivo ${filename} excede o limite de 5MB`
@@ -116,7 +137,6 @@ const presignUpload = async (req, res) => {
         .replace(/\s+/g, "-")
         .replace(/[^\w.\-]/g, "")
         .toLowerCase();
-
       const id = crypto.randomUUID();
       const key = `acidentes/${opsId}/${id}-${safeName}`;
 
@@ -137,21 +157,17 @@ const presignUpload = async (req, res) => {
   }
 };
 
-
 /* ================= PRESIGN DOWNLOAD ================= */
 const presignDownload = async (req, res) => {
   try {
     const { key } = req.query;
     if (!key) return errorResponse(res, "Chave não informada", 400);
 
-    const r2 = getR2Client();
-
-    const command = new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-    });
-
-    const url = await getSignedUrl(r2, command, { expiresIn: 600 });
+    const url = await gerarUrlPresignada(key);
+    
+    if (!url) {
+      return errorResponse(res, "Erro ao gerar URL de download", 500);
+    }
 
     return successResponse(res, { url });
   } catch (err) {
@@ -189,7 +205,7 @@ const createAcidente = async (req, res) => {
 
     const cpfLimpo = cpf.replace(/\D/g, "");
     if (cpfLimpo.length !== 11) {
-      return errorResponse(res, 400, "CPF inválido");
+      return errorResponse(res, "CPF inválido", 400);
     }
 
     const colaborador = await prisma.colaborador.findFirst({
@@ -199,6 +215,7 @@ const createAcidente = async (req, res) => {
     if (!colaborador) {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
+
     if (!dataComunicacaoHSE) {
       return errorResponse(res, "Data de comunicação HSE é obrigatória", 400);
     }
@@ -227,16 +244,24 @@ const createAcidente = async (req, res) => {
           })),
         },
       },
+      include: {
+        evidencias: true,
+      },
     });
 
-    return createdResponse(res, acidente, "Acidente registrado com sucesso");
+    // 🔥 ENRIQUECER COM URLs PRESIGNADAS
+    const evidenciasComUrl = await enriquecerEvidencias(acidente.evidencias);
+
+    return createdResponse(
+      res,
+      { ...acidente, evidencias: evidenciasComUrl },
+      "Acidente registrado com sucesso"
+    );
   } catch (err) {
     console.error("❌ CREATE ACIDENTE:", err);
-    console.error("❌ CREATE ACIDENTE:", err);
-    return errorResponse(res, err?.message || "Erro ao registrar acidente", 500, err);
+    return errorResponse(res, err?.message || "Erro ao registrar acidente", 500);
   }
 };
-
 
 /* ================= GET ALL ================= */
 const getAllAcidentes = async (req, res) => {
@@ -253,11 +278,9 @@ const getAllAcidentes = async (req, res) => {
       if (cpfLimpo.length !== 11) {
         return errorResponse(res, "CPF inválido", 400);
       }
-
       const colab = await prisma.colaborador.findFirst({
         where: { cpf: cpfLimpo },
       });
-
       if (!colab) return successResponse(res, []);
       where.opsIdColaborador = colab.opsId;
     }
@@ -266,17 +289,28 @@ const getAllAcidentes = async (req, res) => {
       where,
       orderBy: { dataOcorrencia: "desc" },
       include: {
+        colaborador: true,
         evidencias: true,
       },
     });
 
-    return successResponse(res, acidentes);
+    // 🔥 ENRIQUECER TODOS COM URLs PRESIGNADAS
+    const acidentesEnriquecidos = await Promise.all(
+      acidentes.map(async (acidente) => {
+        const evidenciasComUrl = await enriquecerEvidencias(acidente.evidencias);
+        return {
+          ...acidente,
+          evidencias: evidenciasComUrl,
+        };
+      })
+    );
+
+    return successResponse(res, acidentesEnriquecidos);
   } catch (err) {
     console.error("❌ GET ACIDENTES:", err);
     return errorResponse(res, "Erro ao buscar acidentes", 500);
   }
 };
-
 
 /* ================= GET BY ID ================= */
 const getAcidenteById = async (req, res) => {
@@ -295,8 +329,15 @@ const getAcidenteById = async (req, res) => {
       return notFoundResponse(res, "Acidente não encontrado");
     }
 
-    return successResponse(res, acidente);
+    // 🔥 ENRIQUECER COM URLs PRESIGNADAS
+    const evidenciasComUrl = await enriquecerEvidencias(acidente.evidencias);
+
+    return successResponse(res, {
+      ...acidente,
+      evidencias: evidenciasComUrl,
+    });
   } catch (err) {
+    console.error("❌ GET ACIDENTE BY ID:", err);
     return errorResponse(res, "Erro ao buscar acidente", 500);
   }
 };
@@ -304,15 +345,14 @@ const getAcidenteById = async (req, res) => {
 /* ================= GET ACIDENTES POR COLABORADOR ================= */
 const getAcidentesByColaborador = async (req, res) => {
   try {
-    const { id } = req.params; // pode ser OPS ID ou CPF
+    const { id } = req.params;
 
     if (!id) {
-      return successResponse(res, []); // não quebra o perfil
+      return successResponse(res, []);
     }
 
     const idStr = String(id);
     const cpfLimpo = idStr.replace(/\D/g, "");
-
     let colaborador = null;
 
     // 🔹 Se for CPF válido
@@ -341,18 +381,28 @@ const getAcidentesByColaborador = async (req, res) => {
         dataOcorrencia: "desc",
       },
       include: {
+        colaborador: true,
         evidencias: true,
       },
     });
 
-    return successResponse(res, acidentes);
+    // 🔥 ENRIQUECER TODOS COM URLs PRESIGNADAS
+    const acidentesEnriquecidos = await Promise.all(
+      acidentes.map(async (acidente) => {
+        const evidenciasComUrl = await enriquecerEvidencias(acidente.evidencias);
+        return {
+          ...acidente,
+          evidencias: evidenciasComUrl,
+        };
+      })
+    );
+
+    return successResponse(res, acidentesEnriquecidos);
   } catch (error) {
     console.error("❌ GET ACIDENTES POR COLABORADOR:", error);
-    return successResponse(res, []); // 🔑 NUNCA quebrar perfil
+    return successResponse(res, []);
   }
 };
-
-
 
 module.exports = {
   presignUpload,

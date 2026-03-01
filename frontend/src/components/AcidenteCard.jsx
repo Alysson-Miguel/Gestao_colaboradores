@@ -1,4 +1,5 @@
-// src/components/AcidenteCard.jsx
+// src/components/AcidenteCard-compact.jsx
+// VERSÃO COM LOGS PARA DEBUG
 import {
   AlertTriangle,
   Camera,
@@ -6,33 +7,36 @@ import {
   Calendar,
   Clock,
   User,
+  Image as ImageIcon,
+  ChevronRight,
 } from "lucide-react";
 
-export default function AcidenteCard({ acidente }) {
+export default function AcidenteCardCompact({ acidente }) {
+  
+  // 🔍 ADICIONE ESTES LOGS TEMPORÁRIOS (remova depois que funcionar)
+  console.log("=== DEBUG CARD ===");
+  console.log("1. Evidências:", acidente?.evidencias);
+  console.log("2. Primeira evidência:", acidente?.evidencias?.[0]);
+  console.log("3. urlImagem:", acidente?.evidencias?.[0]?.urlImagem);
+  console.log("4. arquivoUrl:", acidente?.evidencias?.[0]?.arquivoUrl);
+  console.log("==================");
+
   /* =========================
      FORMAT DATA
   ========================= */
-
   const dataFormatada = (() => {
     if (!acidente?.dataOcorrencia) return "-";
-
     const d = new Date(acidente.dataOcorrencia);
     if (isNaN(d)) return "-";
-
     return d.toLocaleDateString("pt-BR");
   })();
 
   const horaFormatada = (() => {
     if (!acidente?.horarioOcorrencia) return "-";
-
     const raw = acidente.horarioOcorrencia;
-
-    // Se for string HH:mm:ss
     if (typeof raw === "string" && raw.length <= 8) {
       return raw.slice(0, 5);
     }
-
-    // Se vier como ISO timestamp
     const d = new Date(raw);
     if (!isNaN(d)) {
       return d.toLocaleTimeString("pt-BR", {
@@ -40,184 +44,250 @@ export default function AcidenteCard({ acidente }) {
         minute: "2-digit",
       });
     }
-
     return "-";
   })();
 
   const nome = acidente?.colaborador?.nomeCompleto || "-";
   const fotosCount = acidente?.evidencias?.length || 0;
+  
+  // 🔥 Tenta pegar urlImagem (que vem do backend melhorado)
+  const primeiraFoto = acidente?.evidencias?.[0]?.urlImagem || null;
 
+  const isPdf =
+  primeiraFoto?.toLowerCase().endsWith(".pdf") ||
+  primeiraFoto?.toLowerCase().includes(".pdf?");
+  
   const registradoPor =
     acidente?.nomeRegistrante ||
     acidente?.registradoPor ||
     "Sistema";
-
   const tipo = acidente?.tipoOcorrencia || "-";
 
   /* =========================
      BADGE TIPO
   ========================= */
-
-  const badgeTipoClass = (() => {
+  const badgeConfig = (() => {
     const lower = tipo.toLowerCase();
-
     if (lower.includes("grave")) {
-      return "bg-red-500/10 text-red-400 border border-red-500/30";
+      return {
+        bg: "bg-red-500/10",
+        text: "text-red-400",
+        border: "border-red-500/30",
+        icon: "text-red-500"
+      };
     }
-
     if (lower.includes("leve")) {
-      return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/30";
+      return {
+        bg: "bg-yellow-500/10",
+        text: "text-yellow-400",
+        border: "border-yellow-500/30",
+        icon: "text-yellow-500"
+      };
     }
-
-    return "bg-orange-500/10 text-orange-400 border border-orange-500/30";
+    return {
+      bg: "bg-orange-500/10",
+      text: "text-orange-400",
+      border: "border-orange-500/30",
+      icon: "text-orange-500"
+    };
   })();
 
   return (
     <div
       className="
-        bg-gradient-to-br from-[#1A1A1C] to-[#151517]
+        group
+        bg-linear-to-br from-[#1A1A1C] to-[#151517]
         border border-[#2F2F33]
         rounded-2xl
-        p-5 lg:p-6
+        overflow-hidden
         transition-all duration-300
-        hover:border-[#FA4C00]/40
-        hover:shadow-xl
-        hover:shadow-[#FA4C00]/5
+        hover:border-[#FA4C00]/50
+        hover:shadow-2xl
+        hover:shadow-[#FA4C00]/15
+        hover:-translate-y-0.5
+        cursor-pointer
       "
     >
-      {/* ================= HEADER ================= */}
-      <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
+      <div className="flex flex-col lg:flex-row">
         
-        {/* BLOCO ESQUERDO */}
-        <div className="flex items-start gap-4 min-w-0">
+        {/* ================= THUMBNAIL ================= */}
+        <div className="relative lg:w-64 h-48 lg:h-auto shrink-0 overflow-hidden bg-[#0D0D0D]">
+        {primeiraFoto ? (
+          <>
+            {!isPdf ? (
+              // ✅ Se for imagem
+              <img
+                src={primeiraFoto}
+                alt="Evidência"
+                className="
+                  w-full h-full object-cover
+                  transition-transform duration-500
+                  group-hover:scale-110
+                "
+                onLoad={() => {
+                  console.log("✅ IMAGEM CARREGOU:", primeiraFoto);
+                }}
+                onError={(e) => {
+                  console.error("❌ ERRO AO CARREGAR IMAGEM");
+                  console.error("URL:", primeiraFoto);
+                  console.error("Erro:", e);
+                }}
+              />
+            ) : (
+            // ✅ Se for PDF
+            <div className="relative w-full h-full bg-black">
+              <iframe
+                src={primeiraFoto}
+                title="Preview PDF"
+                className="w-full h-full pointer-events-none"
+              />
 
-          {/* Ícone */}
-          <div
-            className="
-              shrink-0
-              w-11 h-11
-              rounded-xl
-              bg-[#2A2A2C]
-              flex items-center justify-center
-              border border-[#3D3D40]
-            "
-          >
-            <AlertTriangle size={18} className="text-[#FA4C00]" />
-          </div>
+              {/* Overlay leve para manter visual elegante */}
+              <div className="absolute inset-0 bg-black/20" />
 
-          <div className="min-w-0">
-            {/* Nome */}
-            <p className="text-lg font-semibold tracking-tight text-white truncate">
-              {nome}
-            </p>
-
-            {/* Tipo Badge */}
-            <div className="mt-2">
-              <span
-                className={`
-                  inline-flex items-center
-                  px-2.5 py-1
-                  rounded-full
-                  text-xs font-medium
-                  ${badgeTipoClass}
-                `}
+              {/* Botão flutuante */}
+              <a
+                href={primeiraFoto}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="
+                  absolute bottom-3 right-3
+                  text-xs px-3 py-1.5
+                  bg-[#FA4C00]
+                  text-white
+                  rounded-lg
+                  hover:opacity-90
+                  transition
+                  shadow-lg
+                "
               >
-                {tipo}
+                Abrir
+              </a>
+            </div>
+            )}
+
+            <div className="absolute inset-0 bg-linear-to-br from-black/20 to-transparent" />
+          </>
+        ) : (
+            /* Placeholder - Sem Foto */
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+              <ImageIcon size={48} className="text-[#3D3D40]" />
+              <p className="text-xs text-[#6B7280]">Sem evidência</p>
+            </div>
+          )}
+
+          {/* Contador de Fotos */}
+          {fotosCount > 0 && (
+            <div className="absolute bottom-3 left-3">
+              <div
+                className="
+                  flex items-center gap-1.5
+                  px-2.5 py-1.5
+                  rounded-lg
+                  bg-black/70
+                  backdrop-blur-sm
+                  border border-white/10
+                  text-xs font-semibold
+                  text-white
+                "
+              >
+                <Camera size={12} />
+                {fotosCount}
+              </div>
+            </div>
+          )}
+
+          {/* Badge Status */}
+          <div className="absolute top-3 right-3">
+              <span
+                className="
+                  inline-flex items-center gap-1
+                  px-2.5 py-1
+                  rounded-md
+                  bg-orange-500/10
+                  text-orange-400
+                  border border-orange-500/20
+                  text-[10px]
+                  font-semibold
+                  tracking-wide
+                  uppercase
+                "
+              >
+                <AlertTriangle size={12} />
+                Típica
               </span>
             </div>
-
-            {/* Meta Info */}
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#9CA3AF] mt-4">
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <Calendar size={13} /> {dataFormatada}
-              </span>
-
-              <span className="flex items-center gap-1 whitespace-nowrap">
-                <Clock size={13} /> {horaFormatada}
-              </span>
-
-              <span className="flex items-center gap-1 truncate max-w-[260px]">
-                <MapPin size={13} />
-                <span className="truncate">
-                  {acidente?.localOcorrencia || "-"}
-                </span>
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* BLOCO DIREITO */}
-        <div className="flex lg:flex-col justify-between lg:items-end gap-4 lg:text-right">
+        {/* ================= CONTEÚDO ================= */}
+        <div className="flex-1 p-5 lg:p-6 flex flex-col justify-between">
           
-          {/* Registrado por */}
+          {/* Header */}
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">
-              Registrado por
-            </p>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <h3 className="text-lg lg:text-xl font-bold text-white tracking-tight flex-1">
+                {nome}
+              </h3>
+              <ChevronRight 
+                size={20} 
+                className="text-[#6B7280] group-hover:text-[#FA4C00] transition-colors shrink-0 mt-1"
+              />
+            </div>
 
-            <p className="text-sm font-semibold text-white flex items-center gap-1 lg:justify-end">
-              <User size={14} />
-              <span className="truncate max-w-[160px]">
-                {registradoPor}
+            {/* Meta info compacta */}
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#9CA3AF] mb-4">
+              <span className="flex items-center gap-1.5">
+                <Calendar size={13} className="text-[#FA4C00]" />
+                {dataFormatada}
               </span>
-            </p>
+              <span className="flex items-center gap-1.5">
+                <Clock size={13} className="text-[#FA4C00]" />
+                {horaFormatada}
+              </span>
+              <span className="flex items-center gap-1.5 truncate max-w-xs">
+                <MapPin size={13} className="text-[#FA4C00]" />
+                {acidente?.localOcorrencia || "-"}
+              </span>
+            </div>
+
+            {/* Ações Imediatas */}
+            <div className="mb-4">
+              <p className="text-[10px] uppercase tracking-wider text-[#6B7280] mb-1.5">
+                Ações Imediatas
+              </p>
+              <p className="text-sm text-[#D1D5DB] leading-relaxed line-clamp-2">
+                {acidente?.acoesImediatas || "Nenhuma ação registrada"}
+              </p>
+            </div>
           </div>
 
-          {/* Evidências */}
-          <div
-            className="
-              inline-flex items-center gap-2
-              px-3 py-1.5
-              rounded-full
-              bg-[#2A2A2C]
-              border border-[#3D3D40]
-              text-xs
-              text-[#BFBFC3]
-            "
-          >
-            <Camera size={13} />
-            {fotosCount} foto{fotosCount !== 1 ? "s" : ""}
+          {/* Footer */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#2F2F33]">
+            
+            {/* Registrado por */}
+            <div className="flex items-center gap-2 text-xs">
+              <User size={13} className="text-[#6B7280]" />
+              <span className="text-[#9CA3AF]">
+                por <span className="text-white font-semibold">{registradoPor}</span>
+              </span>
+            </div>
+
+            {/* Badges */}
+            <div className="flex flex-wrap gap-2">
+              {acidente?.participouIntegracao && (
+                <span className="px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-[10px] font-medium border border-green-500/20">
+                  Integração
+                </span>
+              )}
+              {acidente?.parteCorpoAtingida && (
+                <span className="px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] font-medium border border-blue-500/20 truncate max-w-[120px]">
+                  {acidente.parteCorpoAtingida}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* ================= AÇÕES IMEDIATAS ================= */}
-      <div
-        className="
-          mt-6
-          bg-gradient-to-br from-[#0D0D0D] to-[#111113]
-          border border-[#2F2F33]
-          rounded-xl
-          p-4
-          shadow-inner
-        "
-      >
-        <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">
-          Ações Imediatas
-        </p>
-
-        <p className="text-sm text-white mt-3 leading-relaxed line-clamp-3">
-          {acidente?.acoesImediatas || "-"}
-        </p>
-      </div>
-
-      {/* ================= FOOTER INFO ================= */}
-      <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#9CA3AF]">
-        <span>
-          Integração:{" "}
-          <span className="text-white font-semibold">
-            {acidente?.participouIntegracao ? "Sim" : "Não"}
-          </span>
-        </span>
-
-        {acidente?.parteCorpoAtingida && (
-          <span className="truncate">
-            Parte afetada:{" "}
-            <span className="text-white font-semibold">
-              {acidente.parteCorpoAtingida}
-            </span>
-          </span>
-        )}
       </div>
     </div>
   );
