@@ -9,55 +9,93 @@ import {
 } from "lucide-react";
 
 export default function AcidenteCard({ acidente }) {
-  const dt = acidente.dataOcorrencia
-    ? new Date(acidente.dataOcorrencia).toLocaleDateString("pt-BR")
-    : "-";
+  /* =========================
+     FORMAT DATA
+  ========================= */
 
-  const hora = acidente.horarioOcorrencia
-    ? acidente.horarioOcorrencia.slice(0, 5)
-    : "-";
+  const dataFormatada = (() => {
+    if (!acidente?.dataOcorrencia) return "-";
 
-  const nome = acidente.colaborador?.nomeCompleto || "-";
-  const fotosCount = acidente.evidencias?.length || 0;
+    const d = new Date(acidente.dataOcorrencia);
+    if (isNaN(d)) return "-";
+
+    return d.toLocaleDateString("pt-BR");
+  })();
+
+  const horaFormatada = (() => {
+    if (!acidente?.horarioOcorrencia) return "-";
+
+    const raw = acidente.horarioOcorrencia;
+
+    // Se for string HH:mm:ss
+    if (typeof raw === "string" && raw.length <= 8) {
+      return raw.slice(0, 5);
+    }
+
+    // Se vier como ISO timestamp
+    const d = new Date(raw);
+    if (!isNaN(d)) {
+      return d.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    return "-";
+  })();
+
+  const nome = acidente?.colaborador?.nomeCompleto || "-";
+  const fotosCount = acidente?.evidencias?.length || 0;
 
   const registradoPor =
-    acidente.nomeRegistrante ||
-    acidente.registradoPor ||
+    acidente?.nomeRegistrante ||
+    acidente?.registradoPor ||
     "Sistema";
 
-  const tipo = acidente.tipoOcorrencia || "-";
+  const tipo = acidente?.tipoOcorrencia || "-";
 
-  const tipoColor =
-    tipo.toLowerCase().includes("grave")
-      ? "text-red-400"
-      : tipo.toLowerCase().includes("leve")
-      ? "text-yellow-400"
-      : "text-orange-400";
+  /* =========================
+     BADGE TIPO
+  ========================= */
+
+  const badgeTipoClass = (() => {
+    const lower = tipo.toLowerCase();
+
+    if (lower.includes("grave")) {
+      return "bg-red-500/10 text-red-400 border border-red-500/30";
+    }
+
+    if (lower.includes("leve")) {
+      return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/30";
+    }
+
+    return "bg-orange-500/10 text-orange-400 border border-orange-500/30";
+  })();
 
   return (
     <div
       className="
-        bg-linear-to-br from-[#1A1A1C] to-[#151517]
+        bg-gradient-to-br from-[#1A1A1C] to-[#151517]
         border border-[#2F2F33]
         rounded-2xl
-        p-4 sm:p-5 lg:p-6
-        transition-all
+        p-5 lg:p-6
+        transition-all duration-300
         hover:border-[#FA4C00]/40
-        hover:shadow-lg
+        hover:shadow-xl
         hover:shadow-[#FA4C00]/5
       "
     >
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:justify-between gap-6">
+      {/* ================= HEADER ================= */}
+      <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
         
         {/* BLOCO ESQUERDO */}
         <div className="flex items-start gap-4 min-w-0">
-          
+
           {/* Ícone */}
           <div
             className="
               shrink-0
-              w-10 h-10 sm:w-11 sm:h-11
+              w-11 h-11
               rounded-xl
               bg-[#2A2A2C]
               flex items-center justify-center
@@ -69,29 +107,39 @@ export default function AcidenteCard({ acidente }) {
 
           <div className="min-w-0">
             {/* Nome */}
-            <p className="text-sm sm:text-base font-semibold text-white truncate">
+            <p className="text-lg font-semibold tracking-tight text-white truncate">
               {nome}
             </p>
 
-            {/* Tipo */}
-            <p className={`text-xs sm:text-sm font-medium mt-1 ${tipoColor}`}>
-              {tipo}
-            </p>
+            {/* Tipo Badge */}
+            <div className="mt-2">
+              <span
+                className={`
+                  inline-flex items-center
+                  px-2.5 py-1
+                  rounded-full
+                  text-xs font-medium
+                  ${badgeTipoClass}
+                `}
+              >
+                {tipo}
+              </span>
+            </div>
 
-            {/* Meta */}
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] sm:text-xs text-[#9CA3AF] mt-3">
+            {/* Meta Info */}
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#9CA3AF] mt-4">
               <span className="flex items-center gap-1 whitespace-nowrap">
-                <Calendar size={13} /> {dt}
+                <Calendar size={13} /> {dataFormatada}
               </span>
 
               <span className="flex items-center gap-1 whitespace-nowrap">
-                <Clock size={13} /> {hora}
+                <Clock size={13} /> {horaFormatada}
               </span>
 
-              <span className="flex items-center gap-1 truncate">
-                <MapPin size={13} />{" "}
+              <span className="flex items-center gap-1 truncate max-w-[260px]">
+                <MapPin size={13} />
                 <span className="truncate">
-                  {acidente.localOcorrencia || "-"}
+                  {acidente?.localOcorrencia || "-"}
                 </span>
               </span>
             </div>
@@ -99,7 +147,7 @@ export default function AcidenteCard({ acidente }) {
         </div>
 
         {/* BLOCO DIREITO */}
-        <div className="flex md:flex-col justify-between md:items-end gap-4 md:text-right">
+        <div className="flex lg:flex-col justify-between lg:items-end gap-4 lg:text-right">
           
           {/* Registrado por */}
           <div>
@@ -107,9 +155,9 @@ export default function AcidenteCard({ acidente }) {
               Registrado por
             </p>
 
-            <p className="text-xs sm:text-sm font-medium text-white flex items-center gap-1 md:justify-end">
+            <p className="text-sm font-semibold text-white flex items-center gap-1 lg:justify-end">
               <User size={14} />
-              <span className="truncate max-w-[140px] sm:max-w-none">
+              <span className="truncate max-w-[160px]">
                 {registradoPor}
               </span>
             </p>
@@ -123,7 +171,7 @@ export default function AcidenteCard({ acidente }) {
               rounded-full
               bg-[#2A2A2C]
               border border-[#3D3D40]
-              text-[11px] sm:text-xs
+              text-xs
               text-[#BFBFC3]
             "
           >
@@ -133,38 +181,39 @@ export default function AcidenteCard({ acidente }) {
         </div>
       </div>
 
-      {/* DESCRIÇÃO */}
+      {/* ================= AÇÕES IMEDIATAS ================= */}
       <div
         className="
-          mt-5
-          bg-[#0D0D0D]
+          mt-6
+          bg-gradient-to-br from-[#0D0D0D] to-[#111113]
           border border-[#2F2F33]
           rounded-xl
-          p-3 sm:p-4
+          p-4
+          shadow-inner
         "
       >
         <p className="text-[10px] uppercase tracking-wide text-[#6B7280]">
           Ações Imediatas
         </p>
 
-        <p className="text-xs sm:text-sm text-white mt-2 leading-relaxed line-clamp-3">
-          {acidente.acoesImediatas || "-"}
+        <p className="text-sm text-white mt-3 leading-relaxed line-clamp-3">
+          {acidente?.acoesImediatas || "-"}
         </p>
       </div>
 
-      {/* INTEGRAÇÃO */}
-      <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] sm:text-xs text-[#9CA3AF]">
+      {/* ================= FOOTER INFO ================= */}
+      <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-[#9CA3AF]">
         <span>
           Integração:{" "}
-          <span className="text-white font-medium">
-            {acidente.participouIntegracao ? "Sim" : "Não"}
+          <span className="text-white font-semibold">
+            {acidente?.participouIntegracao ? "Sim" : "Não"}
           </span>
         </span>
 
-        {acidente.parteCorpoAtingida && (
+        {acidente?.parteCorpoAtingida && (
           <span className="truncate">
             Parte afetada:{" "}
-            <span className="text-white font-medium">
+            <span className="text-white font-semibold">
               {acidente.parteCorpoAtingida}
             </span>
           </span>

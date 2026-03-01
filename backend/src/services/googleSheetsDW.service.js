@@ -1,125 +1,253 @@
-const { google } = require('googleapis');
+const { google } = require("googleapis");
 
-// 📊 PLANILHA DAILY PLAN
-const DW_SPREADSHEET_ID = '16s1jJEybU-NvjVWQZT6LLqbkfKJ0rX9nVg8u1sfJTA0';
-const DW_SHEET = 'daily_plan';
+/* =====================================================
+   CONFIG
+===================================================== */
 
-// 🔧 Inicializar Google Sheets API (MESMO PADRÃO)
+const DW_SPREADSHEET_ID = "16s1jJEybU-NvjVWQZT6LLqbkfKJ0rX9nVg8u1sfJTA0";
+const DW_SHEET = "daily_plan";
+
+/* =====================================================
+   CACHE
+===================================================== */
+
+let sheetCache = null;
+let cacheTimestamp = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+function isCacheValid() {
+  return (
+    sheetCache &&
+    cacheTimestamp &&
+    Date.now() - cacheTimestamp < CACHE_TTL
+  );
+}
+
+/* =====================================================
+   GOOGLE CLIENT
+===================================================== */
+
 const getGoogleSheetsClient = () => {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
 
-  return google.sheets({ version: 'v4', auth });
+  return google.sheets({
+    version: "v4",
+    auth,
+    retry: false,
+  });
 };
 
-// 📅 Normalizar data para DD/MM
+/* =====================================================
+   HELPERS
+===================================================== */
+
 const formatarDataCurta = (dataISO) => {
-  const [ano, mes, dia] = dataISO.split('-');
+  const [ano, mes, dia] = dataISO.split("-");
   return `${dia}/${mes}`;
 };
 
-// 🧠 LINHAS FIXAS DA PLANILHA
-const LINHAS_TURNO = {
-  T1: 101, // linha 102 (index 101)
-  T2: 102, // linha 103
-  T3: 103  // linha 104
-};
+function colunaLetraParaIndex(letras) {
+  let resultado = 0;
 
-const TITULO_LINHA_INDEX = 100; // linha 101 (DW - Daily work [Planned])
-const COLUNA_TITULO_INDEX = 1;  // coluna B
+  for (let i = 0; i < letras.length; i++) {
+    resultado *= 26;
+    resultado += letras.charCodeAt(i) - 64;
+  }
 
-// 📊 Buscar DW Planejado
-const buscarDwPlanejado = async (turno, dataISO) => {
+  return resultado - 1; // 0-based
+}
+
+const normalizar = (v) =>
+  String(v ?? "")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .replace(/\s+/g, "");
+
+/* =====================================================
+   CARREGAR PLANILHA
+===================================================== */
+
+async function carregarPlanilha() {
+  if (isCacheValid()) {
+    console.log("📦 DW retornado do cache");
+    return sheetCache;
+  }
+
+  console.log("🌎 Buscando DW no Google Sheets...");
+
+  const sheets = getGoogleSheetsClient();
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: DW_SPREADSHEET_ID,
+    range: `${DW_SHEET}!A1:ZZ200`,
+    valueRenderOption: "FORMATTED_VALUE",
+  });
+
+  const rows = response.data.values;
+
+  if (!rows || rows.length === 0) {
+    throw new Error("Aba daily_plan vazia");
+  }
+
+  sheetCache = rows;
+  cacheTimestamp = Date.now();
+
+  console.log("✅ DW armazenado em cache");
+
+  return rows;
+}
+
+/* =====================================================
+   BUSCAR DW PLANEJADO
+===================================================== */
+
+async function buscarDwPlanejado(turno, dataISO) {
   try {
-    console.log('\n📊 ===== BUSCAR DW PLANEJADO =====');
-    console.log(`📅 Data (ISO): ${dataISO}`);
-    console.log(`🕐 Turno solicitado: ${turno}`);
-
-    const sheets = getGoogleSheetsClient();
+    const rows = await carregarPlanilha();
     const dataBusca = formatarDataCurta(dataISO);
 
-    console.log(`🔍 Data formatada para planilha: ${dataBusca}`);
+    /* ==========================================
+       🔎 Encontrar linha do título DW
+    ========================================== */
 
-    // Buscar planilha inteira (seguro para esse layout)
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: DW_SPREADSHEET_ID,
-      range: `${DW_SHEET}!A1:ZZ200`,
-    });
-
-    const rows = response.data.values;
-
-    if (!rows || rows.length === 0) {
-      throw new Error('Aba daily_plan vazia');
-    }
-
-    // 🔎 Validar título
-    const titulo = rows[TITULO_LINHA_INDEX]?.[COLUNA_TITULO_INDEX];
-    console.log(`📌 Título encontrado: ${titulo}`);
-
-    if (!titulo || !titulo.includes('DW - Daily work')) {
-      throw new Error('Linha DW - Daily work [Planned] não encontrada');
-    }
-
-    // 🔎 Encontrar coluna da data
-    let colunaDataIndex = -1;
-    let linhaHeaderIndex = -1;
+    let linhaTituloIndex = -1;
 
     for (let i = 0; i < rows.length; i++) {
-      const idx = rows[i].indexOf(dataBusca);
-      if (idx !== -1) {
-        colunaDataIndex = idx;
-        linhaHeaderIndex = i;
+      if (
+        rows[i]?.[1] &&
+        rows[i][1].trim() === "DW - Daily work [Planned]"
+      ) {
+        linhaTituloIndex = i;
         break;
       }
     }
 
-    if (colunaDataIndex === -1) {
-      throw new Error(`Data ${dataBusca} não encontrada na planilha`);
+    if (linhaTituloIndex === -1) {
+      throw new Error("Linha DW - Daily work [Planned] não encontrada");
     }
 
-    console.log(`📍 Data encontrada na linha ${linhaHeaderIndex + 1}, coluna ${colunaDataIndex + 1}`);
+    console.log("📌 Linha DW encontrada em:", linhaTituloIndex);
 
-    // 🔁 Normalizar turno
+    /* ==========================================
+       🔎 Encontrar coluna da data
+       Datas fixas na linha 3 (index 2)
+    ========================================== */
+
+/* ==========================================
+   🔎 Encontrar coluna da data (a partir de QZ)
+========================================== */
+
+const LINHA_DATA_INDEX = 2; // linha 3 real
+const COLUNA_INICIAL = colunaLetraParaIndex("OZ");
+
+if (!rows[LINHA_DATA_INDEX]) {
+  throw new Error("Linha de datas não encontrada");
+}
+
+const alvo = normalizar(dataBusca);
+const [dd, mm] = alvo.split("/");
+const alvoSemZero = `${parseInt(dd)}/${parseInt(mm)}`;
+
+let colunaDataIndex = -1;
+
+// procura SOMENTE a partir da QZ
+for (let j = COLUNA_INICIAL; j < rows[LINHA_DATA_INDEX].length; j++) {
+  const cel = normalizar(rows[LINHA_DATA_INDEX][j]);
+
+  if (
+    cel === alvo ||
+    cel === alvoSemZero ||
+    cel.startsWith(alvo) ||
+    cel.startsWith(alvoSemZero)
+  ) {
+    colunaDataIndex = j;
+    break; // pega a primeira ocorrência após QZ
+  }
+}
+
+if (colunaDataIndex === -1) {
+  throw new Error(`Data ${dataBusca} não encontrada após coluna QZ`);
+}
+
+console.log("📍 Coluna encontrada após QZ:", colunaDataIndex);
+
+    /* ==========================================
+       🔁 Normalizar turno
+    ========================================== */
+
     const turnoMap = {
-      manha: 'T1',
-      tarde: 'T2',
-      noite: 'T3'
+      manha: "T1",
+      tarde: "T2",
+      noite: "T3",
     };
+
     const turnoBusca = turnoMap[turno] || turno.toUpperCase();
 
-    const linhaTurnoIndex = LINHAS_TURNO[turnoBusca];
+    /* ==========================================
+       🔢 Linha do turno
+    ========================================== */
 
-    if (linhaTurnoIndex === undefined) {
+    const linhaTurnoIndex =
+      linhaTituloIndex +
+      (turnoBusca === "T1"
+        ? 1
+        : turnoBusca === "T2"
+        ? 2
+        : turnoBusca === "T3"
+        ? 3
+        : 0);
+
+    if (!rows[linhaTurnoIndex]) {
       throw new Error(`Turno inválido: ${turno}`);
     }
 
-    // 🔢 Valor DW Planejado
-    const valorRaw = rows[linhaTurnoIndex]?.[colunaDataIndex] || 0;
+    let valorRaw = rows[linhaTurnoIndex]?.[colunaDataIndex];
+
+    // proteção contra desalinhamento
+    if (valorRaw === undefined && colunaDataIndex > 0) {
+      valorRaw = rows[linhaTurnoIndex]?.[colunaDataIndex - 1];
+    }
+
     const dwPlanejado = parseInt(valorRaw) || 0;
 
-    console.log(`📊 DW Planejado (${turnoBusca}): ${dwPlanejado}`);
-    console.log('=================================\n');
+    /* ==========================================
+       DEBUG APENAS 01/03
+    ========================================== */
+
+    if (dataBusca === "01/03") {
+      console.log("====================================");
+      console.log("DW DEBUG - 01/03");
+      console.log("Data buscada:", dataBusca);
+      console.log("Turno:", turnoBusca);
+      console.log("Linha turno index:", linhaTurnoIndex);
+      console.log("Coluna data index:", colunaDataIndex);
+      console.log("Valor bruto encontrado:", valorRaw);
+      console.log("DW Planejado final:", dwPlanejado);
+      console.log("Linha completa do turno:");
+      console.log(rows[linhaTurnoIndex]);
+      console.log("====================================");
+    }
 
     return {
       success: true,
       data: {
         dataConsultada: dataBusca,
         turnoConsultado: turnoBusca,
-        dwPlanejado
-      }
+        dwPlanejado,
+      },
     };
-
   } catch (error) {
-    console.error('❌ Erro ao buscar DW Planejado:', error.message);
+    console.error("❌ Erro DW:", error.message);
     throw error;
   }
-};
+}
 
 module.exports = {
-  buscarDwPlanejado
+  buscarDwPlanejado,
 };
