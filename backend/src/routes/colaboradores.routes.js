@@ -15,6 +15,12 @@ router.post(
   asyncHandler(controller.importColaboradores)
 );
 
+router.get(
+  "/import-status", 
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(controller.getStatusImport)
+);
 /* ================= LÍDERES ================= */
 router.get(
   "/lideres",
