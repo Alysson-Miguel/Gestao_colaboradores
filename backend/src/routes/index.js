@@ -38,7 +38,8 @@ const reportRoutes = require("./reports.routes");
 const dashboardAtestados = require("./dashboardAtestados.routes");
 const ddsmaRoutes = require("./ddsma.routes");
 const opaRoutes = require("./opa.routes");
-const folgaDominical = require("./folgaDominical.routes")
+const folgaDominical = require("./folgaDominical.routes");
+const gestaoOperacionalRoutes = require("./gestaoOperacional.routes");
 /* =========================
    HEALTH
 ========================= */
@@ -99,5 +100,6 @@ router.use("/dashboard/atestados", dashboardAtestados);
 router.use("/ddsma", ddsmaRoutes);
 router.use("/opa", opaRoutes);
 router.use("/folga-dominical", folgaDominical);
+router.use("/dashboard/gestao-operacional", gestaoOperacionalRoutes);
 
 module.exports = router;
