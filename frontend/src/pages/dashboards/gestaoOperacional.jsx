@@ -126,20 +126,10 @@ export default function GestaoOperacional() {
               <button
                 onClick={() => limparCacheEAtualizar()}
                 disabled={loading}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-[#5A5A5C] rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-[#5A5A5C] disabled:cursor-not-allowed cursor-pointer rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2"
                 title="Limpar cache e atualizar dados da planilha"
               >
                 {loading ? "Carregando..." : "🔄 Forçar Atualização"}
-              </button>
-              
-              {/* Botão de atualizar normal */}
-              <button
-                onClick={() => carregarDados()}
-                disabled={loading}
-                className="px-4 py-2 bg-[#E8491D] hover:bg-[#d43d11] disabled:bg-[#5A5A5C] rounded-lg text-white text-sm font-semibold transition-colors"
-                title="Atualizar dados"
-              >
-                {loading ? "Carregando..." : "↻ Atualizar"}
               </button>
               
               {/* Filtro de Turno */}

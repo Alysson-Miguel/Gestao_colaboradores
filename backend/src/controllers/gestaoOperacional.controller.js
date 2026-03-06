@@ -167,12 +167,19 @@ const carregarGestaoOperacional = async (req, res) => {
     console.log(`  - Produtividade: (${realizado} / ${metaHoraProjetada}) * 770 = ${produtividade}`);
     console.log(`  - Média Hora: ${realizado} / ${horasComDados} = ${mediaHoraRealizado}`);
 
-    // Capacidade por hora (mesma estrutura das metas)
-    const capacidadePorHora = Object.entries(metasPorHora).map(([hora, capacidade]) => ({
-      hora,
-      capacidade: Math.round(capacidade),
-      totalProducao: Math.round(metaDia)
-    }));
+    // Capacidade por hora (mesma estrutura das metas) + dados de realizado
+    const capacidadePorHora = Object.entries(metasPorHora).map(([hora, capacidade]) => {
+      const h = parseInt(hora);
+      const prodHora = producaoComMeta.find(p => parseInt(p.hora) === h);
+      
+      return {
+        hora,
+        capacidade: Math.round(capacidade),
+        realizado: prodHora ? prodHora.realizado : 0,
+        percentual: prodHora ? prodHora.percentual : 0,
+        totalProducao: Math.round(metaDia)
+      };
+    });
 
     console.log("✅ Resposta preparada com sucesso");
     console.log("\n📤 DADOS ENVIADOS AO FRONTEND:");

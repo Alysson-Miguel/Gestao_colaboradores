@@ -26,18 +26,28 @@ export default function ProducaoChart({ data, kpis }) {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
+      
+      // Determinar cor baseada na performance
+      const getPerformanceColor = (percentual) => {
+        if (percentual >= 100) return "text-green-400";
+        if (percentual >= 95) return "text-yellow-400";
+        return "text-red-400";
+      };
+      
       return (
         <div className="bg-[#1A1A1C] border border-[#2A2A2C] p-4 rounded shadow-lg">
           <p className="font-semibold text-white">
             Hora: {d.hora}:{String(0).padStart(2, "0")}
           </p>
-          <p className="text-yellow-400">
+          <p className="text-blue-400">
             Meta: {d.meta.toLocaleString("pt-BR")}
           </p>
-          <p className="text-red-400">
+          <p className={getPerformanceColor(d.percentual)}>
             Realizado: {d.realizado.toLocaleString("pt-BR")}
           </p>
-          <p className="text-green-400">Performance: {d.percentual}%</p>
+          <p className={getPerformanceColor(d.percentual)}>
+            Performance: {d.percentual}%
+          </p>
         </div>
       );
     }
@@ -104,10 +114,7 @@ export default function ProducaoChart({ data, kpis }) {
 
           <Tooltip content={<CustomTooltip />} />
 
-          {/* Barra de Meta — fundo azul escuro */}
-          <Bar dataKey="meta" fill="#1e3a5f" name="Meta" barSize={48} radius={[3, 3, 0, 0]} />
-
-          {/* Barra de Realizado — vermelha sobreposta */}
+          {/* Barra de Realizado — com cores dinâmicas */}
           <Bar dataKey="realizado" name="Realizado" barSize={48} radius={[3, 3, 0, 0]}>
             <LabelList content={<RealizadoLabel />} />
             {dadosFiltrados.map((entry, index) => {
@@ -145,14 +152,26 @@ export default function ProducaoChart({ data, kpis }) {
           gridTemplateColumns: `repeat(${dadosFiltrados.length}, 1fr)`,
         }}
       >
-        {dadosFiltrados.map((d, i) => (
-          <div
-            key={i}
-            className="text-center font-bold text-sm py-2 rounded bg-red-600 text-white"
-          >
-            {d.percentual.toFixed(1)}%
-          </div>
-        ))}
+        {dadosFiltrados.map((d, i) => {
+          // Mesma lógica de cores das barras
+          const bgColor =
+            d.realizado === 0
+              ? "bg-gray-600"
+              : d.percentual >= 100
+              ? "bg-green-600"   // verde ≥ 100%
+              : d.percentual >= 95
+              ? "bg-yellow-600"  // amarelo ≥ 95%
+              : "bg-red-600";    // vermelho < 95%
+          
+          return (
+            <div
+              key={i}
+              className={`text-center font-bold text-sm py-2 rounded ${bgColor} text-white`}
+            >
+              {d.percentual.toFixed(1)}%
+            </div>
+          );
+        })}
       </div>
 
       {/* Faixa de hora */}
