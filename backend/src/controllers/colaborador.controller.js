@@ -750,6 +750,7 @@ const movimentarColaborador = async (req, res) => {
   return successResponse(res, null, "Movimentação realizada com sucesso");
 };
 
+let ultimoResultadoImport = null;
 /* ================= IMPORT CSV (ASYNC) ================= */
 const importColaboradores = async (req, res) => {
   if (!req.file) {
@@ -764,15 +765,15 @@ const importColaboradores = async (req, res) => {
       return errorResponse(res, "CSV vazio", 400);
     }
 
-    // ✅ RESPONDE IMEDIATAMENTE
     res.json({
       success: true,
       message: "Importação iniciada em segundo plano",
       totalLinhas: rows.length,
     });
 
-    /* ================= PROCESSAMENTO EM BACKGROUND ================= */
+    /* ================= PROCESSAMENTO BACKGROUND ================= */
     setImmediate(async () => {
+
       console.log(`🚀 Import CSV iniciado (${rows.length} linhas)`);
 
       let criados = 0;
@@ -780,161 +781,62 @@ const importColaboradores = async (req, res) => {
       let skipped = 0;
       const errors = [];
 
-      const cache = {
-        empresa: new Map(),
-        setor: new Map(),
-        cargo: new Map(),
-        turno: new Map(),
-        escala: new Map(),
-        estacao: new Map(),
-      };
-
-      /* ================= HELPERS ================= */
-
-      const parseDateBR = (v) => {
-        if (!v) return null;
-        const [d, m, y] = String(v).trim().split("/");
-        if (!d || !m || !y) return null;
-        const date = new Date(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T00:00:00`);
-        return isNaN(date.getTime()) ? null : date;
-      };
-
       const parseHorario = (v) => {
         if (!v) return null;
+
         const h = String(v).trim();
-        if (!/^\d{2}:\d{2}$/.test(h)) return null;
-        return new Date(`1970-01-01T${h}:00`);
+
+        const parts = h.split(":");
+
+        if (parts.length !== 2) return null;
+
+        const hora = parts[0].padStart(2, "0");
+        const min = parts[1].padStart(2, "0");
+
+        return new Date(`1970-01-01T${hora}:${min}:00`);
       };
 
-      const getOrCreate = async (model, uniqueField, value, createData, idField, cacheMap) => {
-        const key = value?.trim();
-        if (!key) return null;
+      const parseDate = (v) => {
+        if (!v) return null;
 
-        if (cacheMap.has(key)) return cacheMap.get(key);
+        const d = new Date(v);
 
-        const found = await prisma[model].findUnique({
-          where: { [uniqueField]: key },
-          select: { [idField]: true },
-        });
+        if (isNaN(d.getTime())) return null;
 
-        if (found) {
-          cacheMap.set(key, found);
-          return found;
-        }
-
-        const created = await prisma[model].create({
-          data: createData,
-          select: { [idField]: true },
-        });
-
-        cacheMap.set(key, created);
-        return created;
-      };
-
-      const getOnly = async (model, uniqueField, value, idField, cacheMap) => {
-        const key = value?.trim();
-        if (!key) return null;
-
-        if (cacheMap.has(key)) return cacheMap.get(key);
-
-        const found = await prisma[model].findUnique({
-          where: { [uniqueField]: key },
-          select: { [idField]: true },
-        });
-
-        cacheMap.set(key, found || null);
-        return found;
+        return d;
       };
 
       /* ================= LOOP CSV ================= */
       for (let i = 0; i < rows.length; i++) {
+
         const row = rows[i];
-        let opsId = null;
 
         try {
-          opsId = String(row["Ops ID"] || "").trim();
+
+          const opsId = String(row["ops_id"] || "").trim();
+
           if (!opsId) {
             skipped++;
             continue;
           }
 
-          const nomeCompleto = String(
-            row["Nome do Funcionário"] || row["Nome"] || ""
-          ).trim();
-
-          const matricula = String(
-            row["Matrícula"] || row["Matricula"] || ""
-          ).trim();
+          const nomeCompleto = String(row["nome_completo"] || "").trim();
+          const matricula = String(row["matricula"] || "").trim();
 
           if (!nomeCompleto || !matricula) {
             skipped++;
             continue;
           }
 
-          const dataAdmissao = parseDateBR(row["Data de admissão"]);
+          const dataAdmissao = parseDate(row["data_admissao"]);
+
           if (!dataAdmissao) {
             skipped++;
             continue;
           }
 
-          /* ================= ORGANIZAÇÃO ================= */
-
-          const empresa = await getOrCreate(
-            "empresa",
-            "razaoSocial",
-            row["Empresa"],
-            { razaoSocial: row["Empresa"], ativo: true },
-            "idEmpresa",
-            cache.empresa
-          );
-
-          const setor = await getOrCreate(
-            "setor",
-            "nomeSetor",
-            row["Setor"],
-            { nomeSetor: row["Setor"], ativo: true },
-            "idSetor",
-            cache.setor
-          );
-
-          const cargo = await getOrCreate(
-            "cargo",
-            "nomeCargo",
-            row["Cargo"],
-            { nomeCargo: row["Cargo"], ativo: true },
-            "idCargo",
-            cache.cargo
-          );
-
-          // ❗ NÃO CRIA TURNO
-          const turno = await getOnly(
-            "turno",
-            "nomeTurno",
-            row["Turno"],
-            "idTurno",
-            cache.turno
-          );
-
-          // ❗ NÃO CRIA ESCALA
-          const escala = await getOnly(
-            "escala",
-            "nomeEscala",
-            row["Escala de trabalho"],
-            "idEscala",
-            cache.escala
-          );
-
-          // ❗ NÃO CRIA ESTAÇÃO
-          const estacao = await getOnly(
-            "estacao",
-            "nomeEstacao",
-            row["Estação"],
-            "idEstacao",
-            cache.estacao
-          );
-
           const horarioInicioJornada =
-            parseHorario(row["Início da jornada"]) ||
+            parseHorario(row["hora_inicio_jornada"]) ||
             new Date("1970-01-01T05:25:00");
 
           const existing = await prisma.colaborador.findUnique({
@@ -942,21 +844,42 @@ const importColaboradores = async (req, res) => {
             select: { opsId: true },
           });
 
-          /* ================= DATA SAFE ================= */
           const data = {
-            opsId,
-            nomeCompleto,
-            matricula,
-            dataAdmissao,
-            horarioInicioJornada,
-            status: "ATIVO",
 
-            ...(empresa && { idEmpresa: empresa.idEmpresa }),
-            ...(setor && { idSetor: setor.idSetor }),
-            ...(cargo && { idCargo: cargo.idCargo }),
-            ...(turno && { idTurno: turno.idTurno }),
-            ...(escala && { idEscala: escala.idEscala }),
-            ...(estacao && { idEstacao: estacao.idEstacao }),
+            opsId,
+
+            nomeCompleto,
+
+            genero: row["genero"] || null,
+
+            matricula,
+
+            dataAdmissao,
+
+            horarioInicioJornada,
+
+            status: row["status"] || "ATIVO",
+
+            cpf: row["cpf"] ? String(row["cpf"]) : null,
+
+            dataNascimento: parseDate(row["data_nascimento"]),
+
+            email: row["email"] || null,
+
+            telefone: row["telefone"] ? String(row["telefone"]) : null,
+
+            idSetor: row["id_setor"] ? Number(row["id_setor"]) : null,
+
+            idCargo: row["id_cargo"] ? Number(row["id_cargo"]) : null,
+
+            idEmpresa: row["id_empresa"] ? Number(row["id_empresa"]) : null,
+
+            idTurno: row["id_turno"] ? Number(row["id_turno"]) : null,
+
+            idEscala: row["id_escala"] ? Number(row["id_escala"]) : null,
+
+            idLider: row["id_lider"] || null,
+
           };
 
           await prisma.colaborador.upsert({
@@ -966,28 +889,58 @@ const importColaboradores = async (req, res) => {
           });
 
           existing ? atualizados++ : criados++;
+
         } catch (err) {
+
           skipped++;
-          errors.push(`Linha ${i + 1} (Ops ${opsId || "N/A"}): ${err.message}`);
+
+          errors.push(
+            `Linha ${i + 1} (Ops ${row["ops_id"] || "N/A"}): ${err.message}`
+          );
         }
       }
 
-      console.log("✅ Import CSV finalizado", {
+      const resultado = {
         total: rows.length,
         criados,
         atualizados,
         skipped,
         erros: errors.length,
-      });
+        finalizado: true,
+        data: new Date(),
+      };
+
+      ultimoResultadoImport = resultado;
+
+      console.log("✅ Import CSV finalizado", resultado);
+
+      if (errors.length) {
+        console.log("⚠ ERROS CSV:");
+        errors.slice(0, 20).forEach((e) => console.log(e));
+      }
+
     });
+
   } catch (err) {
+
     console.error("❌ ERRO IMPORT CSV:", err);
+
     return errorResponse(res, "Erro ao iniciar importação", 500, err);
   }
 };
 
+const getStatusImport = async (req, res) => {
+  if (!ultimoResultadoImport) {
+    return res.json({
+      status: "processing"
+    });
+  }
 
-
+  return res.json({
+    status: "completed",
+    ...ultimoResultadoImport
+  });
+};
 
 /* ================= GET BY OPS ID (DUPLICADO - MANTER SE NECESSÁRIO) ================= */
 const getByOpsId = async (req, res) => {
@@ -1018,5 +971,6 @@ module.exports = {
   deleteColaborador,
   movimentarColaborador,
   importColaboradores,
+  getStatusImport,
   listarLideres,
 };
