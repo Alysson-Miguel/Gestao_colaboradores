@@ -17,6 +17,15 @@ export default function GestaoOperacional() {
   useEffect(() => {
     console.log("🔄 useEffect disparado - Filtros atualizados:", { data, turno });
     carregarDados();
+    
+    // Atualização automática a cada 1 minuto
+    const intervalo = setInterval(() => {
+      console.log("⏰ Atualização automática disparada");
+      carregarDados();
+    }, 60000); // 60 segundos
+    
+    // Limpar intervalo ao desmontar ou quando filtros mudarem
+    return () => clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, turno]);
 
@@ -48,6 +57,25 @@ export default function GestaoOperacional() {
       setErro(mensagemErro);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const limparCacheEAtualizar = async () => {
+    try {
+      setLoading(true);
+      console.log("🗑️ Limpando cache...");
+      
+      // Limpar cache no backend
+      await api.post("/cache/limpar");
+      
+      console.log("✅ Cache limpo, recarregando dados...");
+      
+      // Recarregar dados
+      await carregarDados();
+    } catch (error) {
+      console.error("❌ Erro ao limpar cache:", error);
+      // Mesmo com erro, tenta recarregar
+      await carregarDados();
     }
   };
 
@@ -94,14 +122,24 @@ export default function GestaoOperacional() {
             </div>
             
             <div className="flex items-center gap-3">
-              {/* Botão de atualizar */}
+              {/* Botão de atualizar com cache limpo */}
+              <button
+                onClick={() => limparCacheEAtualizar()}
+                disabled={loading}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-[#5A5A5C] rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                title="Limpar cache e atualizar dados da planilha"
+              >
+                {loading ? "Carregando..." : "🔄 Forçar Atualização"}
+              </button>
+              
+              {/* Botão de atualizar normal */}
               <button
                 onClick={() => carregarDados()}
                 disabled={loading}
                 className="px-4 py-2 bg-[#E8491D] hover:bg-[#d43d11] disabled:bg-[#5A5A5C] rounded-lg text-white text-sm font-semibold transition-colors"
                 title="Atualizar dados"
               >
-                {loading ? "Carregando..." : "🔄 Atualizar"}
+                {loading ? "Carregando..." : "↻ Atualizar"}
               </button>
               
               {/* Filtro de Turno */}
@@ -194,19 +232,19 @@ export default function GestaoOperacional() {
 
               {/* Meta X Realizado */}
               <div className="flex flex-col items-center justify-center">
-                <div className="text-center mb-4">
-                  <div className="text-lg font-semibold text-white mb-2">
+                <div className="text-center">
+                  <div className="text-lg font-semibold text-white mb-4">
                     Meta <span className="text-[#BFBFC3]">X</span>{" "}
                     <span className="text-[#E8491D]">Realizado</span>
                   </div>
-                  <div className="flex gap-8 justify-center">
-                    <div>
-                      <div className="text-3xl font-bold text-[#1e3a5f]">
-                        {kpis.metaHoraProjetada?.toLocaleString("pt-BR") || "0"}
+                  <div className="flex gap-12 justify-center items-baseline">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-blue-400">
+                        {kpis.metaDia?.toLocaleString("pt-BR") || "0"}
                       </div>
                     </div>
-                    <div>
-                      <div className="text-3xl font-bold text-[#E8491D]">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-[#E8491D]">
                         {kpis.realizado?.toLocaleString("pt-BR") || "0"}
                       </div>
                     </div>
