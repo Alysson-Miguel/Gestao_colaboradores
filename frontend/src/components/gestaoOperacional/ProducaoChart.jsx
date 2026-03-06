@@ -11,7 +11,7 @@ import {
   Cell,
 } from "recharts";
 
-export default function ProducaoChart({ data, kpis }) {
+export default function ProducaoChart({ data, kpis, desabilitarAnimacoes = false }) {
   if (!data || data.length === 0) {
     return (
       <div className="text-center py-8 text-[#BFBFC3]">
@@ -115,7 +115,13 @@ export default function ProducaoChart({ data, kpis }) {
           <Tooltip content={<CustomTooltip />} />
 
           {/* Barra de Realizado — com cores dinâmicas */}
-          <Bar dataKey="realizado" name="Realizado" barSize={48} radius={[3, 3, 0, 0]}>
+          <Bar 
+            dataKey="realizado" 
+            name="Realizado" 
+            barSize={48} 
+            radius={[3, 3, 0, 0]}
+            isAnimationActive={!desabilitarAnimacoes}
+          >
             <LabelList content={<RealizadoLabel />} />
             {dadosFiltrados.map((entry, index) => {
               const color =
@@ -139,6 +145,7 @@ export default function ProducaoChart({ data, kpis }) {
             dot={{ fill: "#f59e0b", r: 5, strokeWidth: 0 }}
             name="Tendência"
             legendType="none"
+            isAnimationActive={!desabilitarAnimacoes}
           >
             <LabelList content={<MetaLabel />} />
           </Line>

@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
-import { Calendar, Package } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Calendar, Package, Send } from "lucide-react";
 import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import ProducaoChart from "../../components/gestaoOperacional/ProducaoChart";
+import domtoimage from "dom-to-image-more";
+import toast from "react-hot-toast";
 // import CapacidadeTable from "../../components/gestaoOperacional/CapacidadeTable"; // Comentado - será usado futuramente
 
 export default function GestaoOperacional() {
@@ -13,6 +15,11 @@ export default function GestaoOperacional() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [erro, setErro] = useState(null);
+  const [enviandoScreenshot, setEnviandoScreenshot] = useState(false);
+  const [ocultarRanking, setOcultarRanking] = useState(false);
+  const [desabilitarAnimacoes, setDesabilitarAnimacoes] = useState(false);
+  const [ocultarHeader, setOcultarHeader] = useState(false);
+  const mainContentRef = useRef(null);
 
   useEffect(() => {
     console.log("🔄 useEffect disparado - Filtros atualizados:", { data, turno });
@@ -79,6 +86,123 @@ export default function GestaoOperacional() {
     }
   };
 
+  const enviarScreenshotParaSeatalk = async () => {
+    try {
+      setEnviandoScreenshot(true);
+      
+      console.log("🚀 Iniciando processo de screenshot...");
+      toast.loading("Preparando screenshot...", { id: "screenshot" });
+      
+      // Ocultar o ranking Top 15
+      setOcultarRanking(true);
+      // Ocultar o header com filtros
+      setOcultarHeader(true);
+      // Desabilitar animações do gráfico
+      setDesabilitarAnimacoes(true);
+      console.log("👁️ Header e ranking ocultados, animações desabilitadas");
+      
+      // Aguardar 12 segundos para garantir que todos os gráficos estejam renderizados
+      console.log("⏳ Aguardando 12 segundos para renderização completa...");
+      await new Promise(resolve => setTimeout(resolve, 12000));
+      
+      toast.loading("Capturando tela...", { id: "screenshot" });
+      console.log("📸 Capturando screenshot...");
+      
+      // Capturar diretamente o elemento original
+      const original = mainContentRef.current;
+      
+      // Salvar padding original
+      const originalPadding = original.style.padding;
+      
+      // Remover padding temporariamente
+      original.style.padding = "0";
+      
+      // Salvar estilos originais das bordas
+      const elementsWithBorders = [];
+      original.querySelectorAll("*").forEach(el => {
+        const originalBorder = el.style.border;
+        const originalOutline = el.style.outline;
+        if (originalBorder || originalOutline) {
+          elementsWithBorders.push({ el, originalBorder, originalOutline });
+        }
+        el.style.border = "none";
+        el.style.outline = "none";
+      });
+      
+      // Aguardar um pouco para garantir que as mudanças foram aplicadas
+      await new Promise(r => setTimeout(r, 100));
+      
+      // Forçar reflow
+      original.offsetHeight;
+      
+      // Capturar o screenshot do elemento original
+      const imageBase64 = await domtoimage.toPng(original, {
+        bgcolor: "#0D0D0D",
+        quality: 1,
+        cacheBust: true,
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+          border: "none",
+          outline: "none",
+          margin: "0",
+          padding: "0",
+        },
+      });
+      
+      // Restaurar padding original
+      original.style.padding = originalPadding;
+      
+      // Restaurar bordas originais
+      elementsWithBorders.forEach(({ el, originalBorder, originalOutline }) => {
+        el.style.border = originalBorder;
+        el.style.outline = originalOutline;
+      });
+      
+      console.log("✅ Screenshot capturado com sucesso");
+      console.log("📦 Imagem convertida para base64, tamanho:", Math.round(imageBase64.length / 1024), "KB");
+      
+      toast.loading("Enviando para Seatalk...", { id: "screenshot" });
+      
+      // Formatar período
+      const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+      console.log("📅 Data formatada:", dataFormatada);
+      console.log("🕐 Turno:", turno);
+      
+      // Enviar para o backend
+      console.log("🌐 Enviando para API...");
+      const response = await api.post("/reports/seatalk", {
+        image: imageBase64,
+        periodo: dataFormatada,
+        turno: turno,
+        groupId: "NjA1Njc0MzU0ODAz", // Grupo específico para Gestão Operacional
+      });
+      
+      console.log("✅ Resposta da API:", response.data);
+      toast.success("Screenshot enviado com sucesso!", { id: "screenshot" });
+      
+    } catch (error) {
+      console.error("❌ Erro ao enviar screenshot:", error);
+      console.error("� Detalhes do erro:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      
+      toast.error(
+        error.response?.data?.message || error.message || "Erro ao enviar screenshot",
+        { id: "screenshot" }
+      );
+    } finally {
+      // Mostrar o ranking novamente
+      console.log("🔄 Restaurando elementos");
+      setOcultarRanking(false);
+      setOcultarHeader(false);
+      setDesabilitarAnimacoes(false);
+      setEnviandoScreenshot(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#0D0D0D] text-[#BFBFC3]">
@@ -107,9 +231,10 @@ export default function GestaoOperacional() {
       <div className="flex-1 lg:ml-64 min-w-0">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="p-6 xl:p-10 2xl:px-20 space-y-6 max-w-[1600px] mx-auto">
+        <main ref={mainContentRef} className="p-6 xl:p-10 2xl:px-20 space-y-6 max-w-[1600px] mx-auto">
           {/* Header com Badge PACKING e Filtros */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          {!ocultarHeader && (
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
               <div className="bg-[#E8491D] px-6 py-3 rounded-lg flex items-center gap-2">
                 <Package className="w-6 h-6" />
@@ -130,6 +255,17 @@ export default function GestaoOperacional() {
                 title="Limpar cache e atualizar dados da planilha"
               >
                 {loading ? "Carregando..." : "🔄 Forçar Atualização"}
+              </button>
+              
+              {/* Botão de enviar screenshot para Seatalk */}
+              <button
+                onClick={() => enviarScreenshotParaSeatalk()}
+                disabled={enviandoScreenshot || loading}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-[#5A5A5C] disabled:cursor-not-allowed cursor-pointer rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2"
+                title="Enviar screenshot para Seatalk (sem ranking)"
+              >
+                <Send className="w-4 h-4" />
+                {enviandoScreenshot ? "Enviando..." : "Enviar para Seatalk"}
               </button>
               
               {/* Filtro de Turno */}
@@ -158,6 +294,7 @@ export default function GestaoOperacional() {
               </div>
             </div>
           </div>
+          )}
 
           {/* KPIs Header - Estilo da imagem */}
           <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg overflow-hidden shadow-lg">
@@ -282,7 +419,11 @@ export default function GestaoOperacional() {
             </div>
 
             {/* Gráfico */}
-            <ProducaoChart data={dashboardData?.producaoPorHora || []} kpis={kpis} />
+            <ProducaoChart 
+              data={dashboardData?.producaoPorHora || []} 
+              kpis={kpis}
+              desabilitarAnimacoes={desabilitarAnimacoes}
+            />
           </div>
 
           {/* TODO: Tabela de Capacidade - Será substituída por dados do banco
@@ -295,7 +436,8 @@ export default function GestaoOperacional() {
           </div> */}
 
           {/* Ranking Top 15 Produtividade */}
-          <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg shadow-lg p-6">
+          {!ocultarRanking && (
+            <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg shadow-lg p-6">
             <h2 className="text-xl font-semibold mb-4">Top 15 - Produtividade</h2>
             <p className="text-sm text-[#BFBFC3] mb-6">
               Ranking dos colaboradores com maior produção no dia selecionado
@@ -306,10 +448,7 @@ export default function GestaoOperacional() {
                 {/* Top 3 - Gráfico Visual */}
                 <div className="grid grid-cols-3 gap-4 mb-8">
                   {dashboardData.rankingProdutividade.slice(0, 3).map((colaborador, index) => {
-                    const colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Ouro, Prata, Bronze
                     const bgColors = ['bg-yellow-500', 'bg-gray-400', 'bg-orange-600'];
-                    const maxTotal = dashboardData.rankingProdutividade[0].total;
-                    const heightPercent = (colaborador.total / maxTotal) * 100;
                     
                     return (
                       <div key={index} className="flex flex-col items-center">
@@ -362,6 +501,7 @@ export default function GestaoOperacional() {
               <div className="text-center py-8 text-[#BFBFC3]">Sem dados disponíveis</div>
             )}
           </div>
+          )}
         </main>
       </div>
     </div>
