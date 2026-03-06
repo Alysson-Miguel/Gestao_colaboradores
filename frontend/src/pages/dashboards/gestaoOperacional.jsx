@@ -187,11 +187,13 @@ export default function GestaoOperacional() {
                 </div>
               </div>
 
-              {/* Meta Hora Projetada */}
+              {/* Meta Hora Atual */}
               <div className="bg-[#E8491D] text-white p-6 text-center">
-                <div className="text-sm font-semibold mb-2">META HORA PROJETADA</div>
+                <div className="text-sm font-semibold mb-2">
+                  META HORA ATUAL {kpis.horaAtual !== undefined && `(${kpis.horaAtual}h)`}
+                </div>
                 <div className="text-4xl font-bold">
-                  {kpis.metaHoraProjetada?.toLocaleString("pt-BR") || "0"}
+                  {kpis.metaHoraAtual?.toLocaleString("pt-BR") || "0"}
                 </div>
               </div>
 

@@ -74,12 +74,19 @@ const carregarGestaoOperacional = async (req, res) => {
     // Calcular totais
     const horaAtual = agora.getHours();
     let metaHoraProjetada = 0;
+    let metaHoraAtual = 0; // Meta específica da hora atual
     let realizado = 0;
     const producaoComMeta = [];
 
     console.log("⏰ Hora atual:", horaAtual);
     console.log("📊 Quantidade por hora da planilha:", quantidadePorHora);
     console.log("📊 Produção por hora do banco:", producaoPorHora);
+    
+    // Buscar meta da hora atual
+    if (metasPorHora[horaAtual]) {
+      metaHoraAtual = metasPorHora[horaAtual];
+      console.log(`🎯 Meta da hora atual (${horaAtual}h): ${metaHoraAtual}`);
+    }
 
     // Processar todas as horas que têm meta
     for (const [horaStr, meta] of Object.entries(metasPorHora)) {
@@ -173,6 +180,8 @@ const carregarGestaoOperacional = async (req, res) => {
       kpis: {
         metaDia: Math.round(metaDia),
         metaHoraProjetada: Math.round(metaHoraProjetada),
+        metaHoraAtual: Math.round(metaHoraAtual),
+        horaAtual,
         realizado,
         mediaHoraRealizado,
         produtividade,
@@ -189,6 +198,8 @@ const carregarGestaoOperacional = async (req, res) => {
         kpis: {
           metaDia: Math.round(metaDia),
           metaHoraProjetada: Math.round(metaHoraProjetada),
+          metaHoraAtual: Math.round(metaHoraAtual),
+          horaAtual,
           realizado,
           mediaHoraRealizado,
           produtividade,
