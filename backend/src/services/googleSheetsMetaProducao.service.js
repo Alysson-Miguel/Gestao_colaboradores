@@ -365,8 +365,115 @@ async function buscarQuantidadeRealizada(dataISO) {
   }
 }
 
+/* =====================================================
+   BUSCAR RANKING DE COLABORADORES
+===================================================== */
+
+async function buscarRankingColaboradores(dataISO, limite = 15) {
+  try {
+    console.log("🔍 Iniciando busca de ranking de colaboradores:", { dataISO, limite });
+    
+    const rows = await carregarAtualizacaoColaborador();
+    const dataBusca = formatarData(dataISO);
+
+    console.log("📊 Planilha Atualização carregada:", rows.length, "linhas");
+
+    if (!rows || rows.length < 5) {
+      console.warn("⚠️ Planilha vazia ou sem dados suficientes");
+      return { success: false, data: [] };
+    }
+
+    // Estrutura da planilha:
+    // Linha 0: "Atualização Automatica da sheets"
+    // Linha 1: "Soma Total Por Hora" | valor_hora1 | valor_hora2 | ...
+    // Linha 2: "" | timestamp1 | timestamp2 | ...
+    // Linha 3: "" | data1 | data2 | ...
+    // Linha 4: "" | hora1 | hora2 | ...
+    // Linha 5+: Nome_Colaborador | quantidade_hora1 | quantidade_hora2 | ...
+
+    const linhaDatas = rows[3]; // Linha com as datas
+    
+    // Identificar colunas que correspondem à data buscada
+    const colunasData = [];
+    for (let colIndex = 1; colIndex < linhaDatas.length; colIndex++) {
+      const dataColuna = normalizar(linhaDatas[colIndex]);
+      if (dataColuna === dataBusca) {
+        colunasData.push(colIndex);
+      }
+    }
+
+    console.log(`📋 Encontradas ${colunasData.length} colunas para a data ${dataBusca}`);
+
+    if (colunasData.length === 0) {
+      console.warn("⚠️ Nenhuma coluna encontrada para a data:", dataBusca);
+      return { success: false, data: [] };
+    }
+
+    // Processar colaboradores (linhas 5+)
+    const colaboradores = [];
+    
+    for (let rowIndex = 5; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      
+      if (!row || row.length === 0) continue;
+      
+      const nomeColaborador = normalizar(row[0]);
+      
+      // Ignorar linhas vazias, totais ou "User Email"
+      if (!nomeColaborador || 
+          nomeColaborador.toLowerCase().includes('total') ||
+          nomeColaborador.toLowerCase().includes('user email') ||
+          nomeColaborador === 'User Email') {
+        continue;
+      }
+
+      // Somar produção de todas as colunas da data
+      let totalProducao = 0;
+      
+      for (const colIndex of colunasData) {
+        const valorColuna = row[colIndex];
+        
+        if (valorColuna && valorColuna !== "") {
+          const valorStr = String(valorColuna).trim().replace(/\./g, '').replace(',', '.');
+          const quantidade = parseFloat(valorStr) || 0;
+          totalProducao += quantidade;
+        }
+      }
+
+      if (totalProducao > 0) {
+        colaboradores.push({
+          nome: nomeColaborador,
+          total: totalProducao
+        });
+      }
+    }
+
+    // Ordenar por total decrescente e pegar top N
+    colaboradores.sort((a, b) => b.total - a.total);
+    const ranking = colaboradores.slice(0, limite);
+
+    console.log(`✅ Ranking gerado: ${ranking.length} colaboradores`);
+    if (ranking.length > 0) {
+      console.log("🏆 Top 3:");
+      ranking.slice(0, 3).forEach((c, i) => {
+        console.log(`  ${i + 1}º - ${c.nome}: ${c.total}`);
+      });
+    }
+
+    return {
+      success: true,
+      data: ranking
+    };
+  } catch (error) {
+    console.error("❌ Erro ao buscar ranking de colaboradores:", error.message);
+    console.error("Stack:", error.stack);
+    return { success: false, data: [] };
+  }
+}
+
 module.exports = {
   buscarMetasProducao,
   buscarQuantidadeRealizada,
+  buscarRankingColaboradores,
   limparCache,
 };

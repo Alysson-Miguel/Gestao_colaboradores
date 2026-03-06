@@ -2,7 +2,8 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { 
   buscarMetasProducao, 
-  buscarQuantidadeRealizada 
+  buscarQuantidadeRealizada,
+  buscarRankingColaboradores
 } = require("../services/googleSheetsMetaProducao.service");
 
 function agoraBrasil() {
@@ -70,6 +71,13 @@ const carregarGestaoOperacional = async (req, res) => {
     `;
 
     console.log("✅ Produção carregada:", producaoPorHora.length, "registros");
+
+    // Buscar ranking de produtividade de colaboradores (Top 15)
+    console.log("🔍 Buscando ranking de produtividade de colaboradores...");
+    const rankingResult = await buscarRankingColaboradores(dataStr, 15);
+    const rankingProdutividade = rankingResult.success ? rankingResult.data : [];
+    
+    console.log("✅ Ranking carregado:", rankingProdutividade.length, "colaboradores");
 
     // Calcular totais
     const horaAtual = agora.getHours();
@@ -213,7 +221,11 @@ const carregarGestaoOperacional = async (req, res) => {
           performance: Number(performance)
         },
         producaoPorHora: producaoComMeta,
-        capacidadePorHora
+        capacidadePorHora,
+        rankingProdutividade: rankingProdutividade.map(r => ({
+          nome: r.nome,
+          total: Number(r.total)
+        }))
       }
     });
   } catch (error) {

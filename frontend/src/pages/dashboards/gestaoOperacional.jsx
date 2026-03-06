@@ -4,7 +4,7 @@ import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import ProducaoChart from "../../components/gestaoOperacional/ProducaoChart";
-import CapacidadeTable from "../../components/gestaoOperacional/CapacidadeTable";
+// import CapacidadeTable from "../../components/gestaoOperacional/CapacidadeTable"; // Comentado - será usado futuramente
 
 export default function GestaoOperacional() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -285,10 +285,82 @@ export default function GestaoOperacional() {
             <ProducaoChart data={dashboardData?.producaoPorHora || []} kpis={kpis} />
           </div>
 
-          {/* Tabela de Capacidade */}
-          <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg shadow-lg p-6">
+          {/* TODO: Tabela de Capacidade - Será substituída por dados do banco
+              Futuramente criar tabela no banco para armazenar histórico de produção por hora
+              Permitindo consultar dados de dias anteriores e análise histórica
+          */}
+          {/* <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg shadow-lg p-6">
             <h2 className="text-xl font-semibold mb-4">Capacidade por Hora</h2>
             <CapacidadeTable data={dashboardData?.capacidadePorHora || []} />
+          </div> */}
+
+          {/* Ranking Top 15 Produtividade */}
+          <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Top 15 - Produtividade</h2>
+            <p className="text-sm text-[#BFBFC3] mb-6">
+              Ranking dos colaboradores com maior produção no dia selecionado
+            </p>
+            
+            {dashboardData?.rankingProdutividade && dashboardData.rankingProdutividade.length > 0 ? (
+              <>
+                {/* Top 3 - Gráfico Visual */}
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  {dashboardData.rankingProdutividade.slice(0, 3).map((colaborador, index) => {
+                    const colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Ouro, Prata, Bronze
+                    const bgColors = ['bg-yellow-500', 'bg-gray-400', 'bg-orange-600'];
+                    const maxTotal = dashboardData.rankingProdutividade[0].total;
+                    const heightPercent = (colaborador.total / maxTotal) * 100;
+                    
+                    return (
+                      <div key={index} className="flex flex-col items-center">
+                        <div className="text-4xl mb-2">
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                        </div>
+                        <div className="w-full bg-[#2A2A2C] rounded-lg p-4 text-center">
+                          <div className="text-xs text-[#BFBFC3] mb-2">{index + 1}º Lugar</div>
+                          <div className="text-sm font-semibold text-white mb-2 truncate" title={colaborador.nome}>
+                            {colaborador.nome}
+                          </div>
+                          <div className={`${bgColors[index]} text-white font-bold text-2xl py-2 rounded`}>
+                            {colaborador.total.toLocaleString("pt-BR")}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Tabela Completa */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-[#2A2A2C]">
+                        <th className="border border-[#3A3A3C] p-3 text-center font-semibold text-white">Posição</th>
+                        <th className="border border-[#3A3A3C] p-3 text-left font-semibold text-white">Nome</th>
+                        <th className="border border-[#3A3A3C] p-3 text-center font-semibold text-white">Total Produzido</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboardData.rankingProdutividade.map((colaborador, index) => (
+                        <tr key={index} className="hover:bg-[#242426]">
+                          <td className="border border-[#3A3A3C] p-3 text-center text-white font-bold">
+                            {index + 1}º
+                          </td>
+                          <td className="border border-[#3A3A3C] p-3 text-left text-white">
+                            {colaborador.nome}
+                          </td>
+                          <td className="border border-[#3A3A3C] p-3 text-center text-white font-semibold">
+                            {colaborador.total.toLocaleString("pt-BR")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-[#BFBFC3]">Sem dados disponíveis</div>
+            )}
           </div>
         </main>
       </div>
