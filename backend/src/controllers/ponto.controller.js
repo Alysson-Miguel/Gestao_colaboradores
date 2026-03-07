@@ -87,8 +87,8 @@ function isDiaDSR(dataOperacional, nomeEscala) {
   const dow = new Date(dataOperacional).getDay();
 
   const dsrMap = {
-    A: [0, 3], // domingo, quarta
-    B: [1, 2], // segunda, terça
+    E: [0, 1], // domingo, segunda
+    G: [2, 3], // terça, quarta
     C: [4, 5], // quinta, sexta
   };
 
