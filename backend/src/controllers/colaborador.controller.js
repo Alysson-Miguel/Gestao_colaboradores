@@ -636,7 +636,7 @@ const updateColaborador = async (req, res) => {
     ============================== */
     let novaEscalaId = null;
 
-    if (idEscala !== undefined) {
+    if (idEscala !== undefined && idEscala !== "") {
       const parsed =
         idEscala === null || idEscala === "" ? null : Number(idEscala);
 
@@ -694,41 +694,79 @@ const updateColaborador = async (req, res) => {
 
     const colaborador = await prisma.$transaction(async (tx) => {
 
-      const atualizado = await tx.colaborador.update({
-        where: { opsId },
-        data,
+    const atual = await tx.colaborador.findUnique({
+      where: { opsId },
+      select: { idEscala: true }
+    });
+
+    const atualizado = await tx.colaborador.update({
+      where: { opsId },
+      data,
+    });
+
+    const tipoDSR = await tx.tipoAusencia.findFirst({
+      where: { codigo: "DSR" },
+      select: { idTipoAusencia: true }
+    });
+
+    const escalaMudou =
+      novaEscalaId !== null &&
+      Number(novaEscalaId) !== Number(atual?.idEscala);
+
+    if (escalaMudou) {
+
+      const hoje = startOfDayBR();
+
+      /* FECHAR HISTORICO ATUAL */
+
+      await tx.colaboradorEscalaHistorico.updateMany({
+        where: {
+          opsId,
+          dataFim: null,
+        },
+        data: {
+          dataFim: new Date(hoje.getTime() - 86400000),
+        },
       });
 
-      if (novaEscalaId !== null) {
+      /* CRIAR NOVO HISTORICO */
 
-        const hoje = startOfDayBR();
+      await tx.colaboradorEscalaHistorico.create({
+        data: {
+          opsId,
+          idEscala: novaEscalaId,
+          dataInicio: hoje,
+        },
+      });
 
-        /* FECHAR HISTORICO ATUAL */
-
-        await tx.colaboradorEscalaHistorico.updateMany({
-          where: {
-            opsId,
-            dataFim: null,
+      await tx.frequencia.deleteMany({
+        where: {
+          opsId,
+          dataReferencia: {
+            gte: hoje
           },
-          data: {
-            dataFim: new Date(hoje.getTime() - 86400000),
-          },
+          idTipoAusencia: tipoDSR.idTipoAusencia,
+          manual: false
+        }
+      });
+
+      const novaEscala = await tx.escala.findUnique({
+        where: { idEscala: novaEscalaId },
+        select: { nomeEscala: true },
+      });
+
+      if (novaEscala?.nomeEscala) {
+        await gerarDSRFuturo({
+          opsId,
+          escala: novaEscala.nomeEscala,
+          dataInicio: hoje,
         });
-
-        /* CRIAR NOVA ESCALA */
-
-        await tx.colaboradorEscalaHistorico.create({
-          data: {
-            opsId,
-            idEscala: novaEscalaId,
-            dataInicio: hoje,
-          },
-        });
-
       }
 
-      return atualizado;
-    });
+    }
+
+    return atualizado;
+  });
 
     return successResponse(
       res,

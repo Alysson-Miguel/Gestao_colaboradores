@@ -11,7 +11,7 @@ const { finalizarAtestadosVencidos } = require("../utils/atestadoAutoFinalize");
 const { exportarControlePresenca } = require("../services/googleSheetsPresenca.service");
 const { error } = require("../utils/logger");
 
-
+let tipoDSRCache = null;
 /* =====================================================
    HELPERS
 ===================================================== */
@@ -72,6 +72,15 @@ function getEscalaNoDia(opsId, data, historicoMap) {
   return registro?.escala?.nomeEscala || null;
 }
 
+async function getTipoDSR() {
+  if (!tipoDSRCache) {
+    tipoDSRCache = await prisma.tipoAusencia.findFirst({
+      where: { codigo: "DSR" },
+    });
+  }
+  return tipoDSRCache;
+}
+
 // "âncora" pra salvar time-only no Postgres (campo @db.Time)
 function toTimeOnly(dateObj) {
   const d = new Date(dateObj);
@@ -111,6 +120,8 @@ function isDiaDSR(dataOperacional, nomeEscala) {
   const dias = dsrMap[String(nomeEscala || "").toUpperCase()];
   return !!dias?.includes(dow);
 }
+
+
 
 /* =====================================================
    POST /ponto/registrar  (colaborador bate ponto via CPF)
@@ -427,10 +438,17 @@ const getControlePresenca = async (req, res) => {
   const reqId = `CTRL-${Date.now()}`;
 
   try {
-
     await finalizarAtestadosVencidos();
 
-    const { mes, turno, escala, search, lider, pendenciaSaida, pendentesHoje } = req.query;
+    const {
+      mes,
+      turno,
+      escala,
+      search,
+      lider,
+      pendenciaSaida,
+      pendentesHoje,
+    } = req.query;
 
     console.log(`[${reqId}] /ponto/controle query:`, req.query);
 
@@ -445,12 +463,14 @@ const getControlePresenca = async (req, res) => {
     }
 
     const inicioMes = new Date(ano, mesNum - 1, 1);
-    const fimMes = new Date(ano, mesNum, 0, 23, 59, 59);
+    inicioMes.setHours(0, 0, 0, 0);
+
+    const fimMes = new Date(ano, mesNum, 0);
+    fimMes.setHours(23, 59, 59, 999);
 
     /* =====================================================
        FILTROS COLABORADOR
     ===================================================== */
-
     const whereColaborador = {
       status: "ATIVO",
       dataDesligamento: null,
@@ -468,9 +488,15 @@ const getControlePresenca = async (req, res) => {
           },
         },
       },
-      ...(turno && turno !== "TODOS" ? { turno: { nomeTurno: turno } } : {}),
-      ...(escala && escala !== "TODOS" ? { escala: { nomeEscala: escala } } : {}),
-      ...(lider && lider !== "TODOS" ? { idLider: lider } : {}),
+      ...(turno && turno !== "TODOS"
+        ? { turno: { nomeTurno: turno } }
+        : {}),
+      ...(escala && escala !== "TODOS"
+        ? { escala: { nomeEscala: escala } }
+        : {}),
+      ...(lider && lider !== "TODOS"
+        ? { idLider: lider }
+        : {}),
       ...(search
         ? { nomeCompleto: { contains: String(search), mode: "insensitive" } }
         : {}),
@@ -520,13 +546,11 @@ const getControlePresenca = async (req, res) => {
     /* =====================================================
        OPS IDS
     ===================================================== */
-
     const opsIds = colaboradores.map((c) => c.opsId);
 
     /* =====================================================
        HISTÓRICO DE ESCALA
     ===================================================== */
-
     const historicoEscalas = await prisma.colaboradorEscalaHistorico.findMany({
       where: {
         opsId: { in: opsIds },
@@ -534,6 +558,10 @@ const getControlePresenca = async (req, res) => {
       include: {
         escala: true,
       },
+      orderBy: [
+        { opsId: "asc" },
+        { dataInicio: "asc" },
+      ],
     });
 
     const historicoMap = {};
@@ -546,7 +574,6 @@ const getControlePresenca = async (req, res) => {
     /* =====================================================
        FREQUÊNCIAS
     ===================================================== */
-
     const frequencias = await prisma.frequencia.findMany({
       where: {
         opsId: { in: opsIds },
@@ -587,7 +614,6 @@ const getControlePresenca = async (req, res) => {
     /* =====================================================
        DIAS DO MÊS
     ===================================================== */
-
     const dias = Array.from(
       { length: new Date(ano, mesNum, 0).getDate() },
       (_, i) => i + 1
@@ -596,8 +622,9 @@ const getControlePresenca = async (req, res) => {
     /* =====================================================
        MONTAGEM DA GRADE
     ===================================================== */
+    const resultado = [];
 
-    const resultado = colaboradores.map((c) => {
+    for (const c of colaboradores) {
       const diasMap = {};
 
       for (let d = 1; d <= dias.length; d++) {
@@ -610,25 +637,22 @@ const getControlePresenca = async (req, res) => {
         /* ===============================
            MANUAL TEM PRIORIDADE
         =============================== */
-
         if (freqMap[key]?.manual) {
           const f = freqMap[key];
 
           diasMap[dataISO] = {
-            status: f.tipoAusencia?.codigo,
+            status: f.tipoAusencia?.codigo || "-",
             entrada: f.horaEntrada,
             saida: f.horaSaida,
             validado: !!f.validado,
             manual: true,
           };
-
           continue;
         }
 
         /* ===============================
            STATUS ADMINISTRATIVO
         =============================== */
-
         const statusAdmin = getStatusAdministrativo(c, dataCalendario);
 
         if (statusAdmin) {
@@ -637,32 +661,29 @@ const getControlePresenca = async (req, res) => {
             origem: statusAdmin.origem,
             manual: false,
           };
-
           continue;
         }
 
         /* ===============================
            FREQUÊNCIA
         =============================== */
-
         if (freqMap[key]) {
           const f = freqMap[key];
 
           diasMap[dataISO] = {
-            status: f.tipoAusencia?.codigo,
+            status: f.tipoAusencia?.codigo || "-",
             entrada: f.horaEntrada,
             saida: f.horaSaida,
-            validado: f.validado,
-            manual: f.manual ?? false,
+            validado: !!f.validado,
+            manual: !!f.manual,
           };
-
           continue;
         }
 
         /* ===============================
            DSR BASEADO NA ESCALA DO DIA
+           OBS: APENAS EXIBE, NÃO ESCREVE NO BANCO
         =============================== */
-
         const escalaDia = getEscalaNoDia(c.opsId, dataCalendario, historicoMap);
 
         if (isDiaDSR(dataCalendario, escalaDia)) {
@@ -670,37 +691,36 @@ const getControlePresenca = async (req, res) => {
             status: "DSR",
             manual: false,
           };
-
           continue;
         }
 
         /* ===============================
-           FALTA
+           FALTA / SEM LANÇAMENTO
         =============================== */
-
         diasMap[dataISO] = {
           status: "-",
           manual: false,
         };
       }
 
-      return {
+      resultado.push({
         opsId: c.opsId,
         nome: c.nomeCompleto,
-        turno: c.turno?.nomeTurno,
-        escala: c.escala?.nomeEscala,
+        turno: c.turno?.nomeTurno || null,
+        escala: c.escala?.nomeEscala || null,
         dias: diasMap,
-      };
-    });
+      });
+    }
 
     /* =====================================================
        FILTRO PENDENTES HOJE
     ===================================================== */
-
     let colaboradoresFiltrados = resultado;
 
     if (pendentesHoje === "true") {
       const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
       const diaHoje = hoje.getDate();
       const mesHoje = hoje.getMonth() + 1;
       const anoHoje = hoje.getFullYear();
@@ -791,10 +811,6 @@ const ajusteManualPresenca = async (req, res) => {
         "Colaborador não está ativo",
         403
       );
-    }
-
-    if (!colaborador) {
-      return notFoundResponse(res, "Colaborador não encontrado ou inativo");
     }
 
     /* ===============================
@@ -1096,6 +1112,7 @@ const exportarPresencaSheets = async (req, res) => {
       if (!historicoMap[h.opsId]) historicoMap[h.opsId] = [];
       historicoMap[h.opsId].push(h);
     }
+    
 
     const frequencias = await prisma.frequencia.findMany({
       where: {
