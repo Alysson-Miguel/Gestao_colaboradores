@@ -1038,7 +1038,7 @@ const exportarPresencaSheets = async (req, res) => {
         if (freqMap[key]?.manual) {
           const f = freqMap[key];
           diasMap[dataISO] = {
-            status: f.tipoAusencia?.codigo,
+            status: f.tipoAusencia?.codigo || "P",
             entrada: f.horaEntrada,
             saida: f.horaSaida,
             validado: !!f.validado,
@@ -1062,7 +1062,7 @@ const exportarPresencaSheets = async (req, res) => {
         if (freqMap[key]) {
           const f = freqMap[key];
           diasMap[dataISO] = {
-            status: f.tipoAusencia?.codigo,
+            status: f.tipoAusencia?.codigo || "P",
             entrada: f.horaEntrada,
             saida: f.horaSaida,
             validado: f.validado,
@@ -1095,6 +1095,24 @@ const exportarPresencaSheets = async (req, res) => {
         dias: diasMap,
       };
     });
+
+    // 🔍 LOG DE DEBUG: Mostrar amostra dos dados antes de exportar
+    console.log(`[${reqId}] 📊 Amostra de dados processados (primeiro colaborador):`);
+    if (resultado.length > 0) {
+      const amostra = resultado[0];
+      console.log(`   - OPS ID: ${amostra.opsId}`);
+      console.log(`   - Nome: ${amostra.nome}`);
+      console.log(`   - Turno: ${amostra.turno}`);
+      console.log(`   - Escala: ${amostra.escala}`);
+      console.log(`   - Dias processados: ${Object.keys(amostra.dias).length}`);
+      
+      // Mostrar primeiros 3 dias como exemplo
+      const diasExemplo = Object.entries(amostra.dias).slice(0, 3);
+      console.log(`   - Exemplo dos primeiros dias:`);
+      diasExemplo.forEach(([data, registro]) => {
+        console.log(`     ${data}: status=${registro.status}, entrada=${registro.entrada || 'N/A'}, saida=${registro.saida || 'N/A'}`);
+      });
+    }
 
     // Exportar para Google Sheets
     const resultadoExportacao = await exportarControlePresenca(mes, {

@@ -59,18 +59,43 @@ const carregarGestaoOperacional = async (req, res) => {
     console.log("🔍 Buscando produção do banco (fallback)...");
     const turnoId = turno === "T1" ? 1 : turno === "T2" ? 2 : 3;
     
-    const producaoPorHora = await prisma.$queryRaw`
-      SELECT 
-        EXTRACT(HOUR FROM data::timestamp) as hora,
-        SUM(CAST(quantidade AS INTEGER)) as realizado
-      FROM dw_real
-      WHERE data::date = CAST(${dataStr} AS date)
-        AND id_turno = ${turnoId}
-      GROUP BY EXTRACT(HOUR FROM data::timestamp)
-      ORDER BY hora
-    `;
-
-    console.log("✅ Produção carregada:", producaoPorHora.length, "registros");
+    // Primeiro tenta buscar do histórico (dados consolidados)
+    let producaoPorHora = [];
+    try {
+      const historicoProducao = await prisma.producaoHoraHistorico.findMany({
+        where: {
+          dataReferencia: new Date(dataStr),
+          turno: turno,
+        },
+        orderBy: {
+          hora: 'asc'
+        }
+      });
+      
+      if (historicoProducao.length > 0) {
+        producaoPorHora = historicoProducao.map(h => ({
+          hora: h.hora,
+          realizado: Number(h.realizado)
+        }));
+        console.log("✅ Produção carregada do histórico:", producaoPorHora.length, "registros");
+      } else {
+        // Fallback: buscar de dw_real se não houver histórico
+        producaoPorHora = await prisma.$queryRaw`
+          SELECT 
+            EXTRACT(HOUR FROM data::timestamp) as hora,
+            SUM(CAST(quantidade AS INTEGER)) as realizado
+          FROM dw_real
+          WHERE data::date = CAST(${dataStr} AS date)
+            AND id_turno = ${turnoId}
+          GROUP BY EXTRACT(HOUR FROM data::timestamp)
+          ORDER BY hora
+        `;
+        console.log("✅ Produção carregada do dw_real:", producaoPorHora.length, "registros");
+      }
+    } catch (error) {
+      console.error("⚠️ Erro ao buscar produção do banco:", error.message);
+      producaoPorHora = [];
+    }
 
     // Buscar ranking de produtividade de colaboradores (Top 15)
     console.log("🔍 Buscando ranking de produtividade de colaboradores...");
@@ -79,6 +104,84 @@ const carregarGestaoOperacional = async (req, res) => {
     
     console.log("✅ Ranking carregado:", rankingProdutividade.length, "colaboradores");
 
+    // Buscar total de presentes (colaboradores presentes) do turno específico
+    console.log("🔍 Buscando total de colaboradores presentes do turno", turno, "...");
+    console.log("📅 Data para busca:", dataStr, "| Data objeto:", new Date(dataStr));
+    let totalPresentes = 0;
+    try {
+      const frequencias = await prisma.frequencia.findMany({
+        where: {
+          dataReferencia: new Date(dataStr),
+        },
+        include: {
+          tipoAusencia: true,
+          colaborador: {
+            include: {
+              turno: true
+            }
+          }
+        },
+      });
+
+      console.log(`📋 Total de registros de frequência encontrados: ${frequencias.length}`);
+      
+      const presentesSet = new Set();
+      let totalComHoraEntrada = 0;
+      let totalDoTurno = 0;
+      
+      frequencias.forEach(f => {
+        if (f.horaEntrada) {
+          totalComHoraEntrada++;
+          // Considera presente se tem horaEntrada registrada E é do turno correto
+          if (f.colaborador?.turno?.nomeTurno === turno) {
+            presentesSet.add(f.opsId);
+            totalDoTurno++;
+          }
+        }
+      });
+      
+      totalPresentes = presentesSet.size;
+      console.log(`📊 Colaboradores com horaEntrada: ${totalComHoraEntrada}`);
+      console.log(`📊 Colaboradores do ${turno} com horaEntrada: ${totalDoTurno}`);
+      console.log(`✅ Total de colaboradores presentes do ${turno} (unique): ${totalPresentes}`);
+    } catch (error) {
+      console.error("⚠️ Erro ao buscar colaboradores presentes:", error.message);
+      console.error("Stack:", error.stack);
+      console.log("⚠️ Continuando com totalPresentes = 0");
+    }
+
+    // Buscar diaristas presentes
+    console.log("🔍 Buscando diaristas presentes...");
+    console.log("📅 Data para busca:", dataStr, "| Turno ID:", turnoId);
+    let diaristasPresentes = 0;
+    try {
+      const diaristasReais = await prisma.dwReal.findMany({
+        where: {
+          data: new Date(dataStr),
+          idTurno: turnoId,
+        },
+      });
+
+      console.log(`📋 Total de registros de diaristas encontrados: ${diaristasReais.length}`);
+      
+      if (diaristasReais.length > 0) {
+        console.log("📊 Detalhamento dos diaristas:");
+        diaristasReais.forEach((dw, index) => {
+          console.log(`   ${index + 1}. Empresa ID: ${dw.idEmpresa}, Quantidade: ${dw.quantidade}`);
+        });
+      }
+      
+      diaristasPresentes = diaristasReais.reduce(
+        (total, dw) => total + Number(dw.quantidade || 0),
+        0
+      );
+      console.log("✅ Total de diaristas presentes (soma):", diaristasPresentes);
+    } catch (error) {
+      console.error("⚠️ Erro ao buscar diaristas presentes:", error.message);
+      console.error("Stack:", error.stack);
+      console.log("⚠️ Continuando com diaristasPresentes = 0");
+    }
+
     // Calcular totais
     const horaAtual = agora.getHours();
     let metaHoraProjetada = 0;
@@ -86,7 +189,20 @@ const carregarGestaoOperacional = async (req, res) => {
     let realizado = 0;
     const producaoComMeta = [];
 
+    // Verificar se o turno já finalizou
+    let turnoFinalizado = false;
+    if (turno === "T1" && horaAtual >= 14) {
+      turnoFinalizado = true;
+    } else if (turno === "T2" && horaAtual >= 22) {
+      turnoFinalizado = true;
+    } else if (turno === "T3" && horaAtual >= 6 && horaAtual < 22) {
+      // T3 trabalha das 22h às 5h, então finaliza às 6h
+      // Só considera finalizado se estiver entre 6h e 21h (antes do próximo T3)
+      turnoFinalizado = true;
+    }
+
     console.log("⏰ Hora atual:", horaAtual);
+    console.log("🏁 Turno finalizado:", turnoFinalizado);
     console.log("📊 Quantidade por hora da planilha:", quantidadePorHora);
     console.log("📊 Produção por hora do banco:", producaoPorHora);
     
@@ -110,22 +226,39 @@ const carregarGestaoOperacional = async (req, res) => {
         console.log(`  - Meta projetada acumulada: ${metaHoraProjetada}`);
       }
 
-      // Priorizar quantidade da planilha, usar banco como fallback
+      // Priorizar dados conforme status do turno
       let realizadoHora = 0;
       let origem = "nenhum";
       
-      if (quantidadePorHora[h] !== undefined && quantidadePorHora[h] > 0) {
-        realizadoHora = Math.round(quantidadePorHora[h]);
-        origem = "planilha";
-        console.log(`  ✅ Usando quantidade da planilha: ${realizadoHora}`);
-      } else {
+      if (turnoFinalizado) {
+        // Turno finalizado: priorizar banco, usar planilha como fallback
         const prod = producaoPorHora.find(p => Number(p.hora) === h);
-        realizadoHora = prod ? Number(prod.realizado) : 0;
-        origem = realizadoHora > 0 ? "banco" : "zero";
-        if (realizadoHora > 0) {
-          console.log(`  ⚠️ Usando quantidade do banco: ${realizadoHora}`);
+        if (prod && Number(prod.realizado) > 0) {
+          realizadoHora = Number(prod.realizado);
+          origem = "banco";
+          console.log(`  ✅ Turno finalizado - Usando quantidade do banco: ${realizadoHora}`);
+        } else if (quantidadePorHora[h] !== undefined && quantidadePorHora[h] > 0) {
+          realizadoHora = Math.round(quantidadePorHora[h]);
+          origem = "planilha";
+          console.log(`  ⚠️ Turno finalizado - Usando quantidade da planilha (fallback): ${realizadoHora}`);
         } else {
           console.log(`  ❌ Sem dados para esta hora`);
+        }
+      } else {
+        // Turno em andamento: priorizar planilha, usar banco como fallback
+        if (quantidadePorHora[h] !== undefined && quantidadePorHora[h] > 0) {
+          realizadoHora = Math.round(quantidadePorHora[h]);
+          origem = "planilha";
+          console.log(`  ✅ Usando quantidade da planilha: ${realizadoHora}`);
+        } else {
+          const prod = producaoPorHora.find(p => Number(p.hora) === h);
+          realizadoHora = prod ? Number(prod.realizado) : 0;
+          origem = realizadoHora > 0 ? "banco" : "zero";
+          if (realizadoHora > 0) {
+            console.log(`  ⚠️ Usando quantidade do banco: ${realizadoHora}`);
+          } else {
+            console.log(`  ❌ Sem dados para esta hora`);
+          }
         }
       }
       
@@ -156,8 +289,21 @@ const carregarGestaoOperacional = async (req, res) => {
     const horasComDados = producaoComMeta.filter(p => p.realizado > 0).length;
     const mediaHoraRealizado = horasComDados > 0 ? Math.round(realizado / horasComDados) : 0;
     
-    // Produtividade = (realizado / meta projetada) * 770
-    const produtividade = metaHoraProjetada > 0 ? Math.round((realizado / metaHoraProjetada) * 770) : 0;
+    console.log("\n🔍 DEBUG PRODUTIVIDADE:");
+    console.log(`  - Total Realizado: ${realizado}`);
+    console.log(`  - Total Presentes (${turno}): ${totalPresentes}`);
+    console.log(`  - Diaristas Presentes (${turno}): ${diaristasPresentes}`);
+    
+    // Produtividade = (Total realizado) / (Total presentes + diaristas presentes)
+    const totalPresentesComDiaristas = totalPresentes + diaristasPresentes;
+    console.log(`  - Soma (Presentes + Diaristas): ${totalPresentes} + ${diaristasPresentes} = ${totalPresentesComDiaristas}`);
+    
+    const produtividade = totalPresentesComDiaristas > 0 
+      ? Math.round(realizado / totalPresentesComDiaristas) 
+      : 0;
+    
+    console.log(`  - Cálculo: ${realizado} / ${totalPresentesComDiaristas} = ${produtividade}`);
+    console.log(`  - Verificação: ${produtividade} × ${totalPresentesComDiaristas} = ${produtividade * totalPresentesComDiaristas}`);
 
     // Performance = (realizado / meta do dia) * 100
     const performance = metaDia > 0 
@@ -172,7 +318,11 @@ const carregarGestaoOperacional = async (req, res) => {
 
     console.log(`\n📊 CÁLCULOS:`);
     console.log(`  - Performance: (${realizado} / ${metaDia}) * 100 = ${performance}%`);
-    console.log(`  - Produtividade: (${realizado} / ${metaHoraProjetada}) * 770 = ${produtividade}`);
+    console.log(`  - Total Presentes (${turno}): ${totalPresentes}`);
+    console.log(`  - Diaristas Presentes (${turno}): ${diaristasPresentes}`);
+    console.log(`  - Total Presentes + Diaristas: ${totalPresentesComDiaristas}`);
+    console.log(`  - Produtividade: ${realizado} / ${totalPresentesComDiaristas} = ${produtividade}`);
+    console.log(`  - Verificação: ${produtividade} * ${totalPresentesComDiaristas} = ${produtividade * totalPresentesComDiaristas} (deve ser próximo de ${realizado})`);
     console.log(`  - Média Hora: ${realizado} / ${horasComDados} = ${mediaHoraRealizado}`);
 
     // Capacidade por hora (mesma estrutura das metas) + dados de realizado
@@ -218,7 +368,10 @@ const carregarGestaoOperacional = async (req, res) => {
           realizado,
           mediaHoraRealizado,
           produtividade,
-          performance: Number(performance)
+          performance: Number(performance),
+          totalPresentes,
+          diaristasPresentes,
+          metaProdutividade: 770
         },
         producaoPorHora: producaoComMeta,
         capacidadePorHora,
