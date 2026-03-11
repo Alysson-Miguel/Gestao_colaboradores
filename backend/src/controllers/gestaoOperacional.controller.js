@@ -370,8 +370,7 @@ const carregarGestaoOperacional = async (req, res) => {
           produtividade,
           performance: Number(performance),
           totalPresentes,
-          diaristasPresentes,
-          metaProdutividade: 770
+          diaristasPresentes
         },
         producaoPorHora: producaoComMeta,
         capacidadePorHora,

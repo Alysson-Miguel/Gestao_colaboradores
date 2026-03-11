@@ -56,9 +56,13 @@ function getStatusAdministrativo(c, dataCalendario) {
   return null;
 }
 
-function getEscalaNoDia(opsId, data, historicoMap) {
+function getEscalaNoDia(opsId, data, historicoMap, escalaAtual = null) {
   const registros = historicoMap[opsId];
-  if (!registros) return null;
+  
+  // Se não tem histórico, usa a escala atual
+  if (!registros || registros.length === 0) {
+    return escalaAtual;
+  }
 
   const d = new Date(data);
 
@@ -69,7 +73,8 @@ function getEscalaNoDia(opsId, data, historicoMap) {
     return d >= inicio && (!fim || d <= fim);
   });
 
-  return registro?.escala?.nomeEscala || null;
+  // Se encontrou no histórico, usa; senão usa a escala atual
+  return registro?.escala?.nomeEscala || escalaAtual;
 }
 
 async function getTipoDSR() {
@@ -474,20 +479,6 @@ const getControlePresenca = async (req, res) => {
     const whereColaborador = {
       status: "ATIVO",
       dataDesligamento: null,
-      NOT: {
-        cargo: {
-          nomeCargo: {
-            in: [
-              "Líder de logística",
-              "Analista De Logística JR",
-              "Assistente COP",
-              "Supervisor Operações",
-              "Supervisor COP",
-            ],
-            mode: "insensitive",
-          },
-        },
-      },
       ...(turno && turno !== "TODOS"
         ? { turno: { nomeTurno: turno } }
         : {}),
@@ -513,31 +504,49 @@ const getControlePresenca = async (req, res) => {
         : {}),
     };
 
-    const colaboradores = await prisma.colaborador.findMany({
-      where: whereColaborador,
-      include: {
-        turno: true,
-        escala: true,
-        ausencias: {
-          where: {
-            status: "ATIVO",
-            dataInicio: { lte: fimMes },
-            dataFim: { gte: inicioMes },
+    // Debug: verificar filtros aplicados
+    console.log(`[${reqId}] whereColaborador:`, JSON.stringify(whereColaborador, null, 2));
+
+    let colaboradores;
+    try {
+      colaboradores = await prisma.colaborador.findMany({
+        where: whereColaborador,
+        include: {
+          turno: true,
+          escala: true,
+          ausencias: {
+            where: {
+              status: "ATIVO",
+              dataInicio: { lte: fimMes },
+              dataFim: { gte: inicioMes },
+            },
+            include: { tipoAusencia: true },
           },
-          include: { tipoAusencia: true },
-        },
-        atestadosMedicos: {
-          where: {
-            status: "ATIVO",
-            dataInicio: { lte: fimMes },
-            dataFim: { gte: inicioMes },
+          atestadosMedicos: {
+            where: {
+              status: "ATIVO",
+              dataInicio: { lte: fimMes },
+              dataFim: { gte: inicioMes },
+            },
           },
         },
-      },
-      orderBy: { nomeCompleto: "asc" },
-    });
+        orderBy: { nomeCompleto: "asc" },
+      });
+    } catch (dbError) {
+      console.error(`[${reqId}] ❌ Erro na query de colaboradores:`, dbError);
+      throw new Error(`Erro ao buscar colaboradores: ${dbError.message}`);
+    }
 
     console.log(`[${reqId}] colaboradores encontrados:`, colaboradores.length);
+    
+    // Debug: verificar se há colaboradores sem os filtros restritivos
+    const totalColaboradores = await prisma.colaborador.count({
+      where: {
+        status: "ATIVO",
+        dataDesligamento: null,
+      }
+    });
+    console.log(`[${reqId}] total de colaboradores ativos (sem filtros):`, totalColaboradores);
 
     if (!colaboradores.length) {
       return successResponse(res, { dias: [], colaboradores: [] });
@@ -551,18 +560,25 @@ const getControlePresenca = async (req, res) => {
     /* =====================================================
        HISTÓRICO DE ESCALA
     ===================================================== */
-    const historicoEscalas = await prisma.colaboradorEscalaHistorico.findMany({
-      where: {
-        opsId: { in: opsIds },
-      },
-      include: {
-        escala: true,
-      },
-      orderBy: [
-        { opsId: "asc" },
-        { dataInicio: "asc" },
-      ],
-    });
+    let historicoEscalas = [];
+    try {
+      historicoEscalas = await prisma.colaboradorEscalaHistorico.findMany({
+        where: {
+          opsId: { in: opsIds },
+        },
+        include: {
+          escala: true,
+        },
+        orderBy: [
+          { opsId: "asc" },
+          { dataInicio: "asc" },
+        ],
+      });
+      console.log(`[${reqId}] histórico de escalas encontrado:`, historicoEscalas.length);
+    } catch (historicoError) {
+      console.error(`[${reqId}] ⚠️ Erro ao buscar histórico de escalas:`, historicoError);
+      // Continua sem o histórico
+    }
 
     const historicoMap = {};
 
@@ -574,20 +590,25 @@ const getControlePresenca = async (req, res) => {
     /* =====================================================
        FREQUÊNCIAS
     ===================================================== */
-    const frequencias = await prisma.frequencia.findMany({
-      where: {
-        opsId: { in: opsIds },
-        dataReferencia: { gte: inicioMes, lte: fimMes },
-      },
-      include: { tipoAusencia: true },
-      orderBy: [
-        { dataReferencia: "asc" },
-        { manual: "asc" },
-        { idFrequencia: "asc" },
-      ],
-    });
-
-    console.log(`[${reqId}] frequencias do mês:`, frequencias.length);
+    let frequencias = [];
+    try {
+      frequencias = await prisma.frequencia.findMany({
+        where: {
+          opsId: { in: opsIds },
+          dataReferencia: { gte: inicioMes, lte: fimMes },
+        },
+        include: { tipoAusencia: true },
+        orderBy: [
+          { dataReferencia: "asc" },
+          { manual: "asc" },
+          { idFrequencia: "asc" },
+        ],
+      });
+      console.log(`[${reqId}] frequencias do mês:`, frequencias.length);
+    } catch (freqError) {
+      console.error(`[${reqId}] ⚠️ Erro ao buscar frequências:`, freqError);
+      // Continua sem frequências
+    }
 
     const freqMap = {};
 
@@ -684,7 +705,7 @@ const getControlePresenca = async (req, res) => {
            DSR BASEADO NA ESCALA DO DIA
            OBS: APENAS EXIBE, NÃO ESCREVE NO BANCO
         =============================== */
-        const escalaDia = getEscalaNoDia(c.opsId, dataCalendario, historicoMap);
+        const escalaDia = getEscalaNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.nomeEscala);
 
         if (isDiaDSR(dataCalendario, escalaDia)) {
           diasMap[dataISO] = {
@@ -1043,68 +1064,73 @@ const exportarPresencaSheets = async (req, res) => {
     const inicioMes = new Date(ano, mesNum - 1, 1);
     const fimMes = new Date(ano, mesNum, 0, 23, 59, 59);
 
+    console.log(`[${reqId}] Período: ${inicioMes.toISOString()} até ${fimMes.toISOString()}`);
+
     // Exporta sempre completo, sem filtros de turno/escala/lider
     const whereColaborador = {
       status: "ATIVO",
       dataDesligamento: null,
-      NOT: {
-        cargo: {
-          nomeCargo: {
-            in: [
-              "Líder de logística",
-              "Analista De Logística JR",
-              "Assistente COP",
-              "Supervisor Operações",
-              "Supervisor COP",
-            ],
-            mode: "insensitive",
-          },
-        },
-      },
     };
 
-    const colaboradores = await prisma.colaborador.findMany({
-      where: whereColaborador,
-      include: {
-        turno: true,
-        escala: true,
-        ausencias: {
-          where: {
-            status: "ATIVO",
-            dataInicio: { lte: fimMes },
-            dataFim: { gte: inicioMes },
+    console.log(`[${reqId}] Buscando colaboradores...`);
+
+    let colaboradores;
+    try {
+      colaboradores = await prisma.colaborador.findMany({
+        where: whereColaborador,
+        include: {
+          turno: true,
+          escala: true,
+          ausencias: {
+            where: {
+              status: "ATIVO",
+              dataInicio: { lte: fimMes },
+              dataFim: { gte: inicioMes },
+            },
+            include: { tipoAusencia: true },
           },
-          include: { tipoAusencia: true },
-        },
-        atestadosMedicos: {
-          where: {
-            status: "ATIVO",
-            dataInicio: { lte: fimMes },
-            dataFim: { gte: inicioMes },
+          atestadosMedicos: {
+            where: {
+              status: "ATIVO",
+              dataInicio: { lte: fimMes },
+              dataFim: { gte: inicioMes },
+            },
           },
         },
-      },
-      orderBy: { nomeCompleto: "asc" },
-    });
+        orderBy: { nomeCompleto: "asc" },
+      });
+    } catch (dbError) {
+      console.error(`[${reqId}] ❌ Erro ao buscar colaboradores:`, dbError);
+      return errorResponse(res, `Erro ao buscar colaboradores: ${dbError.message}`, 500);
+    }
+
+    console.log(`[${reqId}] Colaboradores encontrados: ${colaboradores.length}`);
 
     if (!colaboradores.length) {
-      return errorResponse(res, "Nenhum colaborador encontrado para os filtros selecionados", 404);
+      return errorResponse(res, "Nenhum colaborador ativo encontrado", 404);
     }
 
     const opsIds = colaboradores.map((c) => c.opsId);
+    console.log(`[${reqId}] OPS IDs: ${opsIds.length} colaboradores`);
 
     /* =====================================================
       HISTÓRICO DE ESCALA
     ===================================================== */
-
-    const historicoEscalas = await prisma.colaboradorEscalaHistorico.findMany({
-      where: {
-        opsId: { in: opsIds },
-      },
-      include: {
-        escala: true,
-      },
-    });
+    let historicoEscalas = [];
+    try {
+      historicoEscalas = await prisma.colaboradorEscalaHistorico.findMany({
+        where: {
+          opsId: { in: opsIds },
+        },
+        include: {
+          escala: true,
+        },
+      });
+      console.log(`[${reqId}] Histórico de escalas: ${historicoEscalas.length}`);
+    } catch (historicoError) {
+      console.error(`[${reqId}] ⚠️ Erro ao buscar histórico de escalas:`, historicoError);
+      // Continua sem histórico
+    }
 
     const historicoMap = {};
 
@@ -1113,19 +1139,25 @@ const exportarPresencaSheets = async (req, res) => {
       historicoMap[h.opsId].push(h);
     }
     
-
-    const frequencias = await prisma.frequencia.findMany({
-      where: {
-        opsId: { in: opsIds },
-        dataReferencia: { gte: inicioMes, lte: fimMes },
-      },
-      include: { tipoAusencia: true },
-      orderBy: [
-        { dataReferencia: "asc" },
-        { manual: "asc" },
-        { idFrequencia: "asc" },
-      ],
-    });
+    let frequencias = [];
+    try {
+      frequencias = await prisma.frequencia.findMany({
+        where: {
+          opsId: { in: opsIds },
+          dataReferencia: { gte: inicioMes, lte: fimMes },
+        },
+        include: { tipoAusencia: true },
+        orderBy: [
+          { dataReferencia: "asc" },
+          { manual: "asc" },
+          { idFrequencia: "asc" },
+        ],
+      });
+      console.log(`[${reqId}] Frequências encontradas: ${frequencias.length}`);
+    } catch (freqError) {
+      console.error(`[${reqId}] ⚠️ Erro ao buscar frequências:`, freqError);
+      // Continua sem frequências
+    }
 
     // Processar dados (mesma lógica do getControlePresenca)
     const freqMap = {};
@@ -1199,7 +1231,7 @@ const exportarPresencaSheets = async (req, res) => {
         }
 
         // DSR
-        const escalaDia = getEscalaNoDia(c.opsId, dataCalendario, historicoMap);
+        const escalaDia = getEscalaNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.nomeEscala);
         if (isDiaDSR(dataCalendario, escalaDia)) {
           diasMap[dataISO] = {
             status: "DSR",
@@ -1242,13 +1274,21 @@ const exportarPresencaSheets = async (req, res) => {
       });
     }
 
-    // Exportar para Google Sheets
-    const resultadoExportacao = await exportarControlePresenca(mes, {
-      dias,
-      colaboradores: resultado,
-    });
+    console.log(`[${reqId}] 🚀 Iniciando exportação para Google Sheets...`);
 
-    console.log(`[${reqId}] ✅ Exportação concluída`);
+    // Exportar para Google Sheets
+    let resultadoExportacao;
+    try {
+      resultadoExportacao = await exportarControlePresenca(mes, {
+        dias,
+        colaboradores: resultado,
+      });
+    } catch (exportError) {
+      console.error(`[${reqId}] ❌ Erro na exportação:`, exportError);
+      return errorResponse(res, `Erro ao exportar para Google Sheets: ${exportError.message}`, 500);
+    }
+
+    console.log(`[${reqId}] ✅ Exportação concluída com sucesso`);
 
     return successResponse(res, resultadoExportacao.data, "Exportação realizada com sucesso");
   } catch (err) {

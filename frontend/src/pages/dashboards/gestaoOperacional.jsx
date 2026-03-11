@@ -332,7 +332,7 @@ export default function GestaoOperacional() {
               <div className="bg-[#1a1a1c] text-white p-6 text-center">
                 <div className="text-sm font-semibold mb-2">META DE PRODUTIVIDADE</div>
                 <div className="text-4xl font-bold">
-                  {kpis.produtividade?.toLocaleString("pt-BR") || "0"}
+                  770
                 </div>
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function GestaoOperacional() {
                     <div className="h-px bg-white/20"></div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs">Produtividade</span>
-                      <span className="text-2xl font-bold text-red-400">
+                      <span className={`text-2xl font-bold ${(kpis.produtividade || 0) >= 770 ? 'text-green-400' : 'text-red-400'}`}>
                         {kpis.produtividade || "0"}
                       </span>
                     </div>
