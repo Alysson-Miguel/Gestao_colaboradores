@@ -29,10 +29,47 @@ const carregarGestaoOperacional = async (req, res) => {
     }
 
     const agora = agoraBrasil();
-    const dataReferencia = data ? new Date(`${data}T00:00:00.000Z`) : agora;
+    let dataReferencia = data ? new Date(`${data}T00:00:00.000Z`) : agora;
+    
+    // LÓGICA ESPECIAL PARA T3
+    // T3 trabalha das 22h de um dia até 6h do dia seguinte
+    // Exemplo: T3 de 10/03 = 10/03 22h até 11/03 06h
+    // Se hoje é 11/03 e são 15h, o T3 "de hoje" ainda não começou (só às 22h)
+    // Então ao selecionar T3 hoje antes das 22h, deve mostrar o T3 de ontem
+    if (turno === 'T3') {
+      const horaAtual = agora.getHours();
+      const dataHoje = agora.toISOString().slice(0, 10);
+      
+      // Se não passou uma data específica (está usando hoje)
+      if (!data) {
+        // Se for antes das 22h, o T3 de hoje ainda não começou
+        // Buscar dados do T3 de ontem
+        if (horaAtual < 22) {
+          dataReferencia = new Date(agora);
+          dataReferencia.setDate(dataReferencia.getDate() - 1);
+          console.log("⏰ T3: Hora atual < 22h, ajustando para dia anterior");
+          console.log(`   Hoje: ${dataHoje}, Buscando: ${dataReferencia.toISOString().slice(0, 10)}`);
+        }
+      }
+      // Se passou uma data específica
+      else {
+        const dataSelecionada = dataReferencia.toISOString().slice(0, 10);
+        
+        // Se a data selecionada é hoje e ainda não são 22h
+        if (dataSelecionada === dataHoje && horaAtual < 22) {
+          // Usuário selecionou hoje mas T3 ainda não começou
+          // Ajustar para ontem
+          dataReferencia = new Date(dataReferencia);
+          dataReferencia.setDate(dataReferencia.getDate() - 1);
+          console.log("⏰ T3: Data selecionada é hoje mas ainda não são 22h");
+          console.log(`   Ajustando de ${dataSelecionada} para ${dataReferencia.toISOString().slice(0, 10)}`);
+        }
+      }
+    }
+    
     const dataStr = dataReferencia.toISOString().slice(0, 10);
 
-    console.log("📅 Data processada:", dataStr);
+    console.log("📅 Data final para busca:", dataStr);
 
     // Buscar metas da planilha
     console.log("🔍 Buscando metas da planilha...");

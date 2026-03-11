@@ -338,6 +338,78 @@ export default function GestaoOperacional() {
             </div>
           </div>
 
+          {/* Card de Previsão */}
+          {(() => {
+            const realizado = kpis.realizado || 0;
+            const metaDia = kpis.metaDia || 0;
+            const horaAtual = kpis.horaAtual || 0;
+            
+            // Definir horas de trabalho por turno
+            let horaInicio, horaFim, totalHoras;
+            if (turno === 'T1') {
+              horaInicio = 6;
+              horaFim = 14;
+              totalHoras = 8;
+            } else if (turno === 'T2') {
+              horaInicio = 14;
+              horaFim = 22;
+              totalHoras = 8;
+            } else { // T3
+              horaInicio = 22;
+              horaFim = 6;
+              totalHoras = 8;
+            }
+            
+            // Calcular horas trabalhadas
+            let horasTrabalhadas;
+            if (turno === 'T3') {
+              // T3 é especial: 22h às 6h
+              if (horaAtual >= 22) {
+                horasTrabalhadas = horaAtual - horaInicio;
+              } else if (horaAtual < 6) {
+                horasTrabalhadas = (24 - horaInicio) + horaAtual;
+              } else {
+                horasTrabalhadas = totalHoras; // Turno finalizado
+              }
+            } else {
+              horasTrabalhadas = Math.max(0, Math.min(horaAtual - horaInicio, totalHoras));
+            }
+            
+            // Calcular projeção
+            const mediaHora = horasTrabalhadas > 0 ? realizado / horasTrabalhadas : 0;
+            const horasRestantes = Math.max(0, totalHoras - horasTrabalhadas);
+            const projecaoFinal = Math.round(realizado + (mediaHora * horasRestantes));
+            
+            // Determinar status
+            const diferenca = projecaoFinal - metaDia;
+            const estaPerdendo = diferenca < 0;
+            const percentualDiferenca = metaDia > 0 ? Math.abs((diferenca / metaDia) * 100) : 0;
+            
+            // Não mostrar se o turno ainda não começou ou já finalizou
+            const turnoAtivo = horasTrabalhadas > 0 && horasTrabalhadas < totalHoras;
+            
+            if (!turnoAtivo) return null;
+            
+            return (
+              <div className={`${estaPerdendo ? 'bg-red-500' : 'bg-green-500'} rounded-lg shadow-lg p-8 text-white text-center`}>
+                <h2 className="text-3xl font-bold mb-6">
+                  {estaPerdendo ? 'Estamos perdendo. Bora lá ein! 😰' : 'Estamos ganhando! Vamos manter! 🚀'}
+                </h2>
+                <p className="text-xl leading-relaxed">
+                  Se continuarmos nesse ritmo vamos finalizar o {turno === 'T3' ? 'horário' : 'dia'} com{' '}
+                  <span className="font-bold text-2xl">{projecaoFinal.toLocaleString('pt-BR')}</span> pacotes processados.
+                </p>
+                <div className="mt-4 text-sm opacity-90">
+                  {estaPerdendo ? (
+                    <span>Faltam {Math.abs(diferenca).toLocaleString('pt-BR')} pacotes para bater a meta ({percentualDiferenca.toFixed(1)}% abaixo)</span>
+                  ) : (
+                    <span>{diferenca.toLocaleString('pt-BR')} pacotes acima da meta ({percentualDiferenca.toFixed(1)}% acima)</span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Card Principal - Performance e Gráfico */}
           <div className="bg-[#1A1A1C] border border-[#2A2A2C] rounded-lg shadow-lg p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
