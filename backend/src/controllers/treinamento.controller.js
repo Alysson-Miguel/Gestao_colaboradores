@@ -1,11 +1,12 @@
 const { prisma } = require("../config/database");
 const crypto = require("crypto");
 
-/* ===========================
+/* =====================================================
    CRIAR TREINAMENTO
-=========================== */
+===================================================== */
 exports.createTreinamento = async (req, res) => {
   try {
+
     const {
       dataTreinamento,
       processo,
@@ -23,7 +24,6 @@ exports.createTreinamento = async (req, res) => {
       });
     }
 
-    // Se não foi informado um instrutor específico, usa o usuário logado
     const instrutorOpsId = liderResponsavelOpsId || req.user?.opsId;
 
     if (!instrutorOpsId) {
@@ -34,42 +34,47 @@ exports.createTreinamento = async (req, res) => {
     }
 
     const treinamento = await prisma.treinamento.create({
+
       data: {
+
         dataTreinamento: new Date(dataTreinamento),
+
         processo,
         tema,
         soc,
 
-        // 🔗 vínculo correto com colaborador instrutor
         liderResponsavel: {
-          connect: {
-            opsId: instrutorOpsId,
-          },
+          connect: { opsId: instrutorOpsId },
         },
 
         criadoPor: req.user.id,
 
         setores: {
-          create: setores.map((idSetor) => ({
-            idSetor,
+          create: (setores || []).map((idSetor) => ({
+            idSetor: Number(idSetor),
           })),
         },
 
         participantes: {
-          create: participantes.map((p) => ({
+          create: (participantes || []).map((p) => ({
             opsId: p.opsId,
             cpf: p.cpf || null,
             adicionadoPor: req.user.id,
           })),
         },
+
       },
+
       include: {
+
         liderResponsavel: {
           select: { nomeCompleto: true },
         },
+
         setores: {
           include: { setor: true },
         },
+
         participantes: {
           include: {
             colaborador: {
@@ -77,33 +82,45 @@ exports.createTreinamento = async (req, res) => {
             },
           },
         },
+
       },
+
     });
 
     return res.status(201).json({
       success: true,
       data: treinamento,
     });
+
   } catch (err) {
+
     console.error("❌ createTreinamento:", err);
+
     return res.status(500).json({
       success: false,
       message: "Erro ao criar treinamento",
     });
+
   }
 };
 
-/* ===========================
+
+/* =====================================================
    LISTAR TREINAMENTOS
-=========================== */
+===================================================== */
 exports.listTreinamentos = async (req, res) => {
   try {
+
     const treinamentos = await prisma.treinamento.findMany({
+
       orderBy: { dataTreinamento: "desc" },
+
       include: {
+
         liderResponsavel: {
           select: { nomeCompleto: true },
         },
+
         participantes: {
           include: {
             colaborador: {
@@ -111,24 +128,39 @@ exports.listTreinamentos = async (req, res) => {
             },
           },
         },
+
         setores: {
           include: { setor: true },
         },
+
       },
+
     });
 
-    return res.json({ success: true, data: treinamentos });
+    return res.json({
+      success: true,
+      data: treinamentos,
+    });
+
   } catch (err) {
+
     console.error("❌ listTreinamentos:", err);
-    return res.status(500).json({ success: false });
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao listar treinamentos",
+    });
+
   }
 };
 
-/* ===========================
+
+/* =====================================================
    PRESIGN UPLOAD ATA (PDF)
-=========================== */
+===================================================== */
 exports.presignUploadAta = async (req, res) => {
   try {
+
     const { id } = req.params;
 
     const treinamento = await prisma.treinamento.findUnique({
@@ -163,21 +195,28 @@ exports.presignUploadAta = async (req, res) => {
       key,
       uploadUrl: `${process.env.R2_WORKER_UPLOAD_URL}/${key}`,
     });
+
   } catch (err) {
+
     console.error("❌ presignUploadAta:", err);
+
     return res.status(500).json({
       success: false,
       message: "Erro ao gerar URL de upload",
     });
+
   }
 };
 
-/* ===========================
-   FINALIZAR TREINAMENTO (PDF)
-=========================== */
+
+/* =====================================================
+   FINALIZAR TREINAMENTO (UPLOAD PDF)
+===================================================== */
 exports.finalizarTreinamento = async (req, res) => {
   try {
+
     const { id } = req.params;
+
     const { documentoKey, nome, mime, size } = req.body;
 
     if (!documentoKey) {
@@ -188,28 +227,50 @@ exports.finalizarTreinamento = async (req, res) => {
     }
 
     const treinamento = await prisma.treinamento.update({
+
       where: { idTreinamento: Number(id) },
+
       data: {
+
         status: "FINALIZADO",
+
         ataPdfUrl: documentoKey,
+
         ataPdfNome: nome || "ata-treinamento.pdf",
+
         ataPdfMime: mime || "application/pdf",
+
         ataPdfSize: size || null,
+
         finalizadoAt: new Date(),
+
         finalizadoPor: req.user.id,
+
       },
+
     });
 
-    return res.json({ success: true, data: treinamento });
+    return res.json({
+      success: true,
+      data: treinamento,
+    });
+
   } catch (err) {
+
     console.error("❌ finalizarTreinamento:", err);
-    return res.status(500).json({ success: false });
+
+    return res.status(500).json({
+      success: false,
+      message: "Erro ao finalizar treinamento",
+    });
+
   }
 };
 
-/* ===========================
+
+/* =====================================================
    LISTAR COLABORADORES POR SETOR
-=========================== */
+===================================================== */
 exports.listParticipantesPorSetor = async (req, res) => {
   try {
 
@@ -224,38 +285,48 @@ exports.listParticipantesPorSetor = async (req, res) => {
     }
 
     if (busca) {
+
       where.OR = [
+
         {
           nomeCompleto: {
             contains: busca,
             mode: "insensitive",
           },
         },
+
         {
           cpf: {
             contains: busca,
           },
         },
+
         {
           opsId: {
             contains: busca,
             mode: "insensitive",
           },
         },
+
       ];
+
     }
 
     const colaboradores = await prisma.colaborador.findMany({
+
       where,
+
       select: {
         opsId: true,
         nomeCompleto: true,
         cpf: true,
         idSetor: true,
       },
+
       orderBy: {
         nomeCompleto: "asc",
       },
+
     });
 
     return res.json({
@@ -271,5 +342,6 @@ exports.listParticipantesPorSetor = async (req, res) => {
       success: false,
       message: "Erro ao buscar participantes",
     });
+
   }
 };

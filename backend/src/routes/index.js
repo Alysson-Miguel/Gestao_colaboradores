@@ -40,6 +40,7 @@ const ddsmaRoutes = require("./ddsma.routes");
 const opaRoutes = require("./opa.routes");
 const folgaDominical = require("./folgaDominical.routes");
 const gestaoOperacionalRoutes = require("./gestaoOperacional.routes");
+const sugestaoRoutes = require("./sugestaoMedidaDisciplinar.routes");
 /* =========================
    HEALTH
 ========================= */
@@ -134,6 +135,7 @@ router.use("/dashboard", dashboardRoutes);
 router.use("/ponto", pontoRoutes);
 
 router.use("/atestados-medicos", atestadoMedicoRoutes);
+router.use("/medidas-disciplinares/sugestoes", sugestaoRoutes);
 router.use("/medidas-disciplinares", medidaDisciplinarRoutes);
 router.use("/acidentes", acidentesRoutes);
 router.use("/dashboard/admin", dashboardAdminRoutes);
@@ -149,5 +151,6 @@ router.use("/ddsma", ddsmaRoutes);
 router.use("/opa", opaRoutes);
 router.use("/folga-dominical", folgaDominical);
 router.use("/dashboard/gestao-operacional", gestaoOperacionalRoutes);
+
 
 module.exports = router;

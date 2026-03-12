@@ -10,6 +10,7 @@ const { getDateOperacional } = require("../utils/dateOperacional");
 const { finalizarAtestadosVencidos } = require("../utils/atestadoAutoFinalize");
 const { exportarControlePresenca } = require("../services/googleSheetsPresenca.service");
 const { error } = require("../utils/logger");
+const detectarViolacaoDisciplinar = require("../services/detectorMedidaDisciplinar");
 
 let tipoDSRCache = null;
 /* =====================================================
@@ -787,6 +788,7 @@ const ajusteManualPresenca = async (req, res) => {
     /* ===============================
        VALIDAÇÕES BÁSICAS
     =============================== */
+
     if (!opsId || !dataReferencia || !status || !justificativa) {
       return errorResponse(
         res,
@@ -803,7 +805,7 @@ const ajusteManualPresenca = async (req, res) => {
       "SINERGIA_ENVIADA",
       "HORA_EXTRA",
       "LICENCA",
-      "ON", // ✅ ONBOARDING
+      "ON",
     ];
 
     const justificativaNormalizada = String(justificativa)
@@ -817,6 +819,7 @@ const ajusteManualPresenca = async (req, res) => {
     /* ===============================
        COLABORADOR
     =============================== */
+
     const colaborador = await prisma.colaborador.findUnique({
       where: { opsId },
     });
@@ -824,19 +827,14 @@ const ajusteManualPresenca = async (req, res) => {
     if (!colaborador)
       return notFoundResponse(res, "Colaborador não encontrado");
 
-
-
     if (colaborador.dataDesligamento || colaborador.status !== "ATIVO") {
-      return errorResponse(
-        res,
-        "Colaborador não está ativo",
-        403
-      );
+      return errorResponse(res, "Colaborador não está ativo", 403);
     }
 
     /* ===============================
-       DATA BASE (DIA CIVIL)
+       DATA BASE
     =============================== */
+
     const [y, m, d] = dataReferencia.split("-").map(Number);
     const dataRef = new Date(y, m - 1, d);
     dataRef.setHours(0, 0, 0, 0);
@@ -844,6 +842,7 @@ const ajusteManualPresenca = async (req, res) => {
     /* ===============================
        TIPO DE STATUS
     =============================== */
+
     const tipo = await prisma.tipoAusencia.findUnique({
       where: { codigo: status },
     });
@@ -852,50 +851,10 @@ const ajusteManualPresenca = async (req, res) => {
       return errorResponse(res, `Status inválido: ${status}`, 400);
     }
 
-    if (status === "S1") {
-    const registro = await prisma.frequencia.upsert({
-      where: {
-        opsId_dataReferencia: {
-          opsId,
-          dataReferencia: dataRef,
-        },
-      },
-      update: {
-        idTipoAusencia: tipo.idTipoAusencia,
-        horaEntrada: null,
-        horaSaida: null,
-        horasTrabalhadas: null,
-        justificativa: "SINERGIA_ENVIADA",
-        manual: true,
-        validado: true,
-        registradoPor: req.user?.id || "GESTAO",
-      },
-      create: {
-        opsId,
-        dataReferencia: dataRef,
-        idTipoAusencia: tipo.idTipoAusencia,
-        horaEntrada: null,
-        horaSaida: null,
-        horasTrabalhadas: null,
-        justificativa: "SINERGIA_ENVIADA",
-        manual: true,
-        validado: true,
-        registradoPor: req.user?.id || "GESTAO",
-      },
-    });
-
-    return successResponse(
-      res,
-      registro,
-      "Sinergia Enviada aplicada com sucesso"
-    );
-  }
     /* =====================================================
-       🟢 REGRA ESPECÍFICA: ONBOARDING (ON)
-       - ignora horários
-       - ignora jornada
-       - sempre manual e validado
+       ONBOARDING
     ===================================================== */
+
     if (status === "ON") {
       const registro = await prisma.frequencia.upsert({
         where: {
@@ -926,16 +885,13 @@ const ajusteManualPresenca = async (req, res) => {
         },
       });
 
-      return successResponse(
-        res,
-        registro,
-        "Onboarding registrado com sucesso"
-      );
+      return successResponse(res, registro, "Onboarding registrado com sucesso");
     }
 
     /* ===============================
-       VALIDAÇÕES DE JORNADA (NÃO ON)
+       VALIDAÇÕES DE JORNADA
     =============================== */
+
     if (horaSaida && !horaEntrada) {
       return errorResponse(
         res,
@@ -958,10 +914,7 @@ const ajusteManualPresenca = async (req, res) => {
 
       let minutosTrabalhados = hS * 60 + mS - (hE * 60 + mE);
 
-      // 🔑 virada de dia (T3)
-      if (minutosTrabalhados < 0) {
-        minutosTrabalhados += 24 * 60;
-      }
+      if (minutosTrabalhados < 0) minutosTrabalhados += 24 * 60;
 
       if (minutosTrabalhados <= 0 || minutosTrabalhados > 16 * 60) {
         return errorResponse(
@@ -975,6 +928,7 @@ const ajusteManualPresenca = async (req, res) => {
     /* ===============================
        CONVERSÃO DE HORAS
     =============================== */
+
     const toTime = (t) =>
       t ? new Date(`1970-01-01T${t}:00.000Z`) : null;
 
@@ -995,8 +949,9 @@ const ajusteManualPresenca = async (req, res) => {
     }
 
     /* ===============================
-       UPSERT FINAL
+       UPSERT FREQUÊNCIA
     =============================== */
+
     const registro = await prisma.frequencia.upsert({
       where: {
         opsId_dataReferencia: {
@@ -1026,14 +981,38 @@ const ajusteManualPresenca = async (req, res) => {
       },
     });
 
+    /* =====================================================
+       DETECTOR DISCIPLINAR AUTOMÁTICO
+    ===================================================== */
+
+    try {
+
+      console.log("DETECTOR AJUSTE MANUAL →", registro.idFrequencia);
+
+      await detectarViolacaoDisciplinar(registro.idFrequencia);
+
+    } catch (err) {
+
+      console.error("⚠️ Falha detector disciplinar:", err);
+
+    }
+
     return successResponse(
       res,
       registro,
       "Ajuste manual realizado com sucesso"
     );
+
   } catch (err) {
+
     console.error("❌ ERRO ajuste manual:", err);
-    return errorResponse(res, "Erro ao realizar ajuste manual", 500);
+
+    return errorResponse(
+      res,
+      "Erro ao realizar ajuste manual",
+      500
+    );
+
   }
 };
 

@@ -36,6 +36,8 @@ import NovoAtestado from "./pages/atestados/novo";
 
 import MedidasDisciplinaresPage from "./pages/medidas-disciplinares";
 import NovaMedidaDisciplinar from "./pages/medidas-disciplinares/novo";
+import SugestoesMedidaDisciplinar from "./pages/medidas-disciplinares/SugestoesMedidaDisciplinar";
+import MedidaDisciplinarDetalhe from "./pages/medidas-disciplinares/MedidaDisciplinarDetalhe";
 
 import AcidentesPage from "./pages/acidentes";
 import NovoAcidente from "./pages/acidentes/novo";
@@ -232,6 +234,15 @@ export default function App() {
             <NovaMedidaDisciplinar />
           </ProtectedRoute>
         }
+      />
+
+      <Route
+        path="/medidas-disciplinares/sugestao"
+        element={<SugestoesMedidaDisciplinar />}
+      />
+      <Route
+        path="/medidas-disciplinares/:id"
+        element={<MedidaDisciplinarDetalhe />}
       />
 
       <Route
