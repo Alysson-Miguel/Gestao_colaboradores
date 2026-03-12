@@ -47,6 +47,10 @@ export default function Sidebar({ isOpen, onClose }) {
   );
   const [ssoOpen, setSsoOpen] = useState(false);
 
+  const [medidasOpen, setMedidasOpen] = useState(
+  location.pathname.startsWith("/medidas-disciplinares")
+);
+
   const isActive = (path) =>
     location.pathname === path ||
     location.pathname.startsWith(path + "/");
@@ -70,11 +74,6 @@ export default function Sidebar({ isOpen, onClose }) {
             path: "/atestados",
           },
           { icon: Settings, label: "Acidentes", path: "/acidentes" },
-          {
-            icon: FileText,
-            label: "Medidas Disciplinares",
-            path: "/medidas-disciplinares",
-          },
         ]
       : []),
 
@@ -266,7 +265,51 @@ export default function Sidebar({ isOpen, onClose }) {
               </button>
             );
           })}
+          {/* =====================
+              MEDIDAS DISCIPLINARES
+          ===================== */}
+          {(isAdmin || isLideranca) && (
+            <div className="mt-2">
+              <button
+                onClick={() => setMedidasOpen(!medidasOpen)}
+                className={`
+                  w-full flex items-center justify-between
+                  px-4 py-3 rounded-xl text-sm font-medium transition
+                  ${
+                    location.pathname.startsWith("/medidas-disciplinares")
+                      ? "bg-[#2A2A2C] text-white"
+                      : "text-[#BFBFC3] hover:bg-[#242426]"
+                  }
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText size={18} />
+                  Medidas Disciplinares
+                </div>
 
+                <ChevronDown
+                  size={16}
+                  className={`transition ${medidasOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {medidasOpen && (
+                <div className="ml-8 mt-1 space-y-1">
+                  <SidebarSubItem
+                    label="Listagem"
+                    active={isActive("/medidas-disciplinares")}
+                    onClick={() => go("/medidas-disciplinares")}
+                  />
+
+                  <SidebarSubItem
+                    label="Sugestões"
+                    active={isActive("/medidas-disciplinares/sugestao")}
+                    onClick={() => go("/medidas-disciplinares/sugestao")}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {/* =====================
               PLANEJAMENTO
           ===================== */}

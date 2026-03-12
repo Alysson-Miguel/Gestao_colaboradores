@@ -3,7 +3,7 @@
  * Gerencia registro de ponto e frequência diária (ADMIN / MANUAL)
  */
 
-const { prisma } = require('../config/database');
+const { prisma } = require("../config/database");
 const {
   successResponse,
   createdResponse,
@@ -11,13 +11,14 @@ const {
   notFoundResponse,
   paginatedResponse,
   errorResponse,
-} = require('../utils/response');
+} = require("../utils/response");
+const detectarViolacaoDisciplinar = require("../services/detectorMedidaDisciplinar");
 
 /* =====================================================
    HELPERS
 ===================================================== */
 function parseDataReferencia(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
+  const [y, m, d] = dateStr.split("-").map(Number);
   const data = new Date(y, m - 1, d);
   data.setHours(0, 0, 0, 0);
   return data;
@@ -26,6 +27,7 @@ function parseDataReferencia(dateStr) {
 function toTimeOnly(timeStr) {
   return new Date(`1970-01-01T${timeStr}`);
 }
+
 
 /* =====================================================
    GET ALL
@@ -53,7 +55,7 @@ const getAllFrequencias = async (req, res) => {
       where,
       skip,
       take,
-      orderBy: { dataReferencia: 'desc' },
+      orderBy: { dataReferencia: "desc" },
       include: {
         colaborador: {
           select: {
@@ -100,7 +102,7 @@ const getFrequenciaById = async (req, res) => {
   });
 
   if (!frequencia)
-    return notFoundResponse(res, 'Registro de frequência não encontrado');
+    return notFoundResponse(res, "Registro de frequência não encontrado");
 
   return successResponse(res, frequencia);
 };
@@ -109,126 +111,213 @@ const getFrequenciaById = async (req, res) => {
    CREATE (MANUAL / ADMIN)
 ===================================================== */
 const createFrequencia = async (req, res) => {
-  const {
-    opsId,
-    dataReferencia,
-    idTipoAusencia,
-    horaEntrada,
-    horaSaida,
-    horasTrabalhadas,
-    observacao,
-    justificativa,
-    documentoAnexo,
-  } = req.body;
 
-  if (!opsId || !dataReferencia) {
-    return errorResponse(res, 'opsId e dataReferencia são obrigatórios', 400);
-  }
+  try {
 
-  // 🔒 valida colaborador
-  const colaborador = await prisma.colaborador.findFirst({
-    where: {
+    const {
       opsId,
-      status: 'ATIVO',
-      dataDesligamento: null,
-    },
-  });
-
-  if (!colaborador) {
-    return notFoundResponse(res, 'Colaborador não ativo ou desligado');
-  }
-
-  // 🔒 valida jornada
-  if (horaSaida && !horaEntrada) {
-    return errorResponse(
-      res,
-      'Hora de saída não pode existir sem hora de entrada',
-      400
-    );
-  }
-
-  const dataRef = parseDataReferencia(dataReferencia);
-
-  const frequencia = await prisma.frequencia.create({
-    data: {
-      opsId,
-      dataReferencia: dataRef,
-      idTipoAusencia: idTipoAusencia
-        ? parseInt(idTipoAusencia)
-        : null,
-      horaEntrada: horaEntrada ? toTimeOnly(horaEntrada) : null,
-      horaSaida: horaSaida ? toTimeOnly(horaSaida) : null,
-      horasTrabalhadas: horasTrabalhadas
-        ? parseFloat(horasTrabalhadas)
-        : null,
+      dataReferencia,
+      idTipoAusencia,
+      horaEntrada,
+      horaSaida,
+      horasTrabalhadas,
       observacao,
       justificativa,
       documentoAnexo,
-      manual: true,
-      registradoPor: req.user?.id || 'GESTAO',
-    },
-    include: {
-      colaborador: { select: { nomeCompleto: true } },
-      tipoAusencia: true,
-    },
-  });
+    } = req.body;
 
-  return createdResponse(
-    res,
-    frequencia,
-    'Frequência manual registrada com sucesso'
-  );
+    if (!opsId || !dataReferencia) {
+      return errorResponse(res, "opsId e dataReferencia são obrigatórios", 400);
+    }
+
+    /* =====================================================
+       VALIDAR COLABORADOR
+    ===================================================== */
+
+    const colaborador = await prisma.colaborador.findFirst({
+      where: {
+        opsId,
+        status: "ATIVO",
+        dataDesligamento: null,
+      },
+    });
+
+    if (!colaborador) {
+      return notFoundResponse(res, "Colaborador não ativo ou desligado");
+    }
+
+    /* =====================================================
+       VALIDAR JORNADA
+    ===================================================== */
+
+    if (horaSaida && !horaEntrada) {
+      return errorResponse(
+        res,
+        "Hora de saída não pode existir sem hora de entrada",
+        400
+      );
+    }
+
+    const dataRef = parseDataReferencia(dataReferencia);
+
+    /* =====================================================
+       CRIAR FREQUÊNCIA
+    ===================================================== */
+
+    const frequencia = await prisma.frequencia.create({
+      data: {
+        opsId,
+        dataReferencia: dataRef,
+        idTipoAusencia: idTipoAusencia ? parseInt(idTipoAusencia) : null,
+        horaEntrada: horaEntrada ? toTimeOnly(horaEntrada) : null,
+        horaSaida: horaSaida ? toTimeOnly(horaSaida) : null,
+        horasTrabalhadas: horasTrabalhadas
+          ? parseFloat(horasTrabalhadas)
+          : null,
+        observacao,
+        justificativa,
+        documentoAnexo,
+        manual: true,
+        registradoPor: req.user?.id || "GESTAO",
+      },
+
+      include: {
+        colaborador: {
+          select: {
+            opsId: true,
+            nomeCompleto: true,
+          },
+        },
+        tipoAusencia: true,
+      },
+    });
+
+    /* =====================================================
+       DETECTAR VIOLAÇÃO DISCIPLINAR AUTOMATICAMENTE
+    ===================================================== */
+
+    try {
+
+      if (frequencia?.idTipoAusencia) {
+      
+      await detectarViolacaoDisciplinar(frequencia.idFrequencia);
+
+      }
+
+    } catch (err) {
+
+      console.error("⚠️ Falha ao detectar violação disciplinar:", err);
+
+      /* não quebra o fluxo da frequência */
+
+    }
+
+    /* =====================================================
+       RESPONSE
+    ===================================================== */
+
+    return createdResponse(
+      res,
+      frequencia,
+      "Frequência manual registrada com sucesso"
+    );
+
+  } catch (err) {
+
+    console.error("❌ createFrequencia:", err);
+
+    return errorResponse(res, "Erro ao registrar frequência", 500);
+
+  }
+
 };
 
 /* =====================================================
    UPDATE
 ===================================================== */
 const updateFrequencia = async (req, res) => {
-  const { id } = req.params;
-  const updateData = { ...req.body };
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
 
-  if (updateData.dataReferencia) {
-    updateData.dataReferencia = parseDataReferencia(
-      updateData.dataReferencia
-    );
-  }
+    /* ===============================
+       NORMALIZAÇÃO DOS CAMPOS
+    =============================== */
 
-  if (updateData.horaEntrada) {
-    updateData.horaEntrada = toTimeOnly(updateData.horaEntrada);
-  }
-
-  if (updateData.horaSaida) {
-    if (!updateData.horaEntrada) {
-      return errorResponse(
-        res,
-        'Hora de saída não pode existir sem hora de entrada',
-        400
-      );
+    if (updateData.dataReferencia) {
+      updateData.dataReferencia = parseDataReferencia(updateData.dataReferencia);
     }
-    updateData.horaSaida = toTimeOnly(updateData.horaSaida);
-  }
 
-  if (updateData.horasTrabalhadas) {
-    updateData.horasTrabalhadas = parseFloat(
-      updateData.horasTrabalhadas
+    if (updateData.horaEntrada) {
+      updateData.horaEntrada = toTimeOnly(updateData.horaEntrada);
+    }
+
+    if (updateData.horaSaida) {
+      if (!updateData.horaEntrada) {
+        return errorResponse(
+          res,
+          "Hora de saída não pode existir sem hora de entrada",
+          400
+        );
+      }
+
+      updateData.horaSaida = toTimeOnly(updateData.horaSaida);
+    }
+
+    if (updateData.horasTrabalhadas) {
+      updateData.horasTrabalhadas = parseFloat(updateData.horasTrabalhadas);
+    }
+
+    if (updateData.idTipoAusencia) {
+      updateData.idTipoAusencia = parseInt(updateData.idTipoAusencia);
+    }
+
+    /* ===============================
+       UPDATE FREQUÊNCIA
+    =============================== */
+
+    const frequencia = await prisma.frequencia.update({
+      where: { idFrequencia: parseInt(id) },
+      data: updateData,
+      include: {
+        colaborador: true,
+        tipoAusencia: true,
+      },
+    });
+
+    /* ===============================
+       DETECTAR FALTA AUTOMÁTICA
+    =============================== */
+
+    try {
+
+        if (frequencia?.idTipoAusencia) {
+          console.log("DEBUG MD →", {
+            opsId: frequencia.opsId,
+            tipo: frequencia.tipoAusencia?.codigo,
+            idTipo: frequencia.idTipoAusencia,
+        });
+        
+        await detectarViolacaoDisciplinar(frequencia.idFrequencia);
+
+      }
+
+    } catch (err) {
+
+      console.error("⚠️ Falha ao detectar violação disciplinar:", err);
+
+    }
+
+    return successResponse(
+      res,
+      frequencia,
+      "Frequência atualizada com sucesso"
     );
+
+  } catch (error) {
+    console.error("❌ UPDATE FREQUENCIA:", error);
+    return errorResponse(res, "Erro ao atualizar frequência", 500);
   }
-
-  if (updateData.idTipoAusencia) {
-    updateData.idTipoAusencia = parseInt(updateData.idTipoAusencia);
-  }
-
-  const frequencia = await prisma.frequencia.update({
-    where: { idFrequencia: parseInt(id) },
-    data: updateData,
-    include: { colaborador: true, tipoAusencia: true },
-  });
-
-  return successResponse(
-    res,
-    frequencia,
-    'Frequência atualizada com sucesso'
-  );
 };
 
 /* =====================================================
@@ -236,10 +325,12 @@ const updateFrequencia = async (req, res) => {
 ===================================================== */
 const deleteFrequencia = async (req, res) => {
   const { id } = req.params;
+
   await prisma.frequencia.delete({
     where: { idFrequencia: parseInt(id) },
   });
-  return deletedResponse(res, 'Frequência excluída com sucesso');
+
+  return deletedResponse(res, "Frequência excluída com sucesso");
 };
 
 /* =====================================================
@@ -252,12 +343,12 @@ const validarFrequencia = async (req, res) => {
     where: { idFrequencia: parseInt(id) },
     data: {
       validado: true,
-      validadoPor: req.user?.id || 'admin',
+      validadoPor: req.user?.id || "admin",
       dataValidacao: new Date(),
     },
   });
 
-  return successResponse(res, frequencia, 'Frequência validada com sucesso');
+  return successResponse(res, frequencia, "Frequência validada com sucesso");
 };
 
 module.exports = {
