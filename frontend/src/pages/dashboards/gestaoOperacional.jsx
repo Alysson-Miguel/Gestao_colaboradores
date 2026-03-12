@@ -352,18 +352,15 @@ export default function GestaoOperacional() {
             const mediaHoraRealizado = kpis.mediaHoraRealizado || 0;
             
             // Definir horas de trabalho por turno
-            let horaInicio, horaFim, totalHoras;
+            let horaInicio, totalHoras;
             if (turno === 'T1') {
               horaInicio = 6;
-              horaFim = 14;
               totalHoras = 8;
             } else if (turno === 'T2') {
               horaInicio = 14;
-              horaFim = 22;
               totalHoras = 8;
             } else { // T3
               horaInicio = 22;
-              horaFim = 6;
               totalHoras = 8;
             }
             
