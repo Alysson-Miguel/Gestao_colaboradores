@@ -31,39 +31,20 @@ const carregarGestaoOperacional = async (req, res) => {
     const agora = agoraBrasil();
     let dataReferencia = data ? new Date(`${data}T00:00:00.000Z`) : agora;
     
-    // LÓGICA ESPECIAL PARA T3
+    // LÓGICA ESPECIAL PARA T3 - apenas quando NÃO passa data específica
     // T3 trabalha das 22h de um dia até 6h do dia seguinte
-    // Exemplo: T3 de 10/03 = 10/03 22h até 11/03 06h
-    // Se hoje é 11/03 e são 15h, o T3 "de hoje" ainda não começou (só às 22h)
-    // Então ao selecionar T3 hoje antes das 22h, deve mostrar o T3 de ontem
-    if (turno === 'T3') {
+    // Se hoje é 12/03 e são 15h, o T3 "de hoje" ainda não começou (só às 22h)
+    // Então ao buscar T3 sem data específica, deve mostrar o T3 de ontem
+    if (turno === 'T3' && !data) {
       const horaAtual = agora.getHours();
-      const dataHoje = agora.toISOString().slice(0, 10);
       
-      // Se não passou uma data específica (está usando hoje)
-      if (!data) {
-        // Se for antes das 22h, o T3 de hoje ainda não começou
-        // Buscar dados do T3 de ontem
-        if (horaAtual < 22) {
-          dataReferencia = new Date(agora);
-          dataReferencia.setDate(dataReferencia.getDate() - 1);
-          console.log("⏰ T3: Hora atual < 22h, ajustando para dia anterior");
-          console.log(`   Hoje: ${dataHoje}, Buscando: ${dataReferencia.toISOString().slice(0, 10)}`);
-        }
-      }
-      // Se passou uma data específica
-      else {
-        const dataSelecionada = dataReferencia.toISOString().slice(0, 10);
-        
-        // Se a data selecionada é hoje e ainda não são 22h
-        if (dataSelecionada === dataHoje && horaAtual < 22) {
-          // Usuário selecionou hoje mas T3 ainda não começou
-          // Ajustar para ontem
-          dataReferencia = new Date(dataReferencia);
-          dataReferencia.setDate(dataReferencia.getDate() - 1);
-          console.log("⏰ T3: Data selecionada é hoje mas ainda não são 22h");
-          console.log(`   Ajustando de ${dataSelecionada} para ${dataReferencia.toISOString().slice(0, 10)}`);
-        }
+      // Se for antes das 22h, o T3 de hoje ainda não começou
+      // Buscar dados do T3 de ontem
+      if (horaAtual < 22) {
+        dataReferencia = new Date(agora);
+        dataReferencia.setDate(dataReferencia.getDate() - 1);
+        console.log("⏰ T3: Hora atual < 22h, ajustando para dia anterior");
+        console.log(`   Hoje: ${agora.toISOString().slice(0, 10)}, Buscando: ${dataReferencia.toISOString().slice(0, 10)}`);
       }
     }
     
@@ -88,9 +69,37 @@ const carregarGestaoOperacional = async (req, res) => {
 
     // Buscar quantidade realizada da aba Atualização_colaborador
     console.log("🔍 Buscando quantidade realizada da planilha...");
-    const quantidadeResult = await buscarQuantidadeRealizada(dataStr);
-    const quantidadePorHora = quantidadeResult.success ? quantidadeResult.data : {};
-    console.log("✅ Quantidade realizada carregada:", Object.keys(quantidadePorHora).length, "horas");
+    
+    // Para T3, precisamos buscar dados de duas datas (ontem 22h-23h e hoje 0h-6h)
+    let quantidadePorHora = {};
+    if (turno === 'T3') {
+      // Buscar dados de ontem (22h-23h)
+      const quantidadeOntem = await buscarQuantidadeRealizada(dataStr);
+      if (quantidadeOntem.success) {
+        // Pegar apenas horas 22 e 23
+        if (quantidadeOntem.data[22]) quantidadePorHora[22] = quantidadeOntem.data[22];
+        if (quantidadeOntem.data[23]) quantidadePorHora[23] = quantidadeOntem.data[23];
+      }
+      
+      // Buscar dados de hoje (0h-6h)
+      const dataHoje = new Date(dataStr);
+      dataHoje.setDate(dataHoje.getDate() + 1);
+      const dataHojeStr = dataHoje.toISOString().slice(0, 10);
+      
+      const quantidadeHoje = await buscarQuantidadeRealizada(dataHojeStr);
+      if (quantidadeHoje.success) {
+        // Pegar horas 0 a 5
+        for (let h = 0; h <= 5; h++) {
+          if (quantidadeHoje.data[h]) quantidadePorHora[h] = quantidadeHoje.data[h];
+        }
+      }
+      
+      console.log("✅ T3: Quantidade realizada carregada de duas datas:", Object.keys(quantidadePorHora).length, "horas");
+    } else {
+      const quantidadeResult = await buscarQuantidadeRealizada(dataStr);
+      quantidadePorHora = quantidadeResult.success ? quantidadeResult.data : {};
+      console.log("✅ Quantidade realizada carregada:", Object.keys(quantidadePorHora).length, "horas");
+    }
 
     // Buscar dados de produção por hora do banco (fallback)
     console.log("🔍 Buscando produção do banco (fallback)...");
@@ -116,18 +125,54 @@ const carregarGestaoOperacional = async (req, res) => {
         }));
         console.log("✅ Produção carregada do histórico:", producaoPorHora.length, "registros");
       } else {
-        // Fallback: buscar de dw_real se não houver histórico
-        producaoPorHora = await prisma.$queryRaw`
-          SELECT 
-            EXTRACT(HOUR FROM data::timestamp) as hora,
-            SUM(CAST(quantidade AS INTEGER)) as realizado
-          FROM dw_real
-          WHERE data::date = CAST(${dataStr} AS date)
-            AND id_turno = ${turnoId}
-          GROUP BY EXTRACT(HOUR FROM data::timestamp)
-          ORDER BY hora
-        `;
-        console.log("✅ Produção carregada do dw_real:", producaoPorHora.length, "registros");
+        // Fallback: buscar de dw_real
+        // Para T3, buscar de duas datas
+        if (turno === 'T3') {
+          // Buscar 22h-23h de ontem
+          const producaoOntem = await prisma.$queryRaw`
+            SELECT 
+              EXTRACT(HOUR FROM data::timestamp) as hora,
+              SUM(CAST(quantidade AS INTEGER)) as realizado
+            FROM dw_real
+            WHERE data::date = CAST(${dataStr} AS date)
+              AND id_turno = ${turnoId}
+              AND EXTRACT(HOUR FROM data::timestamp) >= 22
+            GROUP BY EXTRACT(HOUR FROM data::timestamp)
+            ORDER BY hora
+          `;
+          
+          // Buscar 0h-5h de hoje
+          const dataHoje = new Date(dataStr);
+          dataHoje.setDate(dataHoje.getDate() + 1);
+          const dataHojeStr = dataHoje.toISOString().slice(0, 10);
+          
+          const producaoHoje = await prisma.$queryRaw`
+            SELECT 
+              EXTRACT(HOUR FROM data::timestamp) as hora,
+              SUM(CAST(quantidade AS INTEGER)) as realizado
+            FROM dw_real
+            WHERE data::date = CAST(${dataHojeStr} AS date)
+              AND id_turno = ${turnoId}
+              AND EXTRACT(HOUR FROM data::timestamp) < 6
+            GROUP BY EXTRACT(HOUR FROM data::timestamp)
+            ORDER BY hora
+          `;
+          
+          producaoPorHora = [...producaoOntem, ...producaoHoje];
+          console.log("✅ T3: Produção carregada do dw_real de duas datas:", producaoPorHora.length, "registros");
+        } else {
+          producaoPorHora = await prisma.$queryRaw`
+            SELECT 
+              EXTRACT(HOUR FROM data::timestamp) as hora,
+              SUM(CAST(quantidade AS INTEGER)) as realizado
+            FROM dw_real
+            WHERE data::date = CAST(${dataStr} AS date)
+              AND id_turno = ${turnoId}
+            GROUP BY EXTRACT(HOUR FROM data::timestamp)
+            ORDER BY hora
+          `;
+          console.log("✅ Produção carregada do dw_real:", producaoPorHora.length, "registros");
+        }
       }
     } catch (error) {
       console.error("⚠️ Erro ao buscar produção do banco:", error.message);
@@ -146,6 +191,8 @@ const carregarGestaoOperacional = async (req, res) => {
     console.log("📅 Data para busca:", dataStr, "| Data objeto:", new Date(dataStr));
     let totalPresentes = 0;
     try {
+      // Para T3, buscar frequência da data de início (ontem)
+      // Colaboradores do T3 batem ponto na data de início do turno (22h)
       const frequencias = await prisma.frequencia.findMany({
         where: {
           dataReferencia: new Date(dataStr),
@@ -192,6 +239,7 @@ const carregarGestaoOperacional = async (req, res) => {
     console.log("📅 Data para busca:", dataStr, "| Turno ID:", turnoId);
     let diaristasPresentes = 0;
     try {
+      // Para T3, buscar diaristas da data de início (ontem)
       const diaristasReais = await prisma.dwReal.findMany({
         where: {
           data: new Date(dataStr),
@@ -397,6 +445,7 @@ const carregarGestaoOperacional = async (req, res) => {
       data: {
         dataReferencia: dataStr,
         turno,
+        ultimaAtualizacao: new Date().toISOString(), // Timestamp da resposta
         kpis: {
           metaDia: Math.round(metaDia),
           metaHoraProjetada: Math.round(metaHoraProjetada),

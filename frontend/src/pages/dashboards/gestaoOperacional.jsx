@@ -306,6 +306,11 @@ export default function GestaoOperacional() {
             <div className="bg-[#2A2A2C] px-6 py-2 text-center">
               <span className="text-sm text-[#BFBFC3]">
                 Dados de: <span className="font-bold text-white">{dashboardData?.turno || turno}</span> - {dashboardData?.dataReferencia ? new Date(dashboardData.dataReferencia + 'T00:00:00').toLocaleDateString('pt-BR') : 'Carregando...'}
+                {dashboardData?.ultimaAtualizacao && (
+                  <span className="ml-4 text-xs opacity-75">
+                    | Última atualização: {new Date(dashboardData.ultimaAtualizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
               </span>
             </div>
             
@@ -338,11 +343,13 @@ export default function GestaoOperacional() {
             </div>
           </div>
 
-          {/* Card de Previsão */}
+          {/* Cards de Previsão - Separados por Dia e Hora */}
           {(() => {
             const realizado = kpis.realizado || 0;
             const metaDia = kpis.metaDia || 0;
+            const metaHoraAtual = kpis.metaHoraAtual || 0;
             const horaAtual = kpis.horaAtual || 0;
+            const mediaHoraRealizado = kpis.mediaHoraRealizado || 0;
             
             // Definir horas de trabalho por turno
             let horaInicio, horaFim, totalHoras;
@@ -363,47 +370,82 @@ export default function GestaoOperacional() {
             // Calcular horas trabalhadas
             let horasTrabalhadas;
             if (turno === 'T3') {
-              // T3 é especial: 22h às 6h
               if (horaAtual >= 22) {
                 horasTrabalhadas = horaAtual - horaInicio;
               } else if (horaAtual < 6) {
                 horasTrabalhadas = (24 - horaInicio) + horaAtual;
               } else {
-                horasTrabalhadas = totalHoras; // Turno finalizado
+                horasTrabalhadas = totalHoras;
               }
             } else {
               horasTrabalhadas = Math.max(0, Math.min(horaAtual - horaInicio, totalHoras));
             }
             
-            // Calcular projeção
-            const mediaHora = horasTrabalhadas > 0 ? realizado / horasTrabalhadas : 0;
+            // Calcular projeção do dia
             const horasRestantes = Math.max(0, totalHoras - horasTrabalhadas);
-            const projecaoFinal = Math.round(realizado + (mediaHora * horasRestantes));
+            const projecaoFinal = Math.round(realizado + (mediaHoraRealizado * horasRestantes));
+            const diferencaDia = projecaoFinal - metaDia;
+            const estaPerdendoDia = diferencaDia < 0;
             
-            // Determinar status
-            const diferenca = projecaoFinal - metaDia;
-            const estaPerdendo = diferenca < 0;
-            const percentualDiferenca = metaDia > 0 ? Math.abs((diferenca / metaDia) * 100) : 0;
+            // Calcular projeção da hora
+            const minutosAtuais = new Date().getMinutes();
+            const percentualHoraDecorrido = minutosAtuais / 60;
+            const producaoHoraAtual = dashboardData?.producaoPorHora?.find(p => parseInt(p.hora) === horaAtual)?.realizado || 0;
+            const ritmoPorMinuto = percentualHoraDecorrido > 0 ? producaoHoraAtual / minutosAtuais : mediaHoraRealizado / 60;
+            const minutosRestantes = 60 - minutosAtuais;
+            const projecaoHoraAtual = Math.round(producaoHoraAtual + (ritmoPorMinuto * minutosRestantes));
             
-            // Não mostrar se o turno ainda não começou ou já finalizou
+            const producaoHoras = dashboardData?.producaoPorHora || [];
+            const metaEspecificaHora = producaoHoras.find(p => parseInt(p.hora) === horaAtual)?.meta || metaHoraAtual;
+            
+            const diferencaProjecaoHora = projecaoHoraAtual - metaEspecificaHora;
+            const faltaHora = Math.abs(diferencaProjecaoHora);
+            const percentualDiferencaHora = metaEspecificaHora > 0 ? Math.abs((diferencaProjecaoHora / metaEspecificaHora) * 100) : 0;
+            const estaPerdendoHora = diferencaProjecaoHora < 0;
+            
             const turnoAtivo = horasTrabalhadas > 0 && horasTrabalhadas < totalHoras;
             
             if (!turnoAtivo) return null;
             
             return (
-              <div className={`${estaPerdendo ? 'bg-red-500' : 'bg-green-500'} rounded-lg shadow-lg p-8 text-white text-center`}>
-                <h2 className="text-3xl font-bold mb-6">
-                  {estaPerdendo ? 'Estamos perdendo. Bora lá ein! 😰' : 'Estamos ganhando! Vamos manter! 🚀'}
-                </h2>
-                <p className="text-xl leading-relaxed">
-                  Se continuarmos nesse ritmo vamos finalizar o {turno === 'T3' ? 'horário' : 'dia'} com{' '}
-                  <span className="font-bold text-2xl">{projecaoFinal.toLocaleString('pt-BR')}</span> pacotes processados.
-                </p>
-                <div className="mt-4 text-sm opacity-90">
-                  {estaPerdendo ? (
-                    <span>Faltam {Math.abs(diferenca).toLocaleString('pt-BR')} pacotes para bater a meta ({percentualDiferenca.toFixed(1)}% abaixo)</span>
+              <div className="space-y-4">
+                {/* Card de Projeção do Dia */}
+                <div className={`${estaPerdendoDia ? 'bg-red-500' : 'bg-green-500'} rounded-lg shadow-lg p-6 text-white text-center`}>
+                  <h2 className="text-2xl font-bold mb-4">
+                    {estaPerdendoDia ? 'Estamos perdendo. Bora lá ein! 😰' : 'Estamos ganhando! Vamos manter! 🚀'}
+                  </h2>
+                  <p className="text-lg leading-relaxed">
+                    Se continuarmos nesse ritmo vamos finalizar o {turno === 'T3' ? 'horário' : 'dia'} com{' '}
+                    <span className="font-bold text-2xl">{projecaoFinal.toLocaleString('pt-BR')}</span> pacotes processados.
+                  </p>
+                </div>
+
+                {/* Card de Projeção da Hora */}
+                <div className={`${estaPerdendoHora ? 'bg-red-500' : 'bg-green-500'} rounded-lg shadow-lg p-6 text-white text-center`}>
+                  {estaPerdendoHora ? (
+                    <div>
+                      <p className="text-xl font-semibold mb-3">
+                        Faltam <span className="text-3xl font-bold">{faltaHora.toLocaleString('pt-BR')}</span> pacotes para completar a meta da hora
+                      </p>
+                      <p className="text-xl font-semibold mb-1">
+                        Projeção: <span className="text-2xl font-bold">{projecaoHoraAtual.toLocaleString('pt-BR')}</span> pacotes até {horaAtual}h
+                      </p>
+                      <p className="text-base opacity-90">
+                        ({percentualDiferencaHora.toFixed(1)}% abaixo da meta de {metaEspecificaHora.toLocaleString('pt-BR')})
+                      </p>
+                    </div>
                   ) : (
-                    <span>{diferenca.toLocaleString('pt-BR')} pacotes acima da meta ({percentualDiferenca.toFixed(1)}% acima)</span>
+                    <div>
+                      <p className="text-xl font-semibold mb-3">
+                        <span className="text-3xl font-bold">{faltaHora.toLocaleString('pt-BR')}</span> pacotes acima da meta da hora
+                      </p>
+                      <p className="text-xl font-semibold mb-1">
+                        Projeção: <span className="text-2xl font-bold">{projecaoHoraAtual.toLocaleString('pt-BR')}</span> pacotes até {horaAtual}h
+                      </p>
+                      <p className="text-base opacity-90">
+                        ({percentualDiferencaHora.toFixed(1)}% acima da meta de {metaEspecificaHora.toLocaleString('pt-BR')})
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
