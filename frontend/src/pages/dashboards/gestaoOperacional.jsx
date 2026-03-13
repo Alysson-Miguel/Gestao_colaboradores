@@ -167,8 +167,17 @@ export default function GestaoOperacional() {
       
       // Formatar período
       const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+      const groupId = import.meta.env.VITE_SEATALK_GROUP_GESTAO_OPERACIONAL;
+      
       console.log("📅 Data formatada:", dataFormatada);
       console.log("🕐 Turno:", turno);
+      console.log("👥 Group ID:", groupId);
+      
+      if (!groupId) {
+        console.error("❌ VITE_SEATALK_GROUP_GESTAO_OPERACIONAL não está definida no .env");
+        toast.error("Erro: Group ID não configurado", { id: "screenshot" });
+        return;
+      }
       
       // Enviar para o backend
       console.log("🌐 Enviando para API...");
@@ -176,7 +185,7 @@ export default function GestaoOperacional() {
         image: imageBase64,
         periodo: dataFormatada,
         turno: turno,
-        groupId: "NjA1Njc0MzU0ODAz", // Grupo específico para Gestão Operacional
+        groupId: groupId,
       });
       
       console.log("✅ Resposta da API:", response.data);

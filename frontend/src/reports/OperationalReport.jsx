@@ -98,11 +98,19 @@ export default function OperationalReport({ report }) {
       console.log("📤 Enviando para backend...")
       console.log("🔗 URL:", "/reports/seatalk")
 
+      const groupId = import.meta.env.VITE_SEATALK_GROUP_OPERACIONAL
+      
+      if (!groupId) {
+        console.error("❌ VITE_SEATALK_GROUP_OPERACIONAL não está definida no .env")
+        alert("Erro: Group ID não configurado")
+        return
+      }
+
       const response = await api.post("/reports/seatalk", {
         image: dataUrl,
         periodo: report.header.periodo,
         turno: report.header.turno,
-        groupId: "iNCIam_zTSaCzvN8qLp0pg", // Grupo padrão para Relatório Operacional
+        groupId: groupId,
       })
 
       console.log("✅ Resposta do backend:", response.data)
