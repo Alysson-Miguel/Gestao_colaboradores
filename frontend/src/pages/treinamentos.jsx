@@ -10,6 +10,7 @@ import {
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import LoadingScreen from "../components/LoadingScreen";
 
 import { TreinamentosAPI } from "../services/treinamentos";
 import { AuthContext } from "../context/AuthContext";
@@ -72,11 +73,7 @@ export default function TreinamentosPage() {
 
   /* ================= RENDER ================= */
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center text-[#BFBFC3]">
-        Carregando…
-      </div>
-    );
+    return <LoadingScreen message="Carregando treinamentos..." />;
   }
 
   if (erro) {

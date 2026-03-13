@@ -35,7 +35,7 @@ async function sendReportToSeatalk(req, res, next) {
     console.log("📥 [SEATALK] User:", req.user?.email || "não autenticado")
     console.log("📥 [SEATALK] Body keys:", Object.keys(req.body))
     
-    const { image, periodo, turno, groupId: customGroupId } = req.body
+    const { image, periodo, turno, reportType } = req.body
 
     if (!image) {
       console.error("❌ [SEATALK] Imagem não enviada")
@@ -54,14 +54,28 @@ async function sendReportToSeatalk(req, res, next) {
       })
     }
 
-    // Permite especificar groupId customizado ou usa o padrão do .env
-    const groupId = customGroupId || process.env.SEATALK_GROUP_ID_GESTAO || process.env.SEATALK_GROUP_ID
+    // Determinar o grupo baseado no tipo de relatório
+    let groupId;
+    if (reportType === "gestaoOperacional") {
+      groupId = process.env.SEATALK_GROUP_ID_GESTAO
+      console.log("📊 [SEATALK] Tipo: Gestão Operacional")
+    } else if (reportType === "operacional") {
+      groupId = process.env.SEATALK_GROUP_ID
+      console.log("📊 [SEATALK] Tipo: Relatório Operacional")
+    } else {
+      // Fallback para compatibilidade com versões antigas
+      groupId = process.env.SEATALK_GROUP_ID_GESTAO || process.env.SEATALK_GROUP_ID
+      console.log("📊 [SEATALK] Tipo: Não especificado (usando fallback)")
+    }
 
     if (!groupId) {
       console.error("❌ [SEATALK] Group ID não configurado")
+      console.error("❌ [SEATALK] Variáveis disponíveis:")
+      console.error("   - SEATALK_GROUP_ID:", process.env.SEATALK_GROUP_ID ? "✅" : "❌")
+      console.error("   - SEATALK_GROUP_ID_GESTAO:", process.env.SEATALK_GROUP_ID_GESTAO ? "✅" : "❌")
       return res.status(500).json({
         success: false,
-        message: "Group ID não configurado no servidor. Configure SEATALK_GROUP_ID_GESTAO no .env",
+        message: "Group ID não configurado no servidor. Configure SEATALK_GROUP_ID e SEATALK_GROUP_ID_GESTAO no .env",
       })
     }
 
@@ -70,6 +84,7 @@ async function sendReportToSeatalk(req, res, next) {
     console.log("📏 [SEATALK] Tamanho da imagem:", Math.round(image.length / 1024), "KB")
     console.log("📅 [SEATALK] Período:", periodo)
     console.log("🕐 [SEATALK] Turno:", turno)
+    console.log("📊 [SEATALK] Tipo de relatório:", reportType || "não especificado")
 
     const result = await sendImageToGroup(image, groupId, { periodo, turno })
 
