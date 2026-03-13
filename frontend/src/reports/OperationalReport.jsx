@@ -98,11 +98,19 @@ export default function OperationalReport({ report }) {
       console.log("📤 Enviando para backend...")
       console.log("🔗 URL:", "/reports/seatalk")
 
+      const groupId = import.meta.env.VITE_SEATALK_GROUP_OPERACIONAL
+      
+      if (!groupId) {
+        console.error("❌ VITE_SEATALK_GROUP_OPERACIONAL não está definida no .env")
+        alert("Erro: Group ID não configurado")
+        return
+      }
+
       const response = await api.post("/reports/seatalk", {
         image: dataUrl,
         periodo: report.header.periodo,
         turno: report.header.turno,
-        groupId: "iNCIam_zTSaCzvN8qLp0pg", // Grupo padrão para Relatório Operacional
+        groupId: groupId,
       })
 
       console.log("✅ Resposta do backend:", response.data)
@@ -223,7 +231,7 @@ export default function OperationalReport({ report }) {
           <KpiCard label="Colaboradores Planejados" value={kpis.colaboradoresPlanejados} />
           <KpiCard label="Colaboradores Presentes" value={kpis.colaboradoresPresentes} />
           <KpiCard label="Ausências" value={kpis.ausencias} highlight="error" />
-          <KpiCard label="Absenteísmo" value={`${kpis.absenteismo}%`} highlight="warning" textColor={kpis.absenteismo > 3.4 ? "#FF453A" : "#FA4C00"} />
+          <KpiCard label="Absenteísmo" value={`${kpis.absenteismo}%`} highlight="warning" textColor={kpis.absenteismo < 2 ? "#34C759" : "#FF453A"} />
           <KpiCard label="Diaristas Planejados" value={kpis.diaristasPlanejados} />
           <KpiCard label="Diaristas Presentes" value={kpis.diaristasPresentes} />
           <KpiCard label="Aderência DW" value={`${kpis.aderenciaDW}%`} highlight="success" />
@@ -257,7 +265,7 @@ export default function OperationalReport({ report }) {
                     </div>
                     <div className="flex justify-between pt-2 border-t border-white/5">
                       <span className="text-[#BFBFC3]">Absenteísmo</span>
-                      <span className={e.absenteismo > 3.4 ? "text-[#FF453A]" : "text-[#34C759]"}>
+                      <span className={e.absenteismo < 2 ? "text-[#34C759]" : "text-[#FF453A]"}>
                         {e.absenteismo}%
                       </span>
                     </div>

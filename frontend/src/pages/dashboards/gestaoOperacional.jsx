@@ -167,8 +167,17 @@ export default function GestaoOperacional() {
       
       // Formatar período
       const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+      const groupId = import.meta.env.VITE_SEATALK_GROUP_GESTAO_OPERACIONAL;
+      
       console.log("📅 Data formatada:", dataFormatada);
       console.log("🕐 Turno:", turno);
+      console.log("👥 Group ID:", groupId);
+      
+      if (!groupId) {
+        console.error("❌ VITE_SEATALK_GROUP_GESTAO_OPERACIONAL não está definida no .env");
+        toast.error("Erro: Group ID não configurado", { id: "screenshot" });
+        return;
+      }
       
       // Enviar para o backend
       console.log("🌐 Enviando para API...");
@@ -176,7 +185,7 @@ export default function GestaoOperacional() {
         image: imageBase64,
         periodo: dataFormatada,
         turno: turno,
-        groupId: "NjA1Njc0MzU0ODAz", // Grupo específico para Gestão Operacional
+        groupId: groupId,
       });
       
       console.log("✅ Resposta da API:", response.data);
@@ -206,8 +215,12 @@ export default function GestaoOperacional() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#0D0D0D] text-[#BFBFC3]">
-        Carregando…
+      <div className="h-screen flex flex-col items-center justify-center bg-[#0D0D0D] text-[#BFBFC3]">
+        <div className="relative">
+          {/* Círculo animado */}
+          <div className="w-16 h-16 border-4 border-[#2A2A2C] border-t-[#E8491D] rounded-full animate-spin"></div>
+        </div>
+        <p className="mt-4 text-lg">Carregando dados...</p>
       </div>
     );
   }
@@ -245,8 +258,14 @@ export default function GestaoOperacional() {
                 <span className="text-xl font-bold">PACKING</span>
               </div>
               {/* Indicador de filtros ativos */}
-              <div className="text-sm text-[#BFBFC3]">
+              <div className="text-sm text-[#BFBFC3] flex items-center gap-2">
                 <span className="font-semibold text-white">{turno}</span> | {new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                {loading && (
+                  <div className="flex items-center gap-2 ml-2">
+                    <div className="w-4 h-4 border-2 border-[#E8491D] border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-xs text-[#E8491D]">Atualizando...</span>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -378,27 +397,32 @@ export default function GestaoOperacional() {
               horasTrabalhadas = Math.max(0, Math.min(horaAtual - horaInicio, totalHoras));
             }
             
-            // Calcular projeção do dia
-            const horasRestantes = Math.max(0, totalHoras - horasTrabalhadas);
-            const projecaoFinal = Math.round(realizado + (mediaHoraRealizado * horasRestantes));
-            const diferencaDia = projecaoFinal - metaDia;
-            const estaPerdendoDia = diferencaDia < 0;
+            // Calcular realizado e projeção da hora atual
+            const producaoHoraAtual = dashboardData?.producaoPorHora?.find(p => parseInt(p.hora) === horaAtual)?.realizado || 0;
             
             // Calcular projeção da hora
             const minutosAtuais = new Date().getMinutes();
-            const percentualHoraDecorrido = minutosAtuais / 60;
-            const producaoHoraAtual = dashboardData?.producaoPorHora?.find(p => parseInt(p.hora) === horaAtual)?.realizado || 0;
-            const ritmoPorMinuto = percentualHoraDecorrido > 0 ? producaoHoraAtual / minutosAtuais : mediaHoraRealizado / 60;
+            const ritmoPorMinuto = minutosAtuais > 0 ? producaoHoraAtual / minutosAtuais : mediaHoraRealizado / 60;
             const minutosRestantes = 60 - minutosAtuais;
             const projecaoHoraAtual = Math.round(producaoHoraAtual + (ritmoPorMinuto * minutosRestantes));
+            
+            // Calcular projeção do dia
+            // Somar o realizado de todas as horas completas + projeção da hora atual + projeção das horas futuras
+            const horasCompletas = dashboardData?.producaoPorHora?.filter(p => parseInt(p.hora) < horaAtual) || [];
+            const realizadoHorasCompletas = horasCompletas.reduce((sum, h) => sum + (h.realizado || 0), 0);
+            const horasRestantes = Math.max(0, totalHoras - horasTrabalhadas - 1); // -1 porque a hora atual já está sendo projetada
+            const projecaoFinal = Math.round(realizadoHorasCompletas + projecaoHoraAtual + (mediaHoraRealizado * horasRestantes));
+            const diferencaDia = projecaoFinal - metaDia;
+            const estaPerdendoDia = diferencaDia < 0;
             
             const producaoHoras = dashboardData?.producaoPorHora || [];
             const metaEspecificaHora = producaoHoras.find(p => parseInt(p.hora) === horaAtual)?.meta || metaHoraAtual;
             
-            const diferencaProjecaoHora = projecaoHoraAtual - metaEspecificaHora;
-            const faltaHora = Math.abs(diferencaProjecaoHora);
-            const percentualDiferencaHora = metaEspecificaHora > 0 ? Math.abs((diferencaProjecaoHora / metaEspecificaHora) * 100) : 0;
-            const estaPerdendoHora = diferencaProjecaoHora < 0;
+            // Comparar realizado com a meta (para saber quanto falta)
+            const diferencaRealizadoHora = producaoHoraAtual - metaEspecificaHora;
+            const faltaHora = Math.abs(diferencaRealizadoHora);
+            const percentualDiferencaHora = metaEspecificaHora > 0 ? Math.abs((diferencaRealizadoHora / metaEspecificaHora) * 100) : 0;
+            const estaPerdendoHora = diferencaRealizadoHora < 0;
             
             const turnoAtivo = horasTrabalhadas > 0 && horasTrabalhadas < totalHoras;
             
