@@ -162,9 +162,8 @@ const createMedida = async (req, res) => {
         dataOcorrencia: dataOc,
 
         status: {
-          not: "CANCELADO",
-        },
-
+          in: ["PENDENTE_ASSINATURA", "ASSINADO"]
+        }
       },
 
     });

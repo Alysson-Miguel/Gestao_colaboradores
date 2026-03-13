@@ -1,34 +1,65 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Upload } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import api from "../../services/api";
 
+/* ================= CONSTANTES ================= */
+
+const NIVEIS_VIOLACAO = [
+  { value: "BAIXA", label: "Baixa" },
+  { value: "MEDIA", label: "Média" },
+  { value: "ALTA", label: "Alta" },
+];
+
+const TIPOS_MEDIDA = [
+  { value: "ADVERTENCIA", label: "Advertência Verbal" },
+  { value: "ADVERTENCIA_ESCRITA", label: "Advertência Escrita" },
+  { value: "SUSPENSAO", label: "Suspensão" },
+  { value: "DEMISSAO", label: "Demissão" },
+  { value: "DESLIGAMENTO_ANALISE_JURIDICA", label: "Desligamento (Análise Jurídica)" },
+  { value: "JURIDICO", label: "Encaminhado ao Jurídico" },
+];
+
 export default function NovaMedidaDisciplinar() {
+
   const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     cpf: "",
-    dataAplicacao: "",
+    nivelViolacao: "",
+    violacao: "",
     tipoMedida: "",
+    diasSuspensao: "",
     motivo: "",
+    dataOcorrencia: "",
+    dataAplicacao: "",
+    idMatriz: "",
   });
 
-  const [file, setFile] = useState(null);
   const [colaborador, setColaborador] = useState(null);
   const [erroCpf, setErroCpf] = useState("");
 
   function handleChange(e) {
+
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    setForm(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+
   }
 
-  /* ================= BUSCA COLABORADOR (CPF) ================= */
+  /* ================= BUSCAR COLABORADOR ================= */
+
   async function buscarColaborador() {
+
     if (!form.cpf) return;
 
     const cpfLimpo = form.cpf.replace(/\D/g, "");
@@ -40,10 +71,14 @@ export default function NovaMedidaDisciplinar() {
     }
 
     try {
+
       const res = await api.get(`/colaboradores/cpf/${cpfLimpo}`);
+
       setColaborador(res.data.data);
       setErroCpf("");
+
     } catch (err) {
+
       setColaborador(null);
 
       if (err.response?.status === 404) {
@@ -51,80 +86,84 @@ export default function NovaMedidaDisciplinar() {
       } else {
         setErroCpf("Erro ao buscar colaborador");
       }
+
     }
+
   }
 
-
   /* ================= SALVAR ================= */
+
   async function handleSave() {
+
     if (!colaborador) {
       alert("Informe um CPF válido.");
       return;
     }
 
-    if (!form.dataAplicacao || !form.tipoMedida || !form.motivo) {
+    if (
+      !form.nivelViolacao ||
+      !form.violacao ||
+      !form.tipoMedida ||
+      !form.motivo ||
+      !form.dataAplicacao
+    ) {
       alert("Preencha todos os campos obrigatórios.");
       return;
     }
 
-    if (!file) {
-      alert("PDF da medida disciplinar é obrigatório.");
-      return;
-    }
-
-    if (file.type !== "application/pdf") {
-      alert("Envie apenas arquivo PDF.");
-      return;
-    }
-
     try {
+
       setSaving(true);
 
-      /* 1️⃣ Presign upload */
-      const presign = await api.post(
-        "/medidas-disciplinares/presign-upload",
-        {
-          cpf: form.cpf,
-          filename: file.name,
-          contentType: file.type,
-          size: file.size,
-        }
+      const res = await api.post("/medidas-disciplinares", {
+
+        cpf: form.cpf,
+
+        nivelViolacao: form.nivelViolacao,
+
+        violacao: form.violacao,
+
+        tipoMedida: form.tipoMedida,
+
+        diasSuspensao:
+          form.tipoMedida === "SUSPENSAO"
+            ? Number(form.diasSuspensao)
+            : null,
+
+        motivo: form.motivo,
+
+        dataOcorrencia: form.dataOcorrencia || null,
+
+        dataAplicacao: form.dataAplicacao,
+
+        idMatriz: form.idMatriz || null,
+
+      });
+
+      const medida = res.data.data;
+
+      navigate(`/medidas-disciplinares/${medida.idMedida}`);
+
+    } catch (err) {
+
+      console.error(err);
+
+      alert(
+        err?.response?.data?.message ||
+        "Erro ao criar medida disciplinar."
       );
 
-      const { uploadUrl, key } = presign.data.data;
-
-      /* 2️⃣ Upload direto no R2 */
-      const upload = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/pdf" },
-        body: file,
-      });
-
-      if (!upload.ok) {
-        alert("Erro ao enviar PDF.");
-        return;
-      }
-
-      /* 3️⃣ Criar medida */
-      await api.post("/medidas-disciplinares", {
-        cpf: form.cpf,
-        dataAplicacao: form.dataAplicacao,
-        tipoMedida: form.tipoMedida,
-        motivo: form.motivo,
-        documentoKey: key,
-      });
-
-      navigate("/medidas-disciplinares");
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao salvar medida disciplinar.");
     } finally {
+
       setSaving(false);
+
     }
+
   }
 
   return (
     <div className="flex min-h-screen bg-[#0D0D0D] text-white">
+
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -132,12 +171,17 @@ export default function NovaMedidaDisciplinar() {
       />
 
       <div className="flex-1 lg:ml-64">
+
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-8 max-w-5xl mx-auto space-y-8">
+
           {/* HEADER */}
+
           <div className="flex items-center justify-between">
+
             <div className="flex items-center gap-4">
+
               <button
                 onClick={() => navigate(-1)}
                 className="p-2 rounded-lg bg-[#1A1A1C] hover:bg-[#2A2A2C]"
@@ -149,10 +193,13 @@ export default function NovaMedidaDisciplinar() {
                 <h1 className="text-2xl font-semibold">
                   Nova Medida Disciplinar
                 </h1>
+
                 <p className="text-sm text-[#BFBFC3]">
-                  Registro disciplinar vinculado ao colaborador
+                  Registro manual de medida disciplinar
                 </p>
+
               </div>
+
             </div>
 
             <button
@@ -165,13 +212,19 @@ export default function NovaMedidaDisciplinar() {
                     : "bg-[#FA4C00] hover:bg-[#ff5a1a]"
                 }`}
             >
+
               <Save size={16} />
-              {saving ? "Salvando..." : "Salvar"}
+
+              {saving ? "Salvando..." : "Criar Medida"}
+
             </button>
+
           </div>
 
           {/* CPF */}
+
           <Section title="Identificação do Colaborador">
+
             <Input
               label="CPF do Colaborador"
               name="cpf"
@@ -186,32 +239,39 @@ export default function NovaMedidaDisciplinar() {
                 {erroCpf}
               </p>
             )}
+
           </Section>
 
           {colaborador && (
             <>
-              {/* DADOS PESSOAIS */}
+
               <Section title="Dados Pessoais">
+
                 <ReadOnly label="Nome" value={colaborador.nomeCompleto} />
                 <ReadOnly label="CPF" value={colaborador.cpf} />
                 <ReadOnly label="E-mail" value={colaborador.email} />
                 <ReadOnly label="Telefone" value={colaborador.telefone} />
-                <ReadOnly label="Gênero" value={colaborador.genero} />
                 <ReadOnly label="Matrícula" value={colaborador.matricula} />
+                <ReadOnly label="Gênero" value={colaborador.genero} />
+
               </Section>
 
-              {/* VÍNCULO */}
               <Section title="Vínculo Organizacional">
+
                 <ReadOnly label="Empresa" value={colaborador.empresa?.razaoSocial} />
                 <ReadOnly label="Setor" value={colaborador.setor?.nomeSetor} />
                 <ReadOnly label="Cargo" value={colaborador.cargo?.nomeCargo} />
                 <ReadOnly label="Turno" value={colaborador.turno?.nomeTurno} />
+
               </Section>
+
             </>
           )}
 
           {/* MEDIDA */}
+
           <Section title="Dados da Medida Disciplinar">
+
             <Input
               type="date"
               label="Data da Aplicação"
@@ -221,11 +281,44 @@ export default function NovaMedidaDisciplinar() {
             />
 
             <Input
+              type="date"
+              label="Data da Ocorrência"
+              name="dataOcorrencia"
+              value={form.dataOcorrencia}
+              onChange={handleChange}
+            />
+
+            <Select
+              label="Nível da Violação"
+              name="nivelViolacao"
+              value={form.nivelViolacao}
+              onChange={handleChange}
+              options={NIVEIS_VIOLACAO}
+            />
+
+            <Select
               label="Tipo da Medida"
               name="tipoMedida"
               value={form.tipoMedida}
               onChange={handleChange}
-              placeholder="Ex: Advertência"
+              options={TIPOS_MEDIDA}
+            />
+
+            {form.tipoMedida === "SUSPENSAO" && (
+              <Input
+                type="number"
+                label="Dias de Suspensão"
+                name="diasSuspensao"
+                value={form.diasSuspensao}
+                onChange={handleChange}
+              />
+            )}
+
+            <Textarea
+              label="Violação"
+              name="violacao"
+              value={form.violacao}
+              onChange={handleChange}
             />
 
             <Textarea
@@ -235,15 +328,18 @@ export default function NovaMedidaDisciplinar() {
               onChange={handleChange}
             />
 
-            <FileUpload file={file} onChange={setFile} />
           </Section>
+
         </main>
+
       </div>
+
     </div>
   );
+
 }
 
-/* ================= UI ================= */
+/* ================= COMPONENTES ================= */
 
 function Section({ title, children }) {
   return (
@@ -251,6 +347,7 @@ function Section({ title, children }) {
       <h2 className="text-sm font-semibold text-[#BFBFC3] mb-6 uppercase">
         {title}
       </h2>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {children}
       </div>
@@ -262,6 +359,7 @@ function Input({ label, ...props }) {
   return (
     <div className="flex flex-col gap-1">
       <label className="text-xs text-[#BFBFC3]">{label}</label>
+
       <input
         {...props}
         className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40]
@@ -271,16 +369,45 @@ function Input({ label, ...props }) {
   );
 }
 
+function Select({ label, options = [], ...props }) {
+  return (
+    <div className="flex flex-col gap-1">
+
+      <label className="text-xs text-[#BFBFC3]">{label}</label>
+
+      <select
+        {...props}
+        className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40]
+        rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
+      >
+
+        <option value="">Selecione</option>
+
+        {options.map(o => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+
+      </select>
+
+    </div>
+  );
+}
+
 function Textarea({ label, ...props }) {
   return (
     <div className="flex flex-col gap-1 md:col-span-2">
+
       <label className="text-xs text-[#BFBFC3]">{label}</label>
+
       <textarea
         {...props}
         rows={3}
         className="px-4 py-2.5 bg-[#2A2A2C] border border-[#3D3D40]
         rounded-xl outline-none focus:ring-1 focus:ring-[#FA4C00]"
       />
+
     </div>
   );
 }
@@ -288,38 +415,13 @@ function Textarea({ label, ...props }) {
 function ReadOnly({ label, value }) {
   return (
     <div className="flex flex-col gap-1">
+
       <label className="text-xs text-[#BFBFC3]">{label}</label>
+
       <div className="px-4 py-2.5 bg-[#1E1E20] border border-[#2F2F33] rounded-xl text-sm">
         {value || "-"}
       </div>
-    </div>
-  );
-}
 
-function FileUpload({ file, onChange }) {
-  return (
-    <div className="md:col-span-2">
-      <label className="text-xs text-[#BFBFC3]">
-        PDF da Medida (obrigatório)
-      </label>
-
-      <label
-        className="flex items-center gap-3 px-4 py-3 mt-1
-        bg-[#2A2A2C] border border-[#3D3D40]
-        rounded-xl cursor-pointer hover:bg-[#242426]"
-      >
-        <Upload size={16} />
-        <span className="text-sm">
-          {file ? file.name : "Selecionar arquivo PDF"}
-        </span>
-
-        <input
-          type="file"
-          accept="application/pdf"
-          className="hidden"
-          onChange={(e) => onChange(e.target.files?.[0] || null)}
-        />
-      </label>
     </div>
   );
 }
