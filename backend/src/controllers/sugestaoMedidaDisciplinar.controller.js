@@ -16,13 +16,29 @@ const {
 ===================================================== */
 
 const getAllSugestoes = async (req, res) => {
+
   try {
 
     const { status, opsId } = req.query
 
     const where = {}
 
-    if (status) where.status = status
+    /* ==============================
+       FILTRO STATUS
+    ============================== */
+
+    if (status) {
+
+      where.status = status
+
+    } else {
+
+      where.status = {
+        in: ["PENDENTE", "REJEITADA"]
+      }
+
+    }
+
     if (opsId) where.opsId = opsId
 
     const sugestoes = await prisma.sugestaoMedidaDisciplinar.findMany({
@@ -62,6 +78,7 @@ const getAllSugestoes = async (req, res) => {
     )
 
   }
+
 }
 
 
