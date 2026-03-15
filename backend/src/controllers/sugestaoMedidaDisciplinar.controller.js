@@ -16,14 +16,89 @@ const {
 ===================================================== */
 
 const getAllSugestoes = async (req, res) => {
+
   try {
 
-    const { status, opsId } = req.query
+    const { status, opsId, data, turno, lider } = req.query;
 
-    const where = {}
+    const where = {};
+    const colaboradorFilter = {};
 
-    if (status) where.status = status
-    if (opsId) where.opsId = opsId
+    /* ==============================
+       FILTRO STATUS
+    ============================== */
+
+    if (status) {
+
+      where.status = status;
+
+    } else {
+
+      where.status = {
+        in: ["PENDENTE", "REJEITADA"]
+      };
+
+    }
+
+    /* ==============================
+       FILTRO OPS ID
+    ============================== */
+
+    if (opsId) {
+      where.opsId = opsId;
+    }
+
+    /* ==============================
+       FILTRO DATA
+    ============================== */
+
+    if (data) {
+
+      const inicio = new Date(`${data}T00:00:00`);
+      const fim = new Date(`${data}T23:59:59`);
+
+      where.dataReferencia = {
+        gte: inicio,
+        lte: fim
+      };
+
+    }
+
+    /* ==============================
+       FILTRO TURNO
+    ============================== */
+
+    if (turno) {
+
+      colaboradorFilter.idTurno = Number(turno);
+
+    }
+
+    /* ==============================
+       FILTRO LIDERANÇA
+    ============================== */
+
+    if (lider) {
+
+      colaboradorFilter.idLider = lider;
+
+    }
+
+    /* ==============================
+       APLICAR FILTRO COLABORADOR
+    ============================== */
+
+    if (Object.keys(colaboradorFilter).length > 0) {
+
+      where.colaborador = {
+        is: colaboradorFilter
+      };
+
+    }
+
+    /* ==============================
+       BUSCAR SUGESTÕES
+    ============================== */
 
     const sugestoes = await prisma.sugestaoMedidaDisciplinar.findMany({
 
@@ -40,6 +115,8 @@ const getAllSugestoes = async (req, res) => {
             opsId: true,
             nomeCompleto: true,
             matricula: true,
+            idTurno: true,
+            idLider: true
           },
         },
 
@@ -47,22 +124,23 @@ const getAllSugestoes = async (req, res) => {
 
       },
 
-    })
+    });
 
-    return successResponse(res, sugestoes)
+    return successResponse(res, sugestoes);
 
   } catch (err) {
 
-    console.error("❌ GET SUGESTOES:", err)
+    console.error("❌ GET SUGESTOES:", err);
 
     return errorResponse(
       res,
       "Erro ao buscar sugestões",
       500
-    )
+    );
 
   }
-}
+
+};
 
 
 /* =====================================================
