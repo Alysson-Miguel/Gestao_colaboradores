@@ -7,7 +7,6 @@ import { ajustarPresencaManual } from "../../services/presenca";
 ============================= */
 const STATUS_OPTIONS = [
   { code: "AA", label: "Atestado acompanhamento" },
-  { code: "AM", label: "Atestado médico" },
   { code: "AFA", label: "Afastamento" },
   { code: "BH", label: "Banco de horas" },
   { code: "DSR", label: "DSR" },
@@ -16,11 +15,10 @@ const STATUS_OPTIONS = [
   { code: "FE", label: "Férias" },
   { code: "FO", label: "Folga" },
   { code: "F", label: "Falta não justificada" },
-  { code: "FJ", label: "Falta justificada" },
+
   { code: "LM", label: "Licença maternidade" },
   { code: "LP", label: "Licença paternidade" },
   { code: "NC", label: "Não contratado"},
-  { code: "P", label: "Presente" },
   { code: "S1", label: "Sinergia enviada" },
   { code: "TR", label: "Transferido" },
   { code: "ON", label: "Onboarding" },
