@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import clsx from "clsx";
 import PresencaTooltip from "./PresencaTooltip";
 
@@ -30,7 +30,17 @@ const STATUS_CONFIG = {
 };
 
 
-/* ================= HELPERS ================= */
+/* ================= JUSTIFICATIVAS ================= */
+const JUSTIFICATIVA_LABEL = {
+  ESQUECIMENTO_MARCACAO: "Esquecimento da marcação",
+  ALTERACAO_PONTO:       "Alteração de ponto",
+  MARCACAO_INDEVIDA:     "Marcação indevida",
+  ATESTADO_MEDICO:       "Atestado médico",
+  SINERGIA_ENVIADA:      "Sinergia enviada",
+  HORA_EXTRA:            "Hora extra",
+  LICENCA:               "Licença",
+  ON:                    "Onboarding",
+};
 function fmtHora(iso) {
   if (!iso) return null;
 
@@ -75,8 +85,11 @@ export default function PresencaCell({
   colaborador,
   onEdit,
   canEdit = false,
+  isAdmin = false,
 }) {
   const [hover, setHover] = useState(false);
+  const [above, setAbove] = useState(false);
+  const cellRef = useRef(null);
   const weekend = isWeekend(dia?.date);
 
   /* ================= STATUS ================= */
@@ -112,7 +125,7 @@ export default function PresencaCell({
   const showTooltip = hover && (canEdit || registro?.status);
 
   return (
-    <td className="border-r border-[#2A2A2C] min-w-12 sm:min-w-14">
+    <td ref={cellRef} className="border-r border-[#2A2A2C] min-w-12 sm:min-w-14">
       <div
         className={clsx(
           "relative px-2 py-2 text-center cursor-pointer select-none transition",
@@ -123,7 +136,13 @@ export default function PresencaCell({
           canEdit && "hover:ring-1 hover:ring-[#FA4C00]"
         )}
         onClick={handleClick}
-        onMouseEnter={() => setHover(true)}
+        onMouseEnter={() => {
+            if (cellRef.current) {
+              const rect = cellRef.current.getBoundingClientRect();
+              setAbove(rect.bottom + 220 > window.innerHeight);
+            }
+            setHover(true);
+          }}
         onMouseLeave={() => setHover(false)}
       >
         <span className="text-xs font-semibold whitespace-nowrap">{cfg.short}</span>
@@ -135,7 +154,14 @@ export default function PresencaCell({
           </span>
         )}
 
-        <PresencaTooltip open={showTooltip}>
+        {/* ⏳ AJUSTE MANUAL — só admin vê */}
+        {isAdmin && registro?.manual && (
+          <span className="absolute top-0 left-0 text-[10px] leading-none">
+            ⏳
+          </span>
+        )}
+
+        <PresencaTooltip open={showTooltip} above={above}>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold">{cfg.label}</span>
@@ -168,17 +194,27 @@ export default function PresencaCell({
                 </div>
               )}
 
-              {registro?.registradoPor && (
-                <div>
-                  <span className="text-[#EDEDED]">Registrado por:</span>{" "}
-                  {registro.registradoPor}
+              {/* ⏳ Ajuste manual — só admin vê */}
+              {isAdmin && registro?.manual && (
+                <div className="text-orange-400 text-[11px] font-medium">
+                  ⏳ Ajuste manual
+                  {registro?.registradoPor && (
+                    <span className="text-[#BFBFC3] font-normal">
+                      {" "}· por {registro.registradoPor}
+                    </span>
+                  )}
+                  {registro?.justificativa && (
+                    <div className="text-[#BFBFC3] font-normal mt-0.5">
+                      Motivo: {JUSTIFICATIVA_LABEL[registro.justificativa] || registro.justificativa}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {registro?.justificativa && (
-                <div className="pt-1">
-                  <span className="text-[#EDEDED]">Justificativa:</span>{" "}
-                  {registro.justificativa}
+              {registro?.registradoPor && !registro?.manual && (
+                <div>
+                  <span className="text-[#EDEDED]">Registrado por:</span>{" "}
+                  {registro.registradoPor}
                 </div>
               )}
 
