@@ -22,6 +22,7 @@ export default function ColaboradoresPage() {
 
   const [lideres, setLideres] = useState([]);
   const [cargos, setCargos] = useState([]);
+  const [escalas, setEscalas] = useState([]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -59,6 +60,21 @@ export default function ColaboradoresPage() {
     };
 
     carregarCargos();
+  }, []);
+
+  /* ================= CARREGAR ESCALAS ================= */
+  useEffect(() => {
+    const carregarEscalas = async () => {
+      try {
+        const escalasData = await ColaboradoresAPI.listarEscalas();
+        console.log("ESCALAS:", escalasData); // debug
+        setEscalas(escalasData);
+      } catch (error) {
+        console.error("Erro ao carregar escalas:", error);
+      }
+    };
+
+    carregarEscalas();
   }, []);
 
   /* ================= LOAD ================= */
@@ -204,16 +220,19 @@ export default function ColaboradoresPage() {
                 ))}
               </select>
 
-              {/* ESCALA */}
+             {/* ESCALA */}
               <select
                 value={escalaSelecionada}
                 onChange={(e) => handleEscalaChange(e.target.value)}
                 className="bg-[#1A1A1C] px-4 py-2 rounded-xl text-sm"
               >
                 <option value="TODOS">Escalas</option>
-                <option value="A">Escala A</option>
-                <option value="B">Escala B</option>
-                <option value="C">Escala C</option>
+
+                {escalas.map((escala) => (
+                  <option key={escala.idEscala} value={escala.nomeEscala}>
+                    {escala.nomeEscala}
+                  </option>
+                ))}
               </select>
 
               {/* CARGO (DINÂMICO 🔥) */}
