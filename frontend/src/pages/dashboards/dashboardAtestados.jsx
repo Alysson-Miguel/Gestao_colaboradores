@@ -519,7 +519,9 @@ export default function DashboardAtestados() {
                           key={index}
                           className="border-t border-white/5 hover:bg-white/5"
                         >
-                          <td className="py-2">{c.name}</td>
+                          <td className="py-2">
+                            {c.name} - {CID_DESCRICOES[c.name] || "Outros"}
+                          </td>
 
                           <td className="py-2 text-right font-semibold">
                             {c.value}
