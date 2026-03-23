@@ -19,8 +19,15 @@ export default function WhatsNewModal({ onClose }) {
           </button>
         </div>
 
+        {/* Boas-vindas */}
+        <div className="px-6 pt-5 pb-2">
+          <p className="text-sm text-[#BFBFC3] leading-relaxed">
+            Olá! Seja bem-vindo à versão <span className="text-white font-medium">{CHANGELOG.version}</span>. A partir de agora, todas as novidades e melhorias do sistema serão comunicadas por aqui.
+          </p>
+        </div>
+
         {/* Items */}
-        <ul className="px-6 py-5 space-y-3">
+        <ul className="px-6 py-4 space-y-3">
           {CHANGELOG.items.map((item, i) => (
             <li key={i} className="flex items-start gap-3 text-sm text-[#EDEDED]">
               <span className="mt-0.5 text-[#FA4C00] shrink-0">✦</span>
