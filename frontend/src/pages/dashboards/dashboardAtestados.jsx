@@ -508,31 +508,70 @@ export default function DashboardAtestados() {
                   </thead>
 
                   <tbody>
-                    {(dist?.porCid || []).map((c, index, arr) => {
-                      const total = arr.reduce((acc, i) => acc + i.value, 0)
-                      const percent = total > 0
-                        ? ((c.value / total) * 100).toFixed(1)
-                        : 0
+                    {(() => {
+                      const agrupado = {}
 
-                      return (
-                        <tr
-                          key={index}
-                          className="border-t border-white/5 hover:bg-white/5"
-                        >
-                          <td className="py-2">
-                            {c.name} - {CID_DESCRICOES[c.name] || "Outros"}
-                          </td>
+                      // 🔥 agrupa por categoria
+                      ;(dist?.porCid || []).forEach((c) => {
+                        const categoria = CID_DESCRICOES[c.name] || "Outros"
 
-                          <td className="py-2 text-right font-semibold">
-                            {c.value}
-                          </td>
+                        if (!agrupado[categoria]) {
+                          agrupado[categoria] = 0
+                        }
 
-                          <td className="py-2 text-right text-[#FA4C00] font-semibold">
-                            {percent}%
-                          </td>
-                        </tr>
-                      )
-                    })}
+                        agrupado[categoria] += c.value
+                      })
+
+                      // 🔥 separa relevantes x outros
+                      const relevantes = []
+                      let outrosTotal = 0
+
+                      Object.entries(agrupado).forEach(([name, value]) => {
+                        if (value <= 2) {
+                          outrosTotal += value
+                        } else {
+                          relevantes.push({ name, value })
+                        }
+                      })
+
+                      // 🔥 adiciona "Outros"
+                      if (outrosTotal > 0) {
+                        relevantes.push({ name: "Outros", value: outrosTotal })
+                      }
+
+                      // 🔥 ordena
+                      const lista = relevantes.sort((a, b) => b.value - a.value)
+
+                      const total = lista.reduce((acc, i) => acc + i.value, 0)
+
+                      return lista.map((c, index) => {
+                        const percent =
+                          total > 0 ? ((c.value / total) * 100).toFixed(1) : 0
+
+                        return (
+                          <tr
+                            key={index}
+                            className="border-t border-white/5 hover:bg-white/5"
+                          >
+                            <td className="py-2 font-medium">
+                              {c.name === "Outros" ? (
+                                <span className="text-white/50">{c.name}</span>
+                              ) : (
+                                c.name
+                              )}
+                            </td>
+
+                            <td className="py-2 text-right font-semibold">
+                              {c.value}
+                            </td>
+
+                            <td className="py-2 text-right text-[#FA4C00] font-semibold">
+                              {percent}%
+                            </td>
+                          </tr>
+                        )
+                      })
+                    })()}
                   </tbody>
                 </table>
               </div>
