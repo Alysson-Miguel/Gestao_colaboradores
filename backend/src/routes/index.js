@@ -43,6 +43,7 @@ const gestaoOperacionalRoutes = require("./gestaoOperacional.routes");
 const produtividadeColaboradorRoutes = require("./produtividadeColaborador.routes");
 const sugestaoRoutes = require("./sugestaoMedidaDisciplinar.routes");
 const desligamentoRoutes = require("./desligamentoDashboard.routes");
+const dashboardFaltasRoutes = require("./faltas.routes")
 
 /* =========================
    HEALTH
@@ -164,5 +165,6 @@ router.use("/folga-dominical", folgaDominical);
 router.use("/dashboard/gestao-operacional", gestaoOperacionalRoutes);
 router.use("/dashboard/produtividade-colaborador", produtividadeColaboradorRoutes);
 router.use("/dashboard/desligamento", desligamentoRoutes)
+router.use("/dashboard/faltas", dashboardFaltasRoutes)
 
 module.exports = router;

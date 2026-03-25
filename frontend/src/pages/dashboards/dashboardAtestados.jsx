@@ -3,14 +3,14 @@
 import React, { useEffect, useMemo, useState } from "react"
 import {
   ResponsiveContainer,
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -21,18 +21,26 @@ import api from "../../services/api"
 import Sidebar from "../../components/Sidebar"
 import Header from "../../components/Header"
 
-/* =====================================================
-   CONSTS / HELPERS
-===================================================== */
-const COLORS = [
+/* ─── TOKENS ─────────────────────────────────────────────────────── */
+const BRAND = "#FA4C00"
+const CHART_COLORS = [
   "#FA4C00",
-  "#3b82f6",
-  "#FFB37A",
-  "#FFD2B0",
-  "#34C759",
-  "#FF9F0A",
-  "#FF453A",
+  "#3B82F6",
+  "#F59E0B",
+  "#22C55E",
+  "#A855F7",
+  "#EC4899",
+  "#14B8A6",
 ]
+
+/* ─── UTILS ──────────────────────────────────────────────────────── */
+function isoToday() {
+  return new Date().toISOString().slice(0, 10)
+}
+function isoFirstDayOfMonth() {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+}
 
 const CID_DESCRICOES = {
   A09: "Sintomas Gripais",
@@ -40,94 +48,240 @@ const CID_DESCRICOES = {
   J069: "Sintomas Gripais",
   B349: "Sintomas Gripais",
   H920: "Sintomas Gripais",
-
   M545: "Dor lombar (lombalgia)",
-  M796: "Dor em membros (braços ou pernas)",
-
+  M796: "Dor em membros",
   R11: "Náuseas e vômitos",
   R52: "Dor não especificada",
   R520: "Dor aguda",
 }
 
-function isoToday() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function isoFirstDayOfMonth() {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10)
-}
-
-function SelectCID({ value, onChange, options }) {
-  const [open, setOpen] = useState(false)
-
-  const selected = options.find((o) => o.codigo === value)
-
+/* ─── CUSTOM TOOLTIP ─────────────────────────────────────────────── */
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
   return (
-    <div className="relative">
-      <div
-        onClick={() => setOpen(!open)}
-        className="
-          bg-[#1c1c1c]
-          rounded-xl
-          p-3
-          cursor-pointer
-          border border-white/5
-        "
-      >
-        <p className="text-[11px] text-white/60 mb-1">CID</p>
-        <div className="flex justify-between items-center">
-          <span className="text-sm">
-            {selected
-              ? `${selected.codigo} (${selected.total})`
-              : "Todos"}
-          </span>
-          <span className="text-white/40">▼</span>
-        </div>
+    <div
+      style={{
+        background: "#1A1A1A",
+        border: "1px solid rgba(255,255,255,0.10)",
+        borderRadius: 12,
+        padding: "10px 16px",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+      }}
+    >
+      {label && (
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginBottom: 4 }}>
+          {label}
+        </p>
+      )}
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: "#fff", fontSize: 14, fontWeight: 600, margin: 0 }}>
+          <span style={{ color: p.color || BRAND }}>● </span>
+          {p.value}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/* ─── SKELETON ───────────────────────────────────────────────────── */
+function Skeleton({ style = {} }) {
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        borderRadius: 10,
+        animation: "pulse 1.5s ease-in-out infinite",
+        ...style,
+      }}
+    />
+  )
+}
+
+/* ─── SVG ICONS ──────────────────────────────────────────────────── */
+const IconDoc = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" />
+  </svg>
+)
+const IconRepeat = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" />
+  </svg>
+)
+const IconUsers = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+  </svg>
+)
+const IconPercent = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="19" y1="5" x2="5" y2="19" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
+  </svg>
+)
+const IconCalDay = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18M12 14h.01" />
+  </svg>
+)
+const IconCalWeek = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18M8 14h8" />
+  </svg>
+)
+const IconCalMonth = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2M14 18h2" />
+  </svg>
+)
+const IconTrend = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
+  </svg>
+)
+const IconGrid = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+  </svg>
+)
+const IconAlert = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+)
+const IconList = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+  </svg>
+)
+const IconSearch = ({ c = "currentColor", s = 16 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+)
+const IconMedical = ({ c = "currentColor", s = 18 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  </svg>
+)
+const IconChevronDown = ({ c = "currentColor", s = 14 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
+
+/* ─── KPI CONFIG ─────────────────────────────────────────────────── */
+const KPI_META = {
+  "Atestados":    { Icon: IconDoc,      color: "#FA4C00", desc: "Total no período" },
+  "Recorrência":  { Icon: IconRepeat,   color: "#F59E0B", desc: "Atestaram 2+ vezes" },
+  "Impactados":   { Icon: IconUsers,    color: "#3B82F6", desc: "Colaboradores únicos" },
+  "% HC":         { Icon: IconPercent,  color: "#A855F7", desc: "Headcount afetado" },
+  "Hoje":         { Icon: IconCalDay,   color: "#EF4444", desc: "Atestados hoje" },
+  "Semana":       { Icon: IconCalWeek,  color: "#F59E0B", desc: "Esta semana" },
+  "Mês":          { Icon: IconCalMonth, color: "#22C55E", desc: "Este mês" },
+}
+
+/* ─── KPI CARD ───────────────────────────────────────────────────── */
+function KpiCard({ label, value, loading }) {
+  const { Icon = IconDoc, color = BRAND, desc = "" } = KPI_META[label] || {}
+  return (
+    <div
+      style={{
+        background: "#111111",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderLeft: `3px solid ${color}`,
+        borderRadius: 12,
+        padding: "16px 18px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        cursor: "default",
+        transition: "background 0.2s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "#161616")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "#111111")}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <Icon c={color} s={13} />
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 500, margin: 0 }}>
+          {label}
+        </p>
       </div>
+      {loading ? (
+        <Skeleton style={{ height: 28, width: "55%" }} />
+      ) : (
+        <p style={{ fontSize: 26, fontWeight: 700, color: "#F0F0F0", margin: 0, lineHeight: 1, letterSpacing: "-0.02em" }}>
+          {value ?? "—"}
+        </p>
+      )}
+      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", margin: 0 }}>{desc}</p>
+    </div>
+  )
+}
 
-      {open && (
-        <div
-          className="
-            absolute z-9999 mt-2 w-full
-            bg-[#1c1c1c]
-            border border-white/10
-            rounded-xl
-            max-h-60 overflow-y-auto
-            shadow-xl
-          "
-        >
-          <div
-            onClick={() => {
-              onChange("")
-              setOpen(false)
-            }}
-            className="px-3 py-2 hover:bg-white/10 cursor-pointer text-sm"
-          >
-            Todos
-          </div>
+/* ─── SECTION LABEL ──────────────────────────────────────────────── */
+function SectionLabel({ num, title }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+      <span style={{ fontSize: 10, fontWeight: 800, color: BRAND, textTransform: "uppercase", letterSpacing: "0.16em" }}>
+        {num}
+      </span>
+      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.16em" }}>
+        {title}
+      </span>
+    </div>
+  )
+}
 
-          {options.map((c) => (
+/* ─── CARD ───────────────────────────────────────────────────────── */
+function Card({ title, subtitle, icon, children, style = {} }) {
+  return (
+    <div
+      style={{
+        background: "#111111",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 18,
+        padding: "20px 24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        minWidth: 0,
+        width: "100%",
+        boxSizing: "border-box",
+        ...style,
+      }}
+    >
+      {title && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          {icon && (
             <div
-              key={c.codigo}
-              onClick={() => {
-                onChange(c.codigo)
-                setOpen(false)
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 9,
+                background: `${BRAND}14`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                marginTop: 2,
               }}
-              className="
-                px-3 py-2
-                hover:bg-[#FA4C00]/20
-                cursor-pointer
-                text-sm
-              "
             >
-              {c.codigo} - {CID_DESCRICOES[c.codigo] || "CID"} ({c.total})
+              {icon}
             </div>
-          ))}
+          )}
+          <div>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>
+              {title}
+            </h2>
+            {subtitle && (
+              <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
         </div>
       )}
+      {children}
     </div>
   )
 }
@@ -229,11 +383,6 @@ export default function DashboardAtestados() {
     return [...dist.porLider].slice(0, 10)
   }, [dist])
 
-  const porEmpresaFaixaDiasChart = useMemo(() => {
-    if (!dist || !Array.isArray(dist.porEmpresaFaixaDias)) return []
-    return dist.porEmpresaFaixaDias
-  }, [dist])
-
   const porCidChart = useMemo(() => {
     if (!dist || !Array.isArray(dist.porCid)) return []
 
@@ -284,60 +433,90 @@ export default function DashboardAtestados() {
      RENDER (RESPONSIVO)
   ===================================================== */
   return (
-    <div className="flex min-h-screen bg-[#0D0D0D] text-white">
-      {/* SIDEBAR */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, position: "relative" }}>
+      <label
+        style={{
+          fontSize: 10,
+          color: "rgba(255,255,255,0.35)",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+        }}
+      >
+        CID
+      </label>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{
+          background: "#1A1A1A",
+          border: `1px solid ${open ? "rgba(250,76,0,0.5)" : "rgba(255,255,255,0.08)"}`,
+          color: "#fff",
+          fontSize: 13,
+          borderRadius: 12,
+          padding: "9px 14px",
+          cursor: "pointer",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 160,
+          userSelect: "none",
+          transition: "border-color 0.2s",
+        }}
+      >
+        <span style={{ color: selected ? "#fff" : "rgba(255,255,255,0.35)" }}>
+          {selected ? `${selected.codigo} (${selected.total})` : "Todos os CIDs"}
+        </span>
+        <IconChevronDown c="rgba(255,255,255,0.35)" />
+      </div>
 
-      {/* CONTEÚDO */}
-      <div className="flex-1 min-w-0 lg:ml-64 overflow-visible">
-        {/* HEADER */}
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-
-        {/* MAIN — padding responsivo */}
-        <main className="px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-          {/* TÍTULO + FILTROS */}
-          <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-semibold">
-                Dashboard de Atestados
-              </h1>
-              <p className="text-xs sm:text-sm text-[#BFBFC3]">
-                Visão de impacto, distribuição e recorrência
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end w-full lg:w-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full sm:w-auto">
-                <DateInput label="Início" value={inicio} onChange={setInicio} />
-                <DateInput label="Fim" value={fim} onChange={setFim} />
-
-                
-                <div className="bg-[#1c1c1c] rounded-xl p-3 w-full">
-                  <p className="text-[11px] text-white/60 mb-1">CID</p>
-                  <SelectCID
-                    value={cid}
-                    onChange={setCid}
-                    options={cids}
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={fetchAll}
-                className="
-                  h-[54px]
-                  w-full sm:w-auto
-                  px-5
-                  rounded-lg
-                  bg-[#FA4C00]
-                  hover:bg-[#e64500]
-                  transition
-                  text-sm
-                  font-medium
-                "
-              >
-                Atualizar
-              </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            zIndex: 9999,
+            background: "#1A1A1A",
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: 14,
+            maxHeight: 240,
+            overflowY: "auto",
+            boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
+            minWidth: "100%",
+          }}
+        >
+          <div
+            onClick={() => { onChange(""); setOpen(false) }}
+            style={{
+              padding: "10px 14px",
+              fontSize: 13,
+              cursor: "pointer",
+              color: !value ? BRAND : "rgba(255,255,255,0.65)",
+              fontWeight: !value ? 600 : 400,
+              borderBottom: "1px solid rgba(255,255,255,0.05)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Todos os CIDs
+          </div>
+          {options.map((c) => (
+            <div
+              key={c.codigo}
+              onClick={() => { onChange(c.codigo); setOpen(false) }}
+              style={{
+                padding: "10px 14px",
+                fontSize: 13,
+                cursor: "pointer",
+                color: value === c.codigo ? BRAND : "rgba(255,255,255,0.65)",
+                fontWeight: value === c.codigo ? 600 : 400,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(250,76,0,0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              {c.codigo} — {CID_DESCRICOES[c.codigo] || "CID"}{" "}
+              <span style={{ color: "rgba(255,255,255,0.30)" }}>({c.total})</span>
             </div>
           </div>
 
@@ -447,13 +626,7 @@ export default function DashboardAtestados() {
             <Card title="Atestados por Setor">
               <BarBlock data={porSetorChart} />
             </Card>
-          </div>
 
-          <Card title="Atestados por BPO — Tempo de Casa">
-            <HistogramaBPO data={porEmpresaFaixaDiasChart} />
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Top 10 Líderes">
               <BarBlockHorizontal data={porLiderChart} />
             </Card>
@@ -628,216 +801,316 @@ export default function DashboardAtestados() {
                 </select>
               </div>
 
-              {/* TABELA */}
-              <div className="w-full overflow-x-auto">
-                  <table className="w-full text-sm">
-                  <thead className="text-white/60">
-                    <tr>
-                      <th className="text-left py-2">Nome</th>
-                      <th className="text-left py-2 pr-4">Empresa</th>
-                      <th className="text-left py-2 pr-4">Setor</th>
-                      <th className="text-left py-2 pr-4">Turno</th>
-                      <th className="text-left py-2 pr-4">Escala</th>
-                      <th className="text-left py-2 pr-4">Tempo Casa</th>
-                      <th className="text-right py-2 pr-4">Recorrência</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {colaboradoresFiltrados.map((c) => (
-                      <tr
-                        key={c.opsId}
-                        className="border-t border-white/5 hover:bg-white/5 transition"
-                      >
-                        <td className="py-2 font-medium">{c.nome}</td>
-                        <td className="py-2 pr-4">{c.empresa}</td>
-                        <td className="py-2 pr-4">{c.setor}</td>
-                        <td className="py-2 pr-4">{c.turno}</td>
-                        <td className="py-2 pr-4">{c.escala}</td>
-
-                        <td className="py-2">
-                          <span className="bg-white/10 px-2 py-1 rounded-md text-xs">
-                            {c.tempoCasa}
-                          </span>
-                        </td>
-
-                        <td className="py-2 text-right">
-                          <span className="bg-[#FA4C00]/20 text-[#FA4C00] px-3 py-1 rounded-lg font-bold">
-                            {c.totalAtestados}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-        </main>
-      </div>
-    </div>
-  )
-}
-
-/* =====================================================
-   UI COMPONENTS
-===================================================== */
-function DateInput({ label, value, onChange }) {
-  return (
-    <div className="bg-[#1c1c1c] rounded-xl p-3 w-full">
-      <p className="text-[11px] text-white/60 mb-1">{label}</p>
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-transparent text-white outline-none text-sm w-full"
-      />
-    </div>
-  )
-}
-
-function Card({ title, children }) {
-  return (
-    <div className="bg-[#1c1c1c] rounded-xl p-4 border border-white/5 min-h-[120px]">
-      {title && <h2 className="text-sm font-medium mb-3">{title}</h2>}
-      {children}
-    </div>
-  )
-}
-
-function KpiCard({ label, value, loading, highlight }) {
-  const bar =
-    highlight === "warning"
-      ? "bg-[#FF9F0A]"
-      : highlight === "error"
-      ? "bg-[#FF453A]"
-      : "bg-[#FA4C00]"
-
-  return (
-    <div className="relative rounded-xl bg-[#1c1c1c] p-4 overflow-hidden border border-white/5">
-      <div className={`absolute left-0 top-0 h-full w-1 ${bar}`} />
-      <p className="text-[11px] text-white/60">{label}</p>
-      <p className="text-xl font-semibold mt-1">
-        {loading ? "…" : value ?? 0}
-      </p>
-    </div>
-  )
-}
-
-function BarBlock({ data }) {
-  const safeData = Array.isArray(data) ? data : []
-
-  if (!safeData.length) {
-    return <p className="text-sm text-white/60">Sem dados no período.</p>
-  }
-
-  const maxValue = Math.max(...safeData.map((d) => d.value || 0))
-
-  return (
-    <div className="h-60 sm:h-[280px] lg:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={safeData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="rgba(255,255,255,0.08)" />
-          <XAxis dataKey="name" tick={{ fill: "#BFBFC3", fontSize: 11 }} minTickGap={12} />
-          <YAxis
-            allowDecimals={false}
-            tick={{ fill: "#BFBFC3", fontSize: 12 }}
-            domain={[0, maxValue]}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "#232323",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 8,
-            }}
-          />
-          <Bar dataKey="value" fill="#FA4C00">
-            <LabelList
-              dataKey="value"
-              position="top"
-              style={{ fill: "#FFFFFF", fontSize: 12, fontWeight: 600 }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
-
-function PieBlock({ data }) {
-  const safeData = Array.isArray(data) ? data : []
-
-  if (!safeData.length) {
-    return <p className="text-sm text-white/60">Sem dados no período.</p>
-  }
-
-  const total = safeData.reduce((acc, d) => acc + d.value, 0)
-
-  const renderLabel = ({ percent, value }) => {
-    if (percent < 0.05) return null
-    return `${value}`
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center">
-      <div className="h-[220px] sm:h-60 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={safeData}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={50}
-              outerRadius={80}
-              stroke="none"
-              label={renderLabel}
-              labelLine={false}
-            >
-              {safeData.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+      {/* table */}
+      <div
+        style={{
+          overflowX: "auto",
+          borderRadius: 14,
+          border: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700, fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "#0D0D0D", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              {cols.map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    textAlign: "left",
+                    padding: "12px 16px",
+                    fontSize: 10,
+                    color: "rgba(255,255,255,0.28)",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.10em",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {h}
+                </th>
               ))}
-            </Pie>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  {cols.map((_, j) => (
+                    <td key={j} style={{ padding: "12px 16px" }}>
+                      <Skeleton style={{ height: 14, width: "80%" }} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={cols.length} style={{ padding: "48px 16px", textAlign: "center", color: "rgba(255,255,255,0.18)", fontSize: 13 }}>
+                  Nenhum resultado encontrado
+                </td>
+              </tr>
+            ) : (
+              filtered.map((c, i) => {
+                const atst = c.totalAtestados || 0
+                const atstColor = atst >= 3 ? "#EF4444" : atst >= 2 ? "#F59E0B" : BRAND
+                const atstBg = atst >= 3 ? "#EF444418" : atst >= 2 ? "#F59E0B18" : `${BRAND}14`
+                return (
+                  <tr
+                    key={c.opsId || i}
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.03)", transition: "background 0.15s", cursor: "default" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <td style={{ padding: "11px 16px", fontWeight: 500, color: "rgba(255,255,255,0.80)", whiteSpace: "nowrap" }}>
+                      {c.nome}
+                    </td>
+                    <td style={{ padding: "11px 16px", color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>{c.empresa}</td>
+                    <td style={{ padding: "11px 16px", color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>{c.setor}</td>
+                    <td style={{ padding: "11px 16px", color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>{c.turno}</td>
+                    <td style={{ padding: "11px 16px", color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>{c.escala}</td>
+                    <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "3px 10px",
+                          borderRadius: 8,
+                          background: "rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.55)",
+                          fontSize: 12,
+                        }}
+                      >
+                        {c.tempoCasa}
+                      </span>
+                    </td>
+                    <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 30,
+                          height: 30,
+                          borderRadius: 8,
+                          background: atstBg,
+                          color: atstColor,
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        {atst}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
 
-            <text
-              x="50%"
-              y="50%"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="#FFFFFF"
-              style={{ fontSize: 20, fontWeight: 700 }}
-            >
-              {total}
-            </text>
-
-            <Tooltip
-              formatter={(value) => {
-                const percent = ((value / total) * 100).toFixed(1)
-                return `${value} (${percent}%)`
-              }}
-              contentStyle={{
-                background: "#232323",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8,
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        {!loading && filtered.length > 0 && (
+          <div
+            style={{
+              padding: "10px 16px",
+              borderTop: "1px solid rgba(255,255,255,0.04)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", margin: 0 }}>
+              {filtered.length} de {data.length} colaboradores
+            </p>
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
 
-      <div className="text-xs mt-3 space-y-2 w-full px-1 sm:px-4">
-        {safeData.map((item, i) => {
-          const percent = ((item.value / total) * 100).toFixed(1)
-          const color = COLORS[i % COLORS.length]
+/* ─── MAIN ───────────────────────────────────────────────────────── */
+export default function DashboardAtestados() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [inicio, setInicio] = useState(isoFirstDayOfMonth())
+  const [fim, setFim] = useState(isoToday())
+  const [cid, setCid] = useState("")
+  const [cids, setCids] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [kpis, setKpis] = useState(null)
+  const [dist, setDist] = useState(null)
+  const [tendencia, setTendencia] = useState([])
+  const [topOfensores, setTopOfensores] = useState([])
+  const [colaboradores, setColaboradores] = useState([])
+  const [filtroTempoCasa, setFiltroTempoCasa] = useState("")
+  const [filtroTurno, setFiltroTurno] = useState("")
 
-          return (
-            <div key={i} className="flex justify-between items-center gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                <span className="text-white/80 truncate">{item.name}</span>
+  async function fetchAll() {
+    try {
+      setLoading(true)
+      setError("")
+      const params = { inicio, fim, cid: cid || undefined }
+      const [resResumo, resDist, resTend, resRisco, resCids, resColab] = await Promise.all([
+        api.get("/dashboard/atestados/resumo", { params }),
+        api.get("/dashboard/atestados/distribuicoes", { params }),
+        api.get("/dashboard/atestados/tendencia", { params }),
+        api.get("/dashboard/atestados/risco", { params }),
+        api.get("/dashboard/atestados/cids", { params }),
+        api.get("/dashboard/atestados/colaboradores", { params }),
+      ])
+      setKpis(resResumo.data?.data?.kpis ?? resResumo.data?.kpis ?? null)
+      setDist(resDist.data?.data ?? resDist.data ?? null)
+      setCids(resCids.data?.data || [])
+      setColaboradores(resColab.data?.data || [])
+      setTendencia(
+        Array.isArray(resTend.data?.data)
+          ? resTend.data.data
+          : Array.isArray(resTend.data) ? resTend.data : []
+      )
+      setTopOfensores(
+        resRisco.data?.data?.topOfensores ?? resRisco.data?.topOfensores ?? []
+      )
+    } catch (err) {
+      console.error("❌ DASHBOARD ATESTADOS:", err)
+      setError("Erro ao carregar dashboard de atestados.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchAll() }, [inicio, fim, cid])
+
+  /* memos */
+  const porEmpresa   = useMemo(() => dist?.porEmpresa  || [], [dist])
+  const porSetor     = useMemo(() => dist?.porSetor    || [], [dist])
+  const porTurno     = useMemo(() => dist?.porTurno    || [], [dist])
+  const porGenero    = useMemo(() => dist?.porGenero   || [], [dist])
+  const porLider     = useMemo(() => (dist?.porLider   || []).slice(0, 10), [dist])
+  const porTempoCasa = useMemo(() => dist?.porTempoCasa || [], [dist])
+
+  const porCidChart = useMemo(() => {
+    if (!dist?.porCid) return []
+    return dist.porCid
+      .map((item) => ({
+        ...item,
+        name: `${item.name} — ${CID_DESCRICOES[item.name] || "Outros"}`,
+      }))
+      .slice(0, 10)
+  }, [dist])
+
+  const turnos = useMemo(
+    () => [...new Set(colaboradores.map((c) => c.turno).filter(Boolean))],
+    [colaboradores]
+  )
+
+  /* pulse keyframes */
+  const pulseStyle = `
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+    .recharts-wrapper, .recharts-surface { overflow: visible !important; }
+    select option { background: #1A1A1A; }
+  `
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "#080808", color: "#fff" }}>
+      <style>{pulseStyle}</style>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+           className="lg:ml-64">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+
+        <main
+          style={{
+            flex: 1,
+            padding: "32px 24px 64px",
+            maxWidth: 1600,
+            width: "100%",
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 40,
+          }}
+        >
+
+          {/* ── PAGE HEADER ─────────────────────────────────── */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              gap: 20,
+            }}
+          >
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <div style={{ width: 4, height: 26, borderRadius: 4, background: BRAND }} />
+                <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
+                  Dashboard de Atestados
+                </h1>
               </div>
+              <p style={{ margin: "0 0 0 14px", fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+                Visão completa de impacto, recorrência e diagnóstico de ausências médicas
+              </p>
+            </div>
 
-              <span className="font-semibold text-white shrink-0">
-                {item.value} ({percent}%)
-              </span>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
+              <DateInput label="Início" value={inicio} onChange={setInicio} />
+              <DateInput label="Fim" value={fim} onChange={setFim} />
+              <SelectCID value={cid} onChange={setCid} options={cids} />
+              <button
+                onClick={fetchAll}
+                disabled={loading}
+                style={{
+                  height: 42,
+                  padding: "0 24px",
+                  borderRadius: 12,
+                  background: loading ? "#333" : BRAND,
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  transition: "background 0.2s",
+                  whiteSpace: "nowrap",
+                  alignSelf: "flex-end",
+                }}
+                onMouseEnter={(e) => !loading && (e.target.style.background = "#e64500")}
+                onMouseLeave={(e) => !loading && (e.target.style.background = BRAND)}
+              >
+                {loading ? "Carregando…" : "Atualizar"}
+              </button>
+            </div>
+          </div>
+
+          {/* error */}
+          {error && (
+            <div
+              style={{
+                borderRadius: 14,
+                border: "1px solid rgba(239,68,68,0.2)",
+                background: "rgba(239,68,68,0.06)",
+                padding: "14px 18px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <IconAlert c="#EF4444" s={17} />
+              <p style={{ margin: 0, fontSize: 13, color: "#EF4444" }}>{error}</p>
+            </div>
+          )}
+
+          {/* ── 01 — PANORAMA GERAL ─────────────────────────── */}
+          <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <SectionLabel num="01" title="Panorama Geral" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
+              <KpiCard label="Atestados"   value={kpis?.totalPeriodo}                                loading={loading} />
+              <KpiCard label="Recorrência" value={`${kpis?.recorrencia ?? 0}%`}                      loading={loading} />
+              <KpiCard label="Impactados"  value={kpis?.colaboradoresImpactados}                     loading={loading} />
+              <KpiCard label="% HC"        value={`${kpis?.percentualHC ?? 0}%`}                     loading={loading} />
+              <KpiCard label="Hoje"        value={kpis?.hoje}                                        loading={loading} />
+              <KpiCard label="Semana"      value={kpis?.semana}                                      loading={loading} />
+              <KpiCard label="Mês"         value={kpis?.mes}                                         loading={loading} />
             </div>
           )
         })}
@@ -938,85 +1211,6 @@ function BarBlockHorizontal({ data }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </div>
-  )
-}
-
-function HistogramaBPO({ data }) {
-  const safeData = Array.isArray(data) ? data : []
-  if (!safeData.length) return <p className="text-sm text-white/60">Sem dados no período.</p>
-
-  const FAIXAS = ["0-7", "8-15", "16-30", "31-89", ">90"]
-  const SHADES = ["#FA4C00", "#FA4C00", "#FA4C00", "#FA4C00", "#FA4C00"]
-
-  // Transforma para small multiples: um array por BPO com { faixa, total }
-  const bpos = safeData.map((row) => ({
-    name: row.name,
-    chartData: FAIXAS.map((f, i) => ({ faixa: f, total: row[f] || 0, fill: SHADES[i] })),
-    total: FAIXAS.reduce((s, f) => s + (row[f] || 0), 0),
-  }))
-
-  return (
-    <div className="space-y-6">
-      {/* SMALL MULTIPLES — um mini gráfico por BPO */}
-      <div className={`grid gap-4 ${bpos.length <= 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"}`}>
-        {bpos.map((bpo) => (
-          <div key={bpo.name} className="bg-[#161616] rounded-xl p-4 border border-white/5">
-            <div className="flex justify-between items-center mb-3">
-              <p className="text-xs font-semibold text-white/80 truncate pr-2">{bpo.name}</p>
-              <span className="text-xs font-bold text-[#FA4C00] shrink-0">{bpo.total} total</span>
-            </div>
-            <div className="h-[140px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={bpo.chartData} margin={{ top: 14, right: 4, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                  <XAxis dataKey="faixa" tick={{ fill: "#BFBFC3", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis allowDecimals={false} tick={{ fill: "#BFBFC3", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: "#232323", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8 }}
-                    formatter={(value) => [`${value} atestados`]}
-                  />
-                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                    {bpo.chartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                    <LabelList dataKey="total" position="top" style={{ fill: "#FFF", fontSize: 11, fontWeight: 700 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* TABELA — números inteiros */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-white/60">
-            <tr>
-              <th className="text-left py-2 pr-4">BPO</th>
-              {FAIXAS.map((f) => (
-                <th key={f} className="text-right py-2 px-3">{f} dias</th>
-              ))}
-              <th className="text-right py-2 px-3">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {safeData.map((row) => {
-              const total = FAIXAS.reduce((s, f) => s + (row[f] || 0), 0)
-              return (
-                <tr key={row.name} className="border-t border-white/5 hover:bg-white/5 transition">
-                  <td className="py-2 pr-4 font-medium">{row.name}</td>
-                  {FAIXAS.map((f) => (
-                    <td key={f} className="py-2 px-3 text-right">{row[f] || 0}</td>
-                  ))}
-                  <td className="py-2 px-3 text-right font-bold text-[#FA4C00]">{total}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }
