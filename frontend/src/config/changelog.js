@@ -5,9 +5,14 @@
  * items: lista de novidades exibidas no modal.
  */
 const CHANGELOG = {
-  version: "1.5.2",
+  version: "1.6.0",
   titulo: "Novidades desta atualização",
   items: [
+    {
+      tipo: "Melhoria",
+      titulo: "Dashboard de Atestados — Faixas de Tempo de Casa",
+      descricao: "Gráfico 'Atestados por Tempo de Casa' atualizado com novas faixas: 0 a 7, 8 a 15, 16 a 30, 31 a 89 e 90+ dias. Filtro da tabela de colaboradores também atualizado.",
+    },
     {
       tipo: "Melhoria",
       titulo: "Movimentação de Colaborador — Seleção de Líder",
