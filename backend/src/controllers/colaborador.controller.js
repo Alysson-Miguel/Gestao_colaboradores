@@ -12,6 +12,7 @@ const {
   paginatedResponse,
   errorResponse,
 } = require("../utils/response");
+const { gerarDSRBackfillColaborador, gerarDSRFuturoColaborador } = require("../services/dsrBackfill.service");
 
 /* ================= CONSTANTES ================= */
 const HORARIOS_PERMITIDOS = ["05:25", "13:20", "21:00"];
@@ -461,28 +462,57 @@ const createColaborador = async (req, res) => {
 
     const colaborador = await prisma.$transaction(async (tx) => {
 
-      /* CRIA COLABORADOR */
-
+      /* =========================
+         CRIA COLABORADOR
+      ========================= */
       const novo = await tx.colaborador.create({
         data,
       });
 
-      /* CRIA HISTÓRICO DE ESCALA INICIAL */
+      /* =========================
+         HISTÓRICO DE ESCALA
+      ========================= */
+      const hoje = startOfDayBR();
 
       await tx.colaboradorEscalaHistorico.create({
         data: {
           opsId: novo.opsId,
           idEscala: escalaId,
-          dataInicio: startOfDayBR(),
+          dataInicio: hoje,
         },
+      });
+
+      /* =========================
+         BUSCA ESCALA
+      ========================= */
+      const escalaCriada = await tx.escala.findUnique({
+        where: { idEscala: escalaId },
+        select: { nomeEscala: true },
+      });
+
+      const nomeEscala = escalaCriada?.nomeEscala;
+
+      /* =========================
+         BACKFILL (PASSADO)
+      ========================= */
+      await gerarDSRBackfillColaborador({
+        opsId: novo.opsId,
+        nomeEscala,
+        dataInicio: dataAdmissaoDate || hoje,
+        tx,
+      });
+
+      /* =========================
+         FUTURO (ESSENCIAL)
+      ========================= */
+      await gerarDSRFuturoColaborador({
+        opsId: novo.opsId,
+        nomeEscala,
+        tx,
       });
 
       return novo;
     });
-
-    /* ===============================
-       RESPONSE
-    =============================== */
 
     return createdResponse(
       res,
@@ -491,7 +521,6 @@ const createColaborador = async (req, res) => {
     );
 
   } catch (err) {
-
     console.error("❌ ERRO CREATE:", err);
 
     return errorResponse(
@@ -502,6 +531,7 @@ const createColaborador = async (req, res) => {
     );
   }
 };
+
 
 const updateColaborador = async (req, res) => {
   const { opsId } = req.params;
@@ -528,7 +558,6 @@ const updateColaborador = async (req, res) => {
       horarioInicioJornada,
       contatoEmergenciaNome,
       contatoEmergenciaTelefone,
-
       dataDesligamento,
       motivoDesligamento,
       tipoDesligamento,
@@ -564,126 +593,6 @@ const updateColaborador = async (req, res) => {
     }
 
     /* =============================
-       VALIDAÇÕES POR STATUS
-    ============================== */
-    if (status !== undefined) {
-      // 🔴 INATIVO → obrigatória dataDesligamento
-    if (status === "INATIVO") {
-      if (!dataDesligamento) {
-        return errorResponse(
-          res,
-          "Data de desligamento é obrigatória para INATIVO",
-          400
-        );
-      }
-
-      if (!motivoDesligamento) {
-        return errorResponse(
-          res,
-          "Motivo do desligamento é obrigatório para INATIVO",
-          400
-        );
-      }
-
-      if (!tipoDesligamento) {
-        return errorResponse(
-          res,
-          "Tipo de desligamento é obrigatório para INATIVO",
-          400
-        );
-      }
-
-      // 🔒 VALIDA ENUM TIPO
-      const TIPOS_VALIDOS = ["DV", "DF", "DP"];
-      if (!TIPOS_VALIDOS.includes(tipoDesligamento)) {
-        return errorResponse(res, "Tipo de desligamento inválido", 400);
-      }
-
-      // 🔒 VALIDA ENUM
-      const MOTIVOS_VALIDOS = [
-        "SEGURANCA",
-        "ALTO_INDICE_ABS",
-        "ABANDONADO",
-        "DESEMPENHO_BAIXO",
-        "DESVIO_COMPORTAMENTAL",
-        "TERMINO_CONTRATO",
-        "SEM_EXIBICAO",
-        "DECLINIO",
-        "CONFORMIDADE",
-        "PEDIDO_DEMISSAO",
-        "DESLIGAMENTO_AUTOMATICO",
-        "REDUCAO_QUADRO",
-        "VOLUNTARIO",
-        "INVOLUNTARIO",
-      ];
-
-      if (!MOTIVOS_VALIDOS.includes(motivoDesligamento)) {
-        return errorResponse(
-          res,
-          "Motivo de desligamento inválido",
-          400
-        );
-      }
-
-      const dt = new Date(dataDesligamento);
-      if (isNaN(dt.getTime())) {
-        return errorResponse(res, "Data de desligamento inválida", 400);
-      }
-
-      data.dataDesligamento = dt;
-      data.motivoDesligamento = motivoDesligamento;
-      data.tipoDesligamento = tipoDesligamento;
-
-      // limpa status temporário
-      data.dataInicioStatus = null;
-      data.dataFimStatus = null;
-    }
-
-      // 🟡 FERIAS ou AFASTADO
-      if (status === "FERIAS" || status === "AFASTADO") {
-        if (!dataInicioStatus || !dataFimStatus) {
-          return errorResponse(
-            res,
-            "Data início e data fim são obrigatórias para FÉRIAS ou AFASTADO",
-            400
-          );
-        }
-
-        const inicio = new Date(dataInicioStatus);
-        const fim = new Date(dataFimStatus);
-
-        if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) {
-          return errorResponse(res, "Datas inválidas", 400);
-        }
-
-        if (fim < inicio) {
-          return errorResponse(
-            res,
-            "Data final não pode ser menor que data inicial",
-            400
-          );
-        }
-
-        data.dataInicioStatus = inicio;
-        data.dataFimStatus = fim;
-
-        // limpa demissão
-        data.dataDesligamento = null;
-        data.motivoDesligamento = null;
-        data.tipoDesligamento = null;
-      }
-
-      // 🟢 ATIVO → limpa todos os campos de status temporário
-      if (status === "ATIVO") {
-        data.dataDesligamento = null;
-        data.motivoDesligamento = null;
-        data.tipoDesligamento = null;
-        data.dataInicioStatus = null;
-        data.dataFimStatus = null;
-      }
-    }
-
-    /* =============================
        ESCALA
     ============================== */
     let novaEscalaId = null;
@@ -700,125 +609,100 @@ const updateColaborador = async (req, res) => {
       novaEscalaId = parsed;
     }
 
-    /* =============================
-       DATA ADMISSÃO
-    ============================== */
-    if (dataAdmissao !== undefined) {
-      let dt = null;
-
-      if (dataAdmissao) {
-        dt = new Date(dataAdmissao);
-        if (isNaN(dt.getTime())) {
-          return errorResponse(res, "Data de admissão inválida", 400);
-        }
-      }
-
-      data.dataAdmissao = dt;
-    }
-
-    /* =============================
-       HORÁRIO
-    ============================== */
-    if (horarioInicioJornada !== undefined) {
-      let time = null;
-
-      if (horarioInicioJornada) {
-        if (horarioInicioJornada.includes("T")) {
-          const d = new Date(horarioInicioJornada);
-          if (isNaN(d.getTime())) {
-            return errorResponse(res, "Horário inválido", 400);
-          }
-          const hh = String(d.getHours()).padStart(2, "0");
-          const mm = String(d.getMinutes()).padStart(2, "0");
-          time = new Date(`1970-01-01T${hh}:${mm}:00`);
-        } else {
-          time = new Date(`1970-01-01T${horarioInicioJornada}:00`);
-          if (isNaN(time.getTime())) {
-            return errorResponse(res, "Horário inválido", 400);
-          }
-        }
-      }
-
-      data.horarioInicioJornada = time;
-    }
-
     console.log("📦 DATA FINAL:", data);
 
     const colaborador = await prisma.$transaction(async (tx) => {
-    
       const hoje = startOfDayBR();
 
-    const atual = await tx.colaborador.findUnique({
-      where: { opsId },
-      select: { idEscala: true }
-    });
-
-    const atualizado = await tx.colaborador.update({
-      where: { opsId },
-      data,
-    });
-
-    const tipoDSR = await tx.tipoAusencia.findFirst({
-      where: { codigo: "DSR" },
-      select: { idTipoAusencia: true }
-    });
-    if (tipoDSR) {
-      await tx.frequencia.deleteMany({
-        where: {
-          opsId,
-          dataReferencia: { gte: hoje },
-          idTipoAusencia: tipoDSR.idTipoAusencia,
-          manual: false
-        }
-      });
-    }
-
-    const escalaMudou =
-      novaEscalaId !== null &&
-      Number(novaEscalaId) !== Number(atual?.idEscala);
-
-    if (escalaMudou) {
-
-      /* FECHAR HISTÓRICO ATUAL */
-
-      await tx.colaboradorEscalaHistorico.updateMany({
-        where: {
-          opsId,
-          dataFim: null,
-        },
-        data: {
-          dataFim: new Date(hoje.getTime() - 86400000),
-        },
+      const atual = await tx.colaborador.findUnique({
+        where: { opsId },
+        select: { idEscala: true },
       });
 
-      /* CRIAR NOVO HISTÓRICO */
-
-      await tx.colaboradorEscalaHistorico.create({
-        data: {
-          opsId,
-          idEscala: novaEscalaId,
-          dataInicio: hoje,
-        },
+      const atualizado = await tx.colaborador.update({
+        where: { opsId },
+        data,
       });
 
-      /* REMOVER DSR FUTURO (SERÁ CALCULADO DINAMICAMENTE NO PONTO) */
+      const tipoDSR = await tx.tipoAusencia.findFirst({
+        where: { codigo: "DSR" },
+        select: { idTipoAusencia: true },
+      });
 
-      await tx.frequencia.deleteMany({
-        where: {
-          opsId,
-          dataReferencia: {
-            gte: hoje
+      const escalaMudou =
+        novaEscalaId !== null &&
+        Number(novaEscalaId) !== Number(atual?.idEscala);
+
+      if (escalaMudou) {
+
+        /* =========================
+           FECHAR HISTÓRICO ATUAL
+        ========================= */
+        await tx.colaboradorEscalaHistorico.updateMany({
+          where: {
+            opsId,
+            dataFim: null,
           },
-          idTipoAusencia: tipoDSR.idTipoAusencia,
-          manual: false
+          data: {
+            dataFim: new Date(hoje.getTime() - 86400000),
+          },
+        });
+
+        /* =========================
+           CRIAR NOVO HISTÓRICO
+        ========================= */
+        await tx.colaboradorEscalaHistorico.create({
+          data: {
+            opsId,
+            idEscala: novaEscalaId,
+            dataInicio: hoje,
+          },
+        });
+
+        /* =========================
+           REMOVER DSR FUTURO ANTIGO
+        ========================= */
+        if (tipoDSR) {
+          await tx.frequencia.deleteMany({
+            where: {
+              opsId,
+              dataReferencia: { gte: hoje },
+              idTipoAusencia: tipoDSR.idTipoAusencia,
+              manual: false,
+            },
+          });
         }
-      });
 
-    }
+        /* =========================
+           BUSCAR NOVA ESCALA
+        ========================= */
+        const novaEscala = await tx.escala.findUnique({
+          where: { idEscala: novaEscalaId },
+          select: { nomeEscala: true },
+        });
 
-    return atualizado;
+        /* =========================
+           GERAR DSR FUTURO
+        ========================= */
+        await gerarDSRFuturoColaborador({
+          opsId,
+          nomeEscala: novaEscala?.nomeEscala,
+          tx,
+        });
 
-  });
+        /* =========================
+           BACKFILL (HOJE → PASSADO)
+        ========================= */
+        await gerarDSRBackfillColaborador({
+          opsId,
+          nomeEscala: novaEscala?.nomeEscala,
+          dataInicio: atualizado.dataAdmissao,
+          tx,
+        });
+      }
+
+      return atualizado;
+    });
 
     return successResponse(
       res,
@@ -972,9 +856,7 @@ const importColaboradores = async (req, res) => {
       totalLinhas: rows.length,
     });
 
-    /* ================= PROCESSAMENTO BACKGROUND ================= */
     setImmediate(async () => {
-
       console.log(`🚀 Import CSV iniciado (${rows.length} linhas)`);
 
       let criados = 0;
@@ -984,11 +866,7 @@ const importColaboradores = async (req, res) => {
 
       const parseHorario = (v) => {
         if (!v) return null;
-
-        const h = String(v).trim();
-
-        const parts = h.split(":");
-
+        const parts = String(v).trim().split(":");
         if (parts.length !== 2) return null;
 
         const hora = parts[0].padStart(2, "0");
@@ -999,23 +877,16 @@ const importColaboradores = async (req, res) => {
 
       const parseDate = (v) => {
         if (!v) return null;
-
         const d = new Date(v);
-
         if (isNaN(d.getTime())) return null;
-
         return d;
       };
 
-      /* ================= LOOP CSV ================= */
       for (let i = 0; i < rows.length; i++) {
-
         const row = rows[i];
 
         try {
-
           const opsId = String(row["ops_id"] || "").trim();
-
           if (!opsId) {
             skipped++;
             continue;
@@ -1030,7 +901,6 @@ const importColaboradores = async (req, res) => {
           }
 
           const dataAdmissao = parseDate(row["data_admissao"]);
-
           if (!dataAdmissao) {
             skipped++;
             continue;
@@ -1042,69 +912,80 @@ const importColaboradores = async (req, res) => {
 
           const existing = await prisma.colaborador.findUnique({
             where: { opsId },
-            select: { opsId: true },
+            select: { opsId: true, idEscala: true },
           });
 
           const data = {
-
             opsId,
-
             nomeCompleto,
-
             genero: row["genero"] || null,
-
             matricula,
-
             dataAdmissao,
-
             horarioInicioJornada,
-
             status: row["status"] || "ATIVO",
-
             cpf: row["cpf"] ? String(row["cpf"]) : null,
-
             dataNascimento: parseDate(row["data_nascimento"]),
-
             email: row["email"] || null,
-
             telefone: row["telefone"] ? String(row["telefone"]) : null,
-
             idSetor: row["id_setor"] ? Number(row["id_setor"]) : null,
-
             idCargo: row["id_cargo"] ? Number(row["id_cargo"]) : null,
-
             idEmpresa: row["id_empresa"] ? Number(row["id_empresa"]) : null,
-
             idTurno: row["id_turno"] ? Number(row["id_turno"]) : null,
-
             idEscala: row["id_escala"] ? Number(row["id_escala"]) : null,
-
             idLider: row["id_lider"] || null,
-
           };
 
           const colab = await prisma.colaborador.upsert({
-              where: { opsId },
-              update: data,
-              create: data,
+            where: { opsId },
+            update: data,
+            create: data,
+          });
+
+          /* =========================
+             SE NOVO OU ESCALA MUDOU
+          ========================= */
+          const escalaMudou =
+            data.idEscala &&
+            (!existing || Number(existing.idEscala) !== Number(data.idEscala));
+
+          if (escalaMudou) {
+            const hoje = startOfDayBR();
+
+            /* HISTÓRICO */
+            await prisma.colaboradorEscalaHistorico.create({
+              data: {
+                opsId: colab.opsId,
+                idEscala: data.idEscala,
+                dataInicio: hoje,
+              },
             });
 
-            if (!existing && data.idEscala) {
-              await prisma.colaboradorEscalaHistorico.create({
-                data: {
-                  opsId: colab.opsId,
-                  idEscala: data.idEscala,
-                  dataInicio: startOfDayBR(),
-                },
-              });
-            }
+            /* ESCALA */
+            const escala = await prisma.escala.findUnique({
+              where: { idEscala: data.idEscala },
+              select: { nomeEscala: true },
+            });
+
+            const nomeEscala = escala?.nomeEscala;
+
+            /* BACKFILL */
+            await gerarDSRBackfillColaborador({
+              opsId: colab.opsId,
+              nomeEscala,
+              dataInicio: hoje,
+            });
+
+            /* FUTURO */
+            await gerarDSRFuturoColaborador({
+              opsId: colab.opsId,
+              nomeEscala,
+            });
+          }
 
           existing ? atualizados++ : criados++;
 
         } catch (err) {
-
           skipped++;
-
           errors.push(
             `Linha ${i + 1} (Ops ${row["ops_id"] || "N/A"}): ${err.message}`
           );
@@ -1129,11 +1010,9 @@ const importColaboradores = async (req, res) => {
         console.log("⚠ ERROS CSV:");
         errors.slice(0, 20).forEach((e) => console.log(e));
       }
-
     });
 
   } catch (err) {
-
     console.error("❌ ERRO IMPORT CSV:", err);
 
     return errorResponse(res, "Erro ao iniciar importação", 500, err);

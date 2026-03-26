@@ -4,21 +4,37 @@ const router = express.Router();
 const controller = require("../controllers/folgaDominical.controller");
 const { authorizeRoles } = require("../middlewares/authorizeRoles");
 
-// 👀 Visualizar → ADMIN e LIDERANCA
+/* =====================================================
+   👀 LISTAR → ADMIN + LIDERANCA
+===================================================== */
 router.get(
   "/",
   authorizeRoles("ADMIN", "LIDERANCA"),
   controller.listar
 );
 
-// 🛠 Gerar → apenas ADMIN
+/* =====================================================
+  PREVIEW → ADMIN + LIDERANCA
+  (simulação sem salvar)
+===================================================== */
+router.post(
+  "/preview",
+  authorizeRoles("ADMIN", "LIDERANCA"),
+  controller.preview
+);
+
+/* =====================================================
+  GERAR → apenas ADMIN
+===================================================== */
 router.post(
   "/",
   authorizeRoles("ADMIN"),
   controller.gerar
 );
 
-// 🗑 Deletar → apenas ADMIN
+/* =====================================================
+  DELETE → apenas ADMIN
+===================================================== */
 router.delete(
   "/",
   authorizeRoles("ADMIN"),
