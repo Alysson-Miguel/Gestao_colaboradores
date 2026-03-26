@@ -2,7 +2,27 @@ const {
   gerarFolgaDominical,
   listarFolgaDominical,
   deletarFolgaDominical,
+  previewFolgaDominical,
 } = require("../services/folgaDominical.service");
+
+/* =====================================================
+   HELPER VALIDAÇÃO
+===================================================== */
+function validarAnoMes(ano, mes) {
+  const anoNum = Number(ano);
+  const mesNum = Number(mes);
+
+  if (
+    Number.isNaN(anoNum) ||
+    Number.isNaN(mesNum) ||
+    mesNum < 1 ||
+    mesNum > 12
+  ) {
+    return null;
+  }
+
+  return { anoNum, mesNum };
+}
 
 /* =====================================================
    POST /folga-dominical
@@ -18,8 +38,15 @@ async function gerar(req, res) {
       });
     }
 
-    const userId = req.user?.id;
+    const parsed = validarAnoMes(ano, mes);
+    if (!parsed) {
+      return res.status(400).json({
+        success: false,
+        error: "Ano ou mês inválidos.",
+      });
+    }
 
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -28,8 +55,8 @@ async function gerar(req, res) {
     }
 
     const resultado = await gerarFolgaDominical({
-      ano: Number(ano),
-      mes: Number(mes),
+      ano: parsed.anoNum,
+      mes: parsed.mesNum,
       userId,
     });
 
@@ -38,18 +65,45 @@ async function gerar(req, res) {
       message: "Folga dominical gerada com sucesso.",
       data: resultado,
     });
-  } catch (error) {
-    console.error("❌ Erro ao gerar folga dominical:", error);
 
-    return res.status(400).json({
+  } catch (error) {
+    console.error("❌ Erro ao gerar folga dominical:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+      userId: req.user?.id,
+    });
+
+    const message = error.message || "";
+
+    if (
+      message.includes("mínimo por turno") ||
+      message.includes("Não foi possível gerar")
+    ) {
+      return res.status(409).json({
+        success: false,
+        type: "CAPACIDADE_INSUFICIENTE",
+        error: message,
+      });
+    }
+
+    if (message.includes("Já existe planejamento")) {
+      return res.status(409).json({
+        success: false,
+        type: "PLANEJAMENTO_EXISTENTE",
+        error: message,
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      error: error.message || "Erro interno ao gerar folga dominical.",
+      error: "Erro interno ao gerar folga dominical.",
     });
   }
 }
 
 /* =====================================================
-   GET /folga-dominical?ano=2026&mes=4
+   GET /folga-dominical
 ===================================================== */
 async function listar(req, res) {
   try {
@@ -62,27 +116,48 @@ async function listar(req, res) {
       });
     }
 
+    const parsed = validarAnoMes(ano, mes);
+    if (!parsed) {
+      return res.status(400).json({
+        success: false,
+        error: "Ano ou mês inválidos.",
+      });
+    }
+
     const resultado = await listarFolgaDominical({
-      ano: Number(ano),
-      mes: Number(mes),
+      ano: parsed.anoNum,
+      mes: parsed.mesNum,
     });
+
+    if (!resultado) {
+      return res.status(404).json({
+        success: false,
+        error: "Nenhum planejamento encontrado para este mês.",
+      });
+    }
 
     return res.status(200).json({
       success: true,
+      message: "Planejamento carregado com sucesso.",
       data: resultado,
     });
-  } catch (error) {
-    console.error("❌ Erro ao listar folga dominical:", error);
 
-    return res.status(400).json({
+  } catch (error) {
+    console.error("❌ Erro ao listar folga dominical:", {
+      message: error.message,
+      stack: error.stack,
+      query: req.query,
+    });
+
+    return res.status(500).json({
       success: false,
-      error: error.message,
+      error: "Erro interno ao listar planejamento.",
     });
   }
 }
 
 /* =====================================================
-   DELETE /folga-dominical?ano=2026&mes=4
+   DELETE /folga-dominical
 ===================================================== */
 async function deletar(req, res) {
   try {
@@ -95,12 +170,25 @@ async function deletar(req, res) {
       });
     }
 
+    const parsed = validarAnoMes(ano, mes);
+    if (!parsed) {
+      return res.status(400).json({
+        success: false,
+        error: "Ano ou mês inválidos.",
+      });
+    }
+
     const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Usuário não autenticado.",
+      });
+    }
 
     const resultado = await deletarFolgaDominical({
-      ano: Number(ano),
-      mes: Number(mes),
-      userId,
+      ano: parsed.anoNum,
+      mes: parsed.mesNum,
     });
 
     return res.status(200).json({
@@ -108,12 +196,87 @@ async function deletar(req, res) {
       message: "Planejamento removido com sucesso.",
       data: resultado,
     });
-  } catch (error) {
-    console.error("❌ Erro ao deletar folga dominical:", error);
 
-    return res.status(400).json({
+  } catch (error) {
+    console.error("❌ Erro ao deletar folga dominical:", {
+      message: error.message,
+      stack: error.stack,
+      query: req.query,
+      userId: req.user?.id,
+    });
+
+    const message = error?.message || "";
+
+    if (message.includes("Nenhum planejamento")) {
+      return res.status(404).json({
+        success: false,
+        error: message,
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      error: error.message,
+      error: "Erro interno ao deletar planejamento.",
+    });
+  }
+}
+
+/* =====================================================
+   POST /folga-dominical/preview
+===================================================== */
+async function preview(req, res) {
+  try {
+    const { ano, mes } = req.body;
+
+    if (!ano || !mes) {
+      return res.status(400).json({
+        success: false,
+        error: "Ano e mês são obrigatórios.",
+      });
+    }
+
+    const parsed = validarAnoMes(ano, mes);
+    if (!parsed) {
+      return res.status(400).json({
+        success: false,
+        error: "Ano ou mês inválidos.",
+      });
+    }
+
+    const resultado = await previewFolgaDominical({
+      ano: parsed.anoNum,
+      mes: parsed.mesNum,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Preview gerado com sucesso.",
+      data: resultado,
+    });
+
+  } catch (error) {
+    console.error("❌ Erro no preview folga dominical:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+    });
+
+    const message = error.message || "";
+
+    if (
+      message.includes("mínimo por turno") ||
+      message.includes("Não foi possível")
+    ) {
+      return res.status(409).json({
+        success: false,
+        type: "CAPACIDADE_INSUFICIENTE",
+        error: message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: "Erro interno ao gerar preview.",
     });
   }
 }
@@ -122,4 +285,5 @@ module.exports = {
   gerar,
   listar,
   deletar,
+  preview,
 };
