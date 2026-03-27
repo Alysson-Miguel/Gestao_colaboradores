@@ -10,9 +10,10 @@ const CHANGELOG = {
   categorias: [
     {
       tipo: "Melhoria",
-      itens: [ 
+      itens: [
         "Histórico de atestados com datas, dias de afastamento, CID e status.",
         "Histórico de faltas com data de cada ocorrência e indicativo de medida disciplinar aplicada.",
+        "Botão de exportar CSV na tabela de faltantes (disponível para administradores).",
       ],
     },
   ],
