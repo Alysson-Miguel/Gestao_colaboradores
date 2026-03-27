@@ -5,7 +5,7 @@
  * categorias: agrupa as mudanças por tipo (Novidade, Melhoria, Correção).
  */
 const CHANGELOG = {
-  version: "1.7.2",
+  version: "1.7.3",
   titulo: "Novidades desta atualização",
   categorias: [
     {
