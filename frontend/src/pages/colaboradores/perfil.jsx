@@ -82,7 +82,9 @@ export default function PerfilColaborador() {
     total: 0,
     ativos: 0,
     finalizados: 0,
+    itens: [],
   };
+  const indicadoresFaltas = indicadores?.faltas || { total: 0, itens: [] };
   const indicadoresTreinamentos = indicadores?.treinamentos || {
     total: 0,
     itens: [],
@@ -236,19 +238,106 @@ console.log("INDICADORES ATESTADO:", indicadoresAtestado);
 
 
           {/* INDICADORES DE SAÚDE */}
+          {/* INDICADORES DE SAÚDE */}
           <Section title="Indicadores de Saúde">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Indicator label="Atestados" value={indicadoresAtestado.total} />
-              <Indicator
-                label="Ativos"
-                value={indicadoresAtestado.ativos}
-                color="text-yellow-400"
-              />
-              <Indicator
-                label="Finalizados"
-                value={indicadoresAtestado.finalizados}
-                color="text-green-400"
-              />
+            <div className="col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Indicator label="Total Atestados" value={indicadoresAtestado.total} />
+              <Indicator label="Ativos" value={indicadoresAtestado.ativos} color="text-yellow-400" />
+              <Indicator label="Finalizados" value={indicadoresAtestado.finalizados} color="text-green-400" />
+              <Indicator label="Faltas" value={indicadoresFaltas.total} color="text-red-400" />
+            </div>
+
+            <div className="col-span-2 mt-2 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Histórico de Atestados */}
+              <div>
+                <p className="text-xs text-[#BFBFC3] uppercase mb-3">Histórico de Atestados</p>
+                {(indicadoresAtestado.itens || []).length > 0 ? (
+                  <div className="space-y-3">
+                    {(indicadoresAtestado.itens || []).map((at) => {
+                      const statusColor =
+                        at.status === "ATIVO"
+                          ? "text-yellow-400"
+                          : at.status === "FINALIZADO"
+                          ? "text-green-400"
+                          : "text-red-400";
+                      return (
+                        <div
+                          key={at.idAtestado}
+                          className="bg-[#0D0D0D] border border-[#3D3D40] rounded-xl p-4 flex items-start gap-4"
+                        >
+                          <FileText size={18} className="text-blue-400 mt-1 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                              <div>
+                                <p className="text-xs text-[#BFBFC3] uppercase mb-0.5">Início</p>
+                                <p>{new Date(at.dataInicio).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-[#BFBFC3] uppercase mb-0.5">Fim</p>
+                                <p>{new Date(at.dataFim).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-[#BFBFC3] uppercase mb-0.5">Dias</p>
+                                <p>{at.diasAfastamento}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-[#BFBFC3] uppercase mb-0.5">Status</p>
+                                <p className={`font-medium ${statusColor}`}>{at.status}</p>
+                              </div>
+                            </div>
+                            {(at.cid || at.observacao) && (
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mt-2 pt-2 border-t border-[#3D3D40]">
+                                {at.cid && (
+                                  <div>
+                                    <p className="text-xs text-[#BFBFC3] uppercase mb-0.5">CID</p>
+                                    <p>{at.cid}</p>
+                                  </div>
+                                )}
+                                {at.observacao && (
+                                  <div className="col-span-2">
+                                    <p className="text-xs text-[#BFBFC3] uppercase mb-0.5">Observação</p>
+                                    <p className="break-words">{at.observacao}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#BFBFC3]">Nenhum atestado registrado.</p>
+                )}
+              </div>
+
+              {/* Histórico de Faltas */}
+              <div>
+                <p className="text-xs text-[#BFBFC3] uppercase mb-3">Histórico de Faltas</p>
+                {(indicadoresFaltas.itens || []).length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {(indicadoresFaltas.itens || []).map((f) => (
+                      <div
+                        key={f.idFrequencia}
+                        className={`flex flex-col px-3 py-2 rounded-lg border text-sm ${
+                          f.temMD
+                            ? "border-orange-500/50 bg-orange-500/10"
+                            : "border-[#3D3D40] bg-[#0D0D0D]"
+                        }`}
+                      >
+                        <span>{new Date(f.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span>
+                        {f.temMD ? (
+                          <span className="text-xs text-orange-400 font-medium mt-1">MD aplicada</span>
+                        ) : (
+                          <span className="text-xs text-[#BFBFC3] mt-1">Sem MD</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#BFBFC3]">Nenhuma falta registrada.</p>
+                )}
+              </div>
             </div>
           </Section>
 

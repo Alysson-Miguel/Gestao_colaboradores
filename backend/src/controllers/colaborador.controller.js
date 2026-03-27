@@ -212,7 +212,7 @@ const getColaboradorById = async (req, res) => {
     const hoje = agoraBrasil();
     hoje.setHours(0, 0, 0, 0);
 
-    const [totalAtestados, ativos, finalizados] = await Promise.all([
+    const [totalAtestados, ativos, finalizados, listaAtestados, totalFaltas, listaFaltas, listaMDs] = await Promise.all([
       prisma.atestadoMedico.count({
         where: { opsId },
       }),
@@ -230,6 +230,49 @@ const getColaboradorById = async (req, res) => {
         where: {
           opsId,
           status: "FINALIZADO",
+        },
+      }),
+
+      prisma.atestadoMedico.findMany({
+        where: { opsId },
+        orderBy: { dataInicio: "desc" },
+        select: {
+          idAtestado: true,
+          dataInicio: true,
+          dataFim: true,
+          diasAfastamento: true,
+          cid: true,
+          observacao: true,
+          status: true,
+          dataRegistro: true,
+        },
+      }),
+
+      prisma.frequencia.count({
+        where: {
+          opsId,
+          idTipoAusencia: { in: [3, 32] },
+        },
+      }),
+
+      prisma.frequencia.findMany({
+        where: {
+          opsId,
+          idTipoAusencia: { in: [3, 32] },
+        },
+        orderBy: { dataReferencia: "desc" },
+        select: {
+          idFrequencia: true,
+          dataReferencia: true,
+        },
+      }),
+
+      prisma.medidaDisciplinar.findMany({
+        where: { opsId },
+        select: {
+          dataOcorrencia: true,
+          tipoMedida: true,
+          status: true,
         },
       }),
     ]);
@@ -286,6 +329,23 @@ const getColaboradorById = async (req, res) => {
           total: totalAtestados,
           ativos,
           finalizados,
+          itens: listaAtestados,
+        },
+        faltas: {
+          total: totalFaltas,
+          itens: listaFaltas.map((f) => {
+            const dataFalta = new Date(f.dataReferencia).toDateString();
+            const md = listaMDs.find(
+              (m) => new Date(m.dataOcorrencia).toDateString() === dataFalta
+            );
+            return {
+              idFrequencia: f.idFrequencia,
+              data: f.dataReferencia,
+              temMD: !!md,
+              tipoMD: md?.tipoMedida || null,
+              statusMD: md?.status || null,
+            };
+          }),
         },
         treinamentos: {
           total: treinamentosDTO.length,

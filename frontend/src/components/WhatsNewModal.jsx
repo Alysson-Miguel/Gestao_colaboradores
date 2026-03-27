@@ -27,21 +27,38 @@ export default function WhatsNewModal({ onClose }) {
         </div>
 
         {/* Items */}
-        <ul className="px-6 py-4 space-y-3">
-          {CHANGELOG.items.map((item, i) => (
-            <li key={i} className="flex items-start gap-3 text-sm text-[#EDEDED]">
-              <span className="mt-0.5 text-[#FA4C00] shrink-0">✦</span>
-              <span>
-                {typeof item === "string" ? item : (
-                  <>
-                    <span className="font-semibold text-white">{item.titulo}</span>
-                    {item.descricao && <span className="text-[#BFBFC3]"> — {item.descricao}</span>}
-                  </>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="px-6 py-4 space-y-5">
+          {CHANGELOG.categorias
+            ? CHANGELOG.categorias.map((cat, i) => (
+                <div key={i}>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-[#FA4C00] mb-2">
+                    {cat.tipo}
+                  </p>
+                  <ul className="space-y-2">
+                    {cat.itens.map((item, j) => (
+                      <li key={j} className="flex items-start gap-3 text-sm text-[#EDEDED]">
+                        <span className="mt-0.5 text-[#FA4C00] shrink-0">✦</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            : CHANGELOG.items.map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-[#EDEDED]">
+                  <span className="mt-0.5 text-[#FA4C00] shrink-0">✦</span>
+                  <span>
+                    {typeof item === "string" ? item : (
+                      <>
+                        <span className="font-semibold text-white">{item.titulo}</span>
+                        {item.descricao && <span className="text-[#BFBFC3]"> — {item.descricao}</span>}
+                      </>
+                    )}
+                  </span>
+                </li>
+              ))
+          }
+        </div>
 
         {/* Footer */}
         <div className="px-6 pb-6">
