@@ -1,5 +1,6 @@
 "use client"
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useContext, useEffect, useMemo, useState } from "react"
+import { AuthContext } from "../../context/AuthContext"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -551,7 +552,19 @@ function SelectEmpresa({ value, onChange, options }) {
 }
 
 /* ─── TABLE ──────────────────────────────────────────────────────── */
+function IconDownload({ s = 16 }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  )
+}
+
 function AbsenceTable({ data, loading }) {
+  const { user } = useContext(AuthContext)
+  const canExport = user?.email?.toLowerCase() === "alysson.nascimento@shopee.com"
   const [search, setSearch] = useState("")
 
   const filtered = useMemo(() => {
@@ -567,10 +580,35 @@ function AbsenceTable({ data, loading }) {
 
   const cols = ["Nome", "Empresa", "Setor", "Turno", "Escala", "Tempo de Casa", "Faltas", "Recorrente"]
 
+  function exportCSV() {
+    const rows = [
+      cols,
+      ...filtered.map((c) => [
+        c.nome || "",
+        c.empresa || "",
+        c.setor || "",
+        c.turno || "",
+        c.escala || "",
+        c.tempoCasa || "",
+        c.totalFaltas || 0,
+        c.recorrencia ? "Sim" : "Não",
+      ]),
+    ]
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "faltantes.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* search */}
-      <div style={{ position: "relative", maxWidth: 300 }}>
+      {/* search + export */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ position: "relative", maxWidth: 300, flex: 1 }}>
         <div
           style={{
             position: "absolute",
@@ -603,6 +641,33 @@ function AbsenceTable({ data, loading }) {
           onFocus={(e) => (e.target.style.borderColor = "rgba(250,76,0,0.45)")}
           onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
         />
+      </div>
+      {canExport && (
+        <button
+          onClick={exportCSV}
+        disabled={loading || filtered.length === 0}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "9px 14px",
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.08)",
+          background: "#1A1A1A",
+          color: loading || filtered.length === 0 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.70)",
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: loading || filtered.length === 0 ? "not-allowed" : "pointer",
+          whiteSpace: "nowrap",
+          transition: "border-color 0.15s, color 0.15s",
+        }}
+        onMouseEnter={(e) => { if (!loading && filtered.length > 0) { e.currentTarget.style.borderColor = "rgba(250,76,0,0.45)"; e.currentTarget.style.color = "#fff" } }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = loading || filtered.length === 0 ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.70)" }}
+      >
+        <IconDownload />
+        Exportar CSV
+      </button>
+      )}
       </div>
 
       {/* table wrapper */}

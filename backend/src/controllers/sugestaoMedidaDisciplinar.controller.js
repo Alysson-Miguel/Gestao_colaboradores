@@ -10,6 +10,7 @@ const {
   errorResponse,
   notFoundResponse,
 } = require("../utils/response")
+const { detectarFaltasAutomatico } = require("../services/detectarFaltasAutomatico.service")
 
 /* =====================================================
    CONTADORES POR STATUS
@@ -19,10 +20,28 @@ const getContadores = async (req, res) => {
 
   try {
 
+    const { data, turno, lider } = req.query;
+
+    const baseWhere = {};
+    const colaboradorFilter = {};
+
+    if (data) {
+      const inicio = new Date(`${data}T00:00:00`);
+      const fim = new Date(`${data}T23:59:59`);
+      baseWhere.dataReferencia = { gte: inicio, lte: fim };
+    }
+
+    if (turno) colaboradorFilter.idTurno = Number(turno);
+    if (lider) colaboradorFilter.idLider = lider;
+
+    if (Object.keys(colaboradorFilter).length > 0) {
+      baseWhere.colaborador = { is: colaboradorFilter };
+    }
+
     const [pendente, rejeitada, aprovada] = await Promise.all([
-      prisma.sugestaoMedidaDisciplinar.count({ where: { status: "PENDENTE" } }),
-      prisma.sugestaoMedidaDisciplinar.count({ where: { status: "REJEITADA" } }),
-      prisma.sugestaoMedidaDisciplinar.count({ where: { status: "APROVADA" } }),
+      prisma.sugestaoMedidaDisciplinar.count({ where: { ...baseWhere, status: "PENDENTE" } }),
+      prisma.sugestaoMedidaDisciplinar.count({ where: { ...baseWhere, status: "REJEITADA" } }),
+      prisma.sugestaoMedidaDisciplinar.count({ where: { ...baseWhere, status: "APROVADA" } }),
     ]);
 
     return successResponse(res, { PENDENTE: pendente, REJEITADA: rejeitada, APROVADA: aprovada });
@@ -472,6 +491,53 @@ const createSugestao = async (req, res) => {
 
 }
 
+/* =====================================================
+   BACKFILL — processar datas passadas manualmente
+   POST /medidas-disciplinares/sugestoes/backfill
+   Body: { dataInicio: "YYYY-MM-DD", dataFim: "YYYY-MM-DD" }
+   Apenas ADMIN
+===================================================== */
+
+const backfillFaltas = async (req, res) => {
+
+  try {
+
+    const { dataInicio, dataFim } = req.body;
+
+    if (!dataInicio || !dataFim) {
+      return errorResponse(res, "dataInicio e dataFim são obrigatórios (YYYY-MM-DD)", 400);
+    }
+
+    const inicio = new Date(dataInicio);
+    const fim = new Date(dataFim);
+
+    if (isNaN(inicio) || isNaN(fim)) {
+      return errorResponse(res, "Datas inválidas", 400);
+    }
+
+    if (fim < inicio) {
+      return errorResponse(res, "dataFim deve ser >= dataInicio", 400);
+    }
+
+    // Limitar a 31 dias por chamada para evitar timeout
+    const diffDias = Math.ceil((fim - inicio) / 86400000);
+    if (diffDias > 31) {
+      return errorResponse(res, "Intervalo máximo de 31 dias por chamada", 400);
+    }
+
+    const resultado = await detectarFaltasAutomatico(dataInicio, dataFim);
+
+    return successResponse(res, resultado, "Backfill concluído");
+
+  } catch (err) {
+
+    console.error("❌ BACKFILL FALTAS:", err);
+    return errorResponse(res, "Erro ao executar backfill", 500);
+
+  }
+
+};
+
 module.exports = {
 
   getContadores,
@@ -479,5 +545,6 @@ module.exports = {
   aprovarSugestao,
   rejeitarSugestao,
   createSugestao,
+  backfillFaltas,
 
 }
