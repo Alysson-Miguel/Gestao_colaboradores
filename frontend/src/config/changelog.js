@@ -5,32 +5,24 @@
  * categorias: agrupa as mudanças por tipo (Novidade, Melhoria, Correção).
  */
 const CHANGELOG = {
-  version: "1.7.3",
+  version: "1.7.4",
   titulo: "Novidades desta atualização",
   categorias: [
     {
       tipo: "Novidade",
       itens: [
-        "Dashboard Operacional e Relatório Operacional: novo KPI 'Share de Diaristas' exibido ao lado de Aderência DW.",
-        "Folga Dominical: novo filtro por líder na listagem de colaboradores.",
-        "Folga Dominical: coluna 'Domingo' adicionada na tabela exibindo a data do domingo programado.",
+        "Cancelamento de treinamentos: botão disponível nos detalhes do treinamento com modal de motivo obrigatório. Apenas quem criou o treinamento ou ADMIN pode cancelar.",
+        "Cancelamento de acidentes: botão disponível diretamente no card da listagem com modal de motivo obrigatório. Apenas quem registrou o acidente ou ADMIN pode cancelar.",
+        "Card de 'Cancelados' na tela de treinamentos exibindo total e percentual.",
+        "Filtros por líder e por período (data início / data fim) na listagem de treinamentos.",
       ],
     },
     {
       tipo: "Melhoria",
       itens: [
-        "Treinamentos: agora é possível editar a lista de participantes de um treinamento com status em aberto.",
-        "Produção hora x hora agora é salva em tempo real a cada 5 minutos junto com o salvamento por colaborador.",
-        "Histórico de atestados com datas, dias de afastamento, CID e status.",
-        "Folga Dominical: geração de DSR refatorada para processar em lotes, evitando timeout em meses com muitos colaboradores.",
-      ],
-    },
-    {
-      tipo: "Correção",
-      itens: [
-        "Gestão Operacional T3: faixa de horas corrigida para exibir 22-23, 23-00, 00-01... 05-06 na ordem correta.",
-        "Folga Dominical: datas exibidas incorretamente devido a fuso horário — corrigido para usar horário meio-dia ao formatar.",
-        "Folga Dominical: última folga DSR exibida com data errada — corrigido para normalizar para formato ISO antes de exibir.",
+        "Badge 'Cancelado' em vermelho na listagem de treinamentos.",
+        "Status 'Cancelado' exibido nos detalhes do treinamento.",
+        "Acidentes cancelados exibem badge 'Cancelado' no card em vez do botão de ação.",
       ],
     },
   ],
