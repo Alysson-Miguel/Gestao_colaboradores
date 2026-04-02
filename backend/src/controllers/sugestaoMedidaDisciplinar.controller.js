@@ -78,13 +78,8 @@ const getAllSugestoes = async (req, res) => {
 
       where.status = status;
 
-    } else {
-
-      where.status = {
-        in: ["PENDENTE", "REJEITADA"]
-      };
-
     }
+    // sem filtro de status padrão — retorna todos (PENDENTE, REJEITADA, APROVADA)
 
     /* ==============================
        FILTRO OPS ID
@@ -145,7 +140,7 @@ const getAllSugestoes = async (req, res) => {
       where,
 
       orderBy: {
-        createdAt: "desc",
+        dataReferencia: "desc",
       },
 
       include: {
@@ -252,15 +247,14 @@ const aprovarSugestao = async (req, res) => {
        CONTAR HISTÓRICO
     =========================== */
 
-    const historicoCount = await prisma.medidaDisciplinar.count({
-      where: {
-        opsId: sugestao.opsId,
-        violacao: sugestao.violacao,
-        status: {
-          not: StatusMedidaDisciplinar.CANCELADA,
-        },
-      },
-    });
+    const historicoResult = await prisma.$queryRaw`
+      SELECT COUNT(*)::int as count
+      FROM medida_disciplinar
+      WHERE ops_id = ${sugestao.opsId}
+        AND violacao = ${sugestao.violacao}
+        AND status::text <> 'CANCELADA'
+    `;
+    const historicoCount = historicoResult[0]?.count ?? 0;
 
     const frequenciaViolacao =
       historicoCount === 0

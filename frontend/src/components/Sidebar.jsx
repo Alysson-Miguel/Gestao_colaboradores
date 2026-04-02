@@ -361,7 +361,6 @@ export default function Sidebar({ isOpen, onClose }) {
                     label="Sugestões"
                     active={isActive("/medidas-disciplinares/sugestao")}
                     onClick={() => go("/medidas-disciplinares/sugestao")}
-                    disabled
                   />
                 </div>
               )}
