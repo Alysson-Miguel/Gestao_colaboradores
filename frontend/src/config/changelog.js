@@ -1,12 +1,13 @@
 const CHANGELOG = {
-  version: "1.7.4",
+  version: "1.7.5",
   titulo: "Novidades do Sistema",
   categorias: [
     {
-      nome: "Sugestões de Medida Disciplinar",
-      icone: "⚡",
+      nome: "Medidas Disciplinares",
+      icone: "🖨️",
       itens: [
-        "Detecção de faltas agora ocorre em tempo real — assim que uma frequência 'F' é registrada, a sugestão de MD é gerada automaticamente.",
+        "Impressão de carta agora seleciona o modelo automaticamente com base na empresa do colaborador.",
+        "Colaboradores da ADILIS e Adecco utilizam o modelo oficial de Advertência Disciplinar dessas empresas.",
       ],
     },
   ],
