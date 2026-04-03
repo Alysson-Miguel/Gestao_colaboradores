@@ -23,6 +23,7 @@ import { Download } from "lucide-react";
 
 
 import { AuthContext } from "../../context/AuthContext";
+import { useEstacao } from "../../context/EstacaoContext";
 import api from "../../services/api";
 
 export default function DashboardOperacional() {
@@ -45,6 +46,7 @@ export default function DashboardOperacional() {
 
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
+  const { estacaoId } = useEstacao();
 
   /* =====================================================
      LOAD DASHBOARD
@@ -110,11 +112,11 @@ export default function DashboardOperacional() {
   /* LOAD INICIAL */
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [estacaoId]);
 
   /* LOAD QUANDO RANGE APLICADO MUDA */
   useEffect(() => {
-    loadDashboard(appliedRange);
+    if (appliedRange.from) loadDashboard(appliedRange);
   }, [appliedRange]);
 
   /* FECHAR CALENDÁRIO AO CLICAR FORA */

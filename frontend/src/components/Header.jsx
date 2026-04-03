@@ -3,6 +3,7 @@ import { useContext, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
+import EstacaoSelector from "./EstacaoSelector";
 
 export default function Header({ onMenuClick }) {
   const { user, logout } = useContext(AuthContext);
@@ -61,6 +62,9 @@ export default function Header({ onMenuClick }) {
 
       {/* ================= DIREITA ================= */}
       <div className="flex items-center gap-2 sm:gap-3">
+
+        {/* SELETOR DE ESTAÇÃO (só para ADMIN e ALTA_GESTAO) */}
+        <EstacaoSelector />
 
         {/* TOGGLE TEMA */}
         <button

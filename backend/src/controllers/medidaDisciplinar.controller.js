@@ -351,6 +351,11 @@ const getAllMedidas = async (req, res) => {
 
     const where = {};
 
+    // Filtro de estação via colaborador
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      where.colaborador = { is: { idEstacao: req.dbContext.estacaoId } };
+    }
+
     if (data) {
 
       const inicio = new Date(`${data}T00:00:00`);

@@ -9,7 +9,7 @@ function dateOnlyBrasil(dateStr) {
 }
 
 /*  WHERE PADRÃO*/
-function buildWhere(inicioDate, fimDate, empresaId) {
+function buildWhere(inicioDate, fimDate, empresaId, estacaoId) {
   return {
     dataReferencia: {
       gte: inicioDate,
@@ -24,6 +24,7 @@ function buildWhere(inicioDate, fimDate, empresaId) {
           in: ["ATIVO", "FERIAS", "AFASTADO"],
         },
         ...(empresaId && { idEmpresa: Number(empresaId) }),
+        ...(estacaoId && { idEstacao: estacaoId }),
       },
     },
   };
@@ -34,6 +35,7 @@ function buildWhere(inicioDate, fimDate, empresaId) {
 const getResumoFaltas = async (req, res) => {
   try {
     const { inicio, fim, empresaId } = req.query;
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -43,7 +45,7 @@ const getResumoFaltas = async (req, res) => {
 
     /* 🔥 FALTAS CORRETAS */
     const faltasPeriodo = await prisma.frequencia.findMany({
-      where: buildWhere(inicioDate, fimDate, empresaId),
+      where: buildWhere(inicioDate, fimDate, empresaId, estacaoId),
       select: {
         opsId: true,
         dataReferencia: true,
@@ -101,7 +103,7 @@ const getResumoFaltas = async (req, res) => {
 
     const faltasHoje = await prisma.frequencia.count({
       where: {
-        ...buildWhere(referencia, referencia, empresaId),
+        ...buildWhere(referencia, referencia, empresaId, estacaoId),
       },
     });
 
@@ -113,7 +115,7 @@ const getResumoFaltas = async (req, res) => {
     inicioSemana.setDate(referencia.getDate() - diff);
 
     const semanaAtual = await prisma.frequencia.count({
-      where: buildWhere(inicioSemana, referencia, empresaId),
+      where: buildWhere(inicioSemana, referencia, empresaId, estacaoId),
     });
 
     /* ========================================= */
@@ -124,7 +126,7 @@ const getResumoFaltas = async (req, res) => {
     );
 
     const mesAtual = await prisma.frequencia.count({
-      where: buildWhere(inicioMes, referencia, empresaId),
+      where: buildWhere(inicioMes, referencia, empresaId, estacaoId),
     });
 
     return successResponse(res, {
@@ -150,6 +152,7 @@ const getResumoFaltas = async (req, res) => {
 const getDistribuicoesFaltas = async (req, res) => {
   try {
     const { inicio, fim, empresaId } = req.query;
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -158,7 +161,7 @@ const getDistribuicoesFaltas = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const faltas = await prisma.frequencia.findMany({
-      where: buildWhere(inicioDate, fimDate, empresaId),
+      where: buildWhere(inicioDate, fimDate, empresaId, estacaoId),
       include: {
         colaborador: {
           include: {
@@ -231,6 +234,7 @@ const getDistribuicoesFaltas = async (req, res) => {
 const getTendenciaFaltas = async (req, res) => {
   try {
     const { inicio, fim, empresaId } = req.query;
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -239,7 +243,7 @@ const getTendenciaFaltas = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const registros = await prisma.frequencia.findMany({
-      where: buildWhere(inicioDate, fimDate, empresaId),
+      where: buildWhere(inicioDate, fimDate, empresaId, estacaoId),
       select: {
         opsId: true,
         dataReferencia: true,
@@ -274,6 +278,7 @@ const getTendenciaFaltas = async (req, res) => {
 const getColaboradoresFaltas = async (req, res) => {
   try {
     const { inicio, fim, empresaId } = req.query;
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim) {
       return errorResponse(res, "Período obrigatório", 400);
@@ -283,7 +288,7 @@ const getColaboradoresFaltas = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const registros = await prisma.frequencia.findMany({
-      where: buildWhere(inicioDate, fimDate, empresaId),
+      where: buildWhere(inicioDate, fimDate, empresaId, estacaoId),
       include: {
         colaborador: {
           include: {

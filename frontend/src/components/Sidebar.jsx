@@ -14,9 +14,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useSidebar } from "../context/SidebarContext";
+import { EstacoesAPI } from "../services/estacoes";
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
@@ -24,13 +25,28 @@ export default function Sidebar({ isOpen, onClose }) {
   const { user, permissions } = useContext(AuthContext);
   const { isCollapsed, setIsCollapsed } = useSidebar();
 
+  const isAdmin = permissions?.isAdmin;
+  const isAltaGestao = permissions?.isAltaGestao;
+  const isLideranca = permissions?.isLideranca;
+  const isGlobal = isAdmin || isAltaGestao;
+
+  const [nomeEstacao, setNomeEstacao] = useState(null);
+
+  useEffect(() => {
+    if (user?.idEstacao) {
+      EstacoesAPI.listar()
+        .then((lista) => {
+          const found = lista.find((e) => e.idEstacao === user.idEstacao);
+          setNomeEstacao(found?.nomeEstacao || null);
+        })
+        .catch(() => {});
+    }
+  }, [user?.idEstacao]);
+
   // OPERACAO não vê sidebar
   if (user?.role === "OPERACAO") {
     return null;
   }
-
-  const isAdmin = permissions?.isAdmin;
-  const isLideranca = permissions?.isLideranca;
 
   /* =====================
      SUBMENUS
@@ -72,7 +88,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const menuItems = [
     { icon: Users, label: "Colaboradores", path: "/colaboradores" },
 
-    ...(isAdmin || isLideranca
+    ...(isGlobal || isLideranca
       ? [
           {
             icon: FileText,
@@ -83,7 +99,7 @@ export default function Sidebar({ isOpen, onClose }) {
         ]
       : []),
 
-    ...(isAdmin
+    ...(isGlobal
       ? [
           {
             icon: Upload,
@@ -121,9 +137,16 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FA4C00]" />
             {!isCollapsed && (
-              <span className="font-semibold text-white tracking-wide">
-                COPEOPLE
-              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="font-semibold text-white tracking-wide">
+                  COPEOPLE
+                </span>
+                {nomeEstacao && (
+                  <span className="text-[10px] text-[#FA4C00] truncate max-w-[130px]">
+                    {nomeEstacao}
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
@@ -183,7 +206,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   onClick={() => go("/dashboard/operacional")}
                 />
 
-                {(isAdmin || isLideranca) && (
+                {(isGlobal || isLideranca) && (
                   <>
                     <SidebarSubItem
                       label="Gestão Operacional"
@@ -213,7 +236,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   </>
                 )}
 
-                {isAdmin && (
+                {isGlobal && (
                   <>
                     <SidebarSubItem
                       label="Administrativo"
@@ -239,7 +262,7 @@ export default function Sidebar({ isOpen, onClose }) {
           {/* =====================
               ORGANIZAÇÃO (SÓ ADMIN)
           ===================== */}
-          {isAdmin && (
+          {isGlobal && (
             <div>
               <button
                 onClick={() => setOrganizacaoOpen(!organizacaoOpen)}
@@ -320,7 +343,7 @@ export default function Sidebar({ isOpen, onClose }) {
           {/* =====================
               MEDIDAS DISCIPLINARES
           ===================== */}
-          {(isAdmin || isLideranca) && (
+          {(isGlobal || isLideranca) && (
             <div className="mt-2">
               <button
                 onClick={() => setMedidasOpen(!medidasOpen)}

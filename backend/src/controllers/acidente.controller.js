@@ -269,6 +269,11 @@ const getAllAcidentes = async (req, res) => {
     const { opsId, cpf } = req.query;
     let where = {};
 
+    // Filtro de estação via colaborador
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      where.colaborador = { idEstacao: req.dbContext.estacaoId };
+    }
+
     if (opsId) {
       where.opsIdColaborador = opsId;
     }

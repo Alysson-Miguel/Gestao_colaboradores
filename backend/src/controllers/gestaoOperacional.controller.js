@@ -193,6 +193,7 @@ const carregarGestaoOperacional = async (req, res) => {
     // Buscar total de presentes (colaboradores presentes) do turno específico
     console.log("🔍 Buscando total de colaboradores presentes do turno", turno, "...");
     console.log("📅 Data para busca:", dataStr, "| Data objeto:", new Date(dataStr));
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
     let totalPresentes = 0;
     try {
       // Para T3, buscar frequência da data de início (ontem)
@@ -200,6 +201,7 @@ const carregarGestaoOperacional = async (req, res) => {
       const frequencias = await prisma.frequencia.findMany({
         where: {
           dataReferencia: new Date(dataStr),
+          ...(estacaoId && { colaborador: { is: { idEstacao: estacaoId } } }),
         },
         include: {
           tipoAusencia: true,

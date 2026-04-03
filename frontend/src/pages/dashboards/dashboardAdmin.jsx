@@ -42,6 +42,7 @@ import FaltasPorTempoCasaChart from "../../components/dashboard/FaltasPorTempoCa
 
 
 import { AuthContext } from "../../context/AuthContext";
+import { useEstacao } from "../../context/EstacaoContext";
 import api from "../../services/api";
 
 /* =====================================================
@@ -99,6 +100,7 @@ export default function DashboardAdmin() {
 
   const navigate = useNavigate();
   const { logout, permissions } = useContext(AuthContext);
+  const { estacaoId } = useEstacao();
 
   /* ================= LOAD ================= */
   useEffect(() => {
@@ -126,7 +128,7 @@ export default function DashboardAdmin() {
     }
 
     load();
-  }, [turno, dateRange, logout, navigate]);
+  }, [turno, dateRange, logout, navigate, estacaoId]);
 
   /* ================= KPI CARDS ================= */
   const kpisEstrutura = useMemo(() => {

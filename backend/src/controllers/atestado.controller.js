@@ -329,6 +329,11 @@ const getAllAtestados = async (req, res) => {
 
     let where = {};
 
+    // Filtro de estação via colaborador
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      where.colaborador = { idEstacao: req.dbContext.estacaoId };
+    }
+
     /* ===============================
        FILTRO POR COLABORADOR
     =============================== */

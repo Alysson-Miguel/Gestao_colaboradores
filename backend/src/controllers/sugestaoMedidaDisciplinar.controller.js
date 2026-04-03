@@ -70,6 +70,11 @@ const getAllSugestoes = async (req, res) => {
     const where = {};
     const colaboradorFilter = {};
 
+    // Filtro de estação
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      colaboradorFilter.idEstacao = req.dbContext.estacaoId;
+    }
+
     /* ==============================
        FILTRO STATUS
     ============================== */

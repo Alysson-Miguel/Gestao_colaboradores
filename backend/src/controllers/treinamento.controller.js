@@ -111,8 +111,13 @@ exports.createTreinamento = async (req, res) => {
 exports.listTreinamentos = async (req, res) => {
   try {
 
+    const estacaoFilter = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
+      ? { liderResponsavel: { idEstacao: req.dbContext.estacaoId } }
+      : {};
+
     const treinamentos = await prisma.treinamento.findMany({
 
+      where: estacaoFilter,
       orderBy: { dataTreinamento: "desc" },
 
       include: {

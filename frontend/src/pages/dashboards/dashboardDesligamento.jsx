@@ -17,6 +17,7 @@ import {
 import api from "../../services/api"
 import Sidebar from "../../components/Sidebar"
 import Header from "../../components/Header"
+import { useEstacao } from "../../context/EstacaoContext"
 
 /* ─── TOKENS ─────────────────────────────────────────────────────── */
 const BRAND = "#FA4C00"
@@ -495,6 +496,7 @@ export default function DashboardDesligamento() {
   const [turno,       setTurno]       = useState("ALL")
   const [inicio,      setInicio]      = useState("2026-01-01")
   const [fim,         setFim]         = useState(isoToday())
+  const { estacaoId } = useEstacao()
 
   async function fetchData() {
     try {
@@ -515,7 +517,7 @@ export default function DashboardDesligamento() {
     }
   }
 
-  useEffect(() => { fetchData() }, [turno, inicio, fim])
+  useEffect(() => { fetchData() }, [turno, inicio, fim, estacaoId])
 
   /* ─── memos ─── */
   const motivos   = useMemo(() => toChartData(data?.motivos),   [data])

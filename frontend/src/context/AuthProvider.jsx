@@ -64,6 +64,7 @@ export function AuthProvider({ children }) {
   const permissions = useMemo(() => {
     return {
       isAdmin: user?.role === "ADMIN",
+      isAltaGestao: user?.role === "ALTA_GESTAO",
       isLideranca: user?.role === "LIDERANCA",
       isOperacao: user?.role === "OPERACAO",
     };

@@ -1,6 +1,6 @@
 const { prisma } = require("../config/database");
 
-function buildWhere({ inicio, fim, empresa, turno, setor, lider }) {
+function buildWhere({ inicio, fim, empresa, turno, setor, lider, estacaoId }) {
   const where = {
     dataDesligamento: {
       not: null,
@@ -31,6 +31,7 @@ function buildWhere({ inicio, fim, empresa, turno, setor, lider }) {
     }
   if (setor) where.idSetor = Number(setor);
   if (lider) where.idLider = lider;
+  if (estacaoId) where.idEstacao = estacaoId;
 
   return where;
 }

@@ -1,6 +1,7 @@
 "use client"
 import React, { useContext, useEffect, useMemo, useState } from "react"
 import { AuthContext } from "../../context/AuthContext"
+import { useEstacao } from "../../context/EstacaoContext"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -819,6 +820,7 @@ export default function DashboardFaltas() {
   const [colaboradores, setColaboradores] = useState([])
   const [topOfensores, setTopOfensores] = useState([])
   const [porTempoCasa, setPorTempoCasa] = useState([])
+  const { estacaoId } = useEstacao()
 
   useEffect(() => {
     api.get("/empresas").then((res) => {
@@ -862,7 +864,7 @@ export default function DashboardFaltas() {
     }
   }
 
-  useEffect(() => { fetchAll() }, [inicio, fim, empresaId])
+  useEffect(() => { fetchAll() }, [inicio, fim, empresaId, estacaoId])
 
   const porEmpresa = dist?.porEmpresa || []
   const porSetor   = dist?.porSetor   || []

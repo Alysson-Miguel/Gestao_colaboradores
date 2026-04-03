@@ -25,7 +25,7 @@ router.get(
 router.get(
   "/lideres",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   asyncHandler(controller.listarLideres)
 );
 
@@ -34,7 +34,7 @@ router.get(
 router.get(
   "/escalas",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERAMCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   asyncHandler(controller.listarEscalas)
 );
 

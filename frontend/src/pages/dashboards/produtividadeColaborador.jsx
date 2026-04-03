@@ -7,6 +7,7 @@ import Header from "../../components/Header";
 import ProdutividadeColaboradorTable from "../../components/produtividadeColaborador/ProdutividadeColaboradorTable";
 import toast from "react-hot-toast";
 import { AuthContext } from "../../context/AuthContext";
+import { useEstacao } from "../../context/EstacaoContext";
 
 /**
  * Calcula quantos segundos faltam para o próximo ciclo de 5 minutos.
@@ -78,6 +79,7 @@ export default function ProdutividadeColaborador() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const isOperacao = user?.role === "OPERACAO";
+  const { estacaoId } = useEstacao();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
@@ -90,7 +92,7 @@ export default function ProdutividadeColaborador() {
     carregarDados();
     const intervalo = setInterval(carregarDados, 120000);
     return () => clearInterval(intervalo);
-  }, [data, turno]);
+  }, [data, turno, estacaoId]);
 
   const carregarDados = async () => {
     try {

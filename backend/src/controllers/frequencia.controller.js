@@ -41,6 +41,11 @@ const getAllFrequencias = async (req, res) => {
 
   const where = {};
 
+  // Filtro de estação via colaborador
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+    where.colaborador = { idEstacao: req.dbContext.estacaoId };
+  }
+
   if (opsId) where.opsId = opsId;
   if (idTipoAusencia) where.idTipoAusencia = parseInt(idTipoAusencia);
 

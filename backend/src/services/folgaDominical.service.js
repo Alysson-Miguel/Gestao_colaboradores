@@ -653,7 +653,7 @@ async function gerarFolgaDominical({ ano, mes, userId }) {
 /* =====================================================
    LISTAR FOLGA DOMINICAL
 ===================================================== */
-async function listarFolgaDominical({ ano, mes }) {
+async function listarFolgaDominical({ ano, mes, estacaoId = null }) {
   if (!ano || !mes) {
     throw new Error("Ano e mês são obrigatórios.");
   }
@@ -671,6 +671,7 @@ async function listarFolgaDominical({ ano, mes }) {
       },
       colaborador: {
         status: "ATIVO",
+        ...(estacaoId && { idEstacao: estacaoId }),
       },
     },
     include: {

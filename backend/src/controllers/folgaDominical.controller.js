@@ -124,9 +124,12 @@ async function listar(req, res) {
       });
     }
 
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
+
     const resultado = await listarFolgaDominical({
       ano: parsed.anoNum,
       mes: parsed.mesNum,
+      estacaoId,
     });
 
     if (!resultado) {

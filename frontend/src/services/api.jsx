@@ -9,17 +9,20 @@ const api = axios.create({
   },
 });
 
-// Interceptor de request: adiciona token automaticamente
+// Interceptor de request: adiciona token e estacaoId automaticamente
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token"); // pega token do localStorage
+  const token = localStorage.getItem("token");
 
   if (!config.headers) config.headers = {};
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log("[API] Enviando token:", token.slice(0, 15) + "...");
-  } else {
-    console.log("[API] Nenhum token encontrado no localStorage");
+  }
+
+  // Injeta estacaoId como query param se estiver selecionado
+  const estacaoId = localStorage.getItem("estacao_selecionada");
+  if (estacaoId) {
+    config.params = { ...config.params, estacaoId: Number(estacaoId) };
   }
 
   return config;
