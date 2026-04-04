@@ -128,10 +128,14 @@ export default function EstacoesPage() {
           estacao={selected}
           onClose={() => setModalOpen(false)}
           onSave={async (data) => {
+            const payload = {
+              nomeEstacao: data.nome,
+              idRegional: data.idRegional ? Number(data.idRegional) : undefined,
+            };
             if (selected) {
-              await EstacoesAPI.atualizar(selected.idEstacao, data);
+              await EstacoesAPI.atualizar(selected.idEstacao, payload);
             } else {
-              await EstacoesAPI.criar(data);
+              await EstacoesAPI.criar(payload);
             }
             setModalOpen(false);
             load();

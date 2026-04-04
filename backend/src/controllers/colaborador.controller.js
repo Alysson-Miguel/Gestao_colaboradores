@@ -77,6 +77,11 @@ const getAllColaboradores = async (req, res) => {
   const skip = (Number(page) - 1) * Number(limit);
   const where = {};
 
+  // Filtro de estação — ADMIN/ALTA_GESTAO veem tudo
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+    where.idEstacao = req.dbContext.estacaoId;
+  }
+
   if (search) {
     where.OR = [
       { nomeCompleto: { contains: search, mode: "insensitive" } },
@@ -800,8 +805,13 @@ const deleteColaborador = async (req, res) => {
 
 const listarLideres = async (req, res) => {
   try {
+    const estacaoFilter = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
+      ? { idEstacao: req.dbContext.estacaoId }
+      : {};
+
     const lideres = await prisma.colaborador.findMany({
       where: {
+        ...estacaoFilter,
         status: "ATIVO",
         OR: [
           {

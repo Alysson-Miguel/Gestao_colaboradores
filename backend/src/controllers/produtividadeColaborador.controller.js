@@ -41,12 +41,15 @@ const carregarProdutividadeColaborador = async (req, res) => {
     const turnoId = turno === "T1" ? 1 : turno === "T2" ? 2 : 3;
 
     // Buscar colaboradores do turno do banco de dados
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
+
     const colaboradores = await prisma.colaborador.findMany({
       where: {
         turno: {
           idTurno: turnoId
         },
-        status: "ATIVO"
+        status: "ATIVO",
+        ...(estacaoId && { idEstacao: estacaoId }),
       },
       include: {
         turno: true,

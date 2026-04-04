@@ -10,11 +10,13 @@ const getAllAusencias = async (req, res) => {
   const { page = 1, limit = 10, opsId, status, idTipoAusencia } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
+  const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
   const where = {};
   if (opsId) where.opsId = opsId;
   if (status) where.status = status;
   if (idTipoAusencia) where.idTipoAusencia = parseInt(idTipoAusencia);
+  if (estacaoId) where.colaborador = { is: { idEstacao: estacaoId } };
 
   const [ausencias, total] = await Promise.all([
     prisma.ausencia.findMany({
@@ -110,11 +112,14 @@ const finalizarAusencia = async (req, res) => {
 };
 
 const getAusenciasAtivas = async (req, res) => {
+  const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
+
   const ausencias = await prisma.ausencia.findMany({
     where: {
       status: 'ATIVO',
       dataInicio: { lte: new Date() },
       dataFim: { gte: new Date() },
+      ...(estacaoId && { colaborador: { is: { idEstacao: estacaoId } } }),
     },
     include: {
       colaborador: { select: { opsId: true, nomeCompleto: true, matricula: true, setor: true, cargo: true } },

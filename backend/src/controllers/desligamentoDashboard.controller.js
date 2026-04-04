@@ -25,6 +25,8 @@ const dashboardDesligamento = async (req, res) => {
     /* =====================================================
        NORMALIZAÇÃO DOS FILTROS
     ===================================================== */
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
+
     const filtros = {
       inicio,
       fim,
@@ -33,6 +35,7 @@ const dashboardDesligamento = async (req, res) => {
       lider: lider || undefined,
       turno:
         !turno || turno === "ALL" ? undefined : turno,
+      estacaoId: estacaoId || undefined,
     };
 
     /* =====================================================

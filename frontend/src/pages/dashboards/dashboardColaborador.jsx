@@ -27,6 +27,7 @@ import TurnoSelector from "../../components/dashboard/TurnoSelector"
 import DateFilter from "../../components/dashboard/DateFilter"
 import DashboardHeader from "../../components/dashboard/DashboardHeader"
 import { AuthContext } from "../../context/AuthContext"
+import { useEstacao } from "../../context/EstacaoContext"
 import { useNavigate } from "react-router-dom"
 
 const COLORS = ["#FA4C00", "#3b82f6", "#FFB37A", "#34C759", "#A855F7"]
@@ -38,6 +39,7 @@ export default function DashboardColaboradoresExecutivo() {
   const [dateRange, setDateRange] = useState({})
   const { permissions } = useContext(AuthContext)
   const navigate = useNavigate()
+  const { estacaoId } = useEstacao()
 
   useEffect(() => {
     async function load() {
@@ -53,7 +55,7 @@ export default function DashboardColaboradoresExecutivo() {
     }
 
     load()
-  }, [turno, dateRange])
+  }, [turno, dateRange, estacaoId])
 
 
   if (loading || !dados) {

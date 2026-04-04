@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useEstacao } from "../../context/EstacaoContext";
 import { Calendar, Package, Send } from "lucide-react";
 import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
@@ -21,6 +22,7 @@ export default function GestaoOperacional() {
   const [desabilitarAnimacoes, setDesabilitarAnimacoes] = useState(false);
   const [ocultarHeader, setOcultarHeader] = useState(false);
   const mainContentRef = useRef(null);
+  const { estacaoId } = useEstacao();
 
   // Contador regressivo em segundos até liberar o botão Seatalk
   const [segundosParaSeatalk, setSegundosParaSeatalk] = useState(0);
@@ -60,7 +62,7 @@ export default function GestaoOperacional() {
     // Limpar intervalo ao desmontar ou quando filtros mudarem
     return () => clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, turno]);
+  }, [data, turno, estacaoId]);
 
   const carregarDados = async () => {
     try {

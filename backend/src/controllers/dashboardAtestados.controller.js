@@ -16,21 +16,24 @@ function corrigirAdmissao(adm) {
   return new Date(d.getUTCFullYear(), d.getUTCDate() - 1, d.getUTCMonth() + 1);
 }
 
-function buildWhere(inicioDate, fimDate, cid, empresaId, cids) {
-  // cids = array de códigos (filtro por sintoma)
-  // cid  = código único (filtro por CID individual)
+function buildWhere(inicioDate, fimDate, cid, empresaId, cids, estacaoId) {
   const cidFilter = cids?.length
     ? { cid: { in: cids } }
     : cid
     ? { cid }
     : {};
 
+  const colaboradorFilter = {
+    ...(empresaId && { idEmpresa: Number(empresaId) }),
+    ...(estacaoId && { idEstacao: estacaoId }),
+  };
+
   return {
     dataInicio: { gte: inicioDate, lte: fimDate },
     status: { not: "CANCELADO" },
     ...cidFilter,
-    ...(empresaId && {
-      colaborador: { idEmpresa: Number(empresaId) },
+    ...(Object.keys(colaboradorFilter).length > 0 && {
+      colaborador: colaboradorFilter,
     }),
   };
 }
@@ -40,6 +43,7 @@ const getResumoAtestados = async (req, res) => {
   try {
     const { inicio, fim, cid, empresaId } = req.query;
     const cids = req.query.cids ? [].concat(req.query.cids) : [];
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -51,7 +55,7 @@ const getResumoAtestados = async (req, res) => {
        BUSCA ATESTADOS DO PERÍODO
     ========================================= */
     const atestadosPeriodo = await prisma.atestadoMedico.findMany({
-      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids),
+      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids, estacaoId),
       select: {
         opsId: true,
         diasAfastamento: true,
@@ -200,6 +204,7 @@ const getDistribuicoesAtestados = async (req, res) => {
   try {
     const { inicio, fim, cid, empresaId } = req.query;
     const cids = req.query.cids ? [].concat(req.query.cids) : [];
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -208,7 +213,7 @@ const getDistribuicoesAtestados = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const atestados = await prisma.atestadoMedico.findMany({
-      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids),
+      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids, estacaoId),
       include: {
         colaborador: {
           include: {
@@ -304,6 +309,7 @@ const getTendenciaAtestados = async (req, res) => {
   try {
     const { inicio, fim, cid, empresaId } = req.query;
     const cids = req.query.cids ? [].concat(req.query.cids) : [];
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
 
@@ -311,7 +317,7 @@ const getTendenciaAtestados = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const registros = await prisma.atestadoMedico.findMany({
-      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids),
+      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids, estacaoId),
       select: { dataInicio: true },
     });
 
@@ -339,6 +345,7 @@ const getRiscoAtestados = async (req, res) => {
   try {
     const { inicio, fim, cid, empresaId } = req.query;
     const cids = req.query.cids ? [].concat(req.query.cids) : [];
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -347,7 +354,7 @@ const getRiscoAtestados = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const atestados = await prisma.atestadoMedico.findMany({
-      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids),
+      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids, estacaoId),
       include: {
         colaborador: {
           include: {
@@ -491,6 +498,7 @@ const getColaboradoresAtestados = async (req, res) => {
   try {
     const { inicio, fim, cid, empresaId } = req.query;
     const cids = req.query.cids ? [].concat(req.query.cids) : [];
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     if (!inicio || !fim)
       return errorResponse(res, "Período obrigatório", 400);
@@ -499,7 +507,7 @@ const getColaboradoresAtestados = async (req, res) => {
     const fimDate = dateOnlyBrasil(fim);
 
     const atestados = await prisma.atestadoMedico.findMany({
-      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids),
+      where: buildWhere(inicioDate, fimDate, cid, empresaId, cids, estacaoId),
       include: {
         colaborador: {
           include: {

@@ -34,6 +34,7 @@ const authenticate = async (req, res, next) => {
         role: true,
         isActive: true,
         opsId: true,
+        idEstacao: true,
       },
     });
 

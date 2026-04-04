@@ -6,6 +6,7 @@ const express = require("express");
 const router = express.Router();
 
 const { authenticate } = require("../middlewares/auth.middleware");
+const { injectDbContext } = require("../middlewares/dbContext.middleware");
 const blockOperacao = require("../middlewares/blockOperacao");
 
 // rotas
@@ -128,6 +129,7 @@ router.post(
    🔐 ROTAS PROTEGIDAS
 ========================= */
 router.use(authenticate);
+router.use(injectDbContext);
 router.use(blockOperacao);
 
 router.use("/empresas", empresaRoutes);

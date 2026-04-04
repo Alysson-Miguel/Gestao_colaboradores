@@ -24,6 +24,29 @@ const listarEstacoes = async (req, res) => {
 };
 
 /* =====================================================
+   BUSCAR ESTAÇÃO POR ID
+===================================================== */
+const buscarEstacaoPorId = async (req, res) => {
+  try {
+    const { idEstacao } = req.params;
+
+    const estacao = await prisma.estacao.findUnique({
+      where: { idEstacao: Number(idEstacao) },
+      include: { regional: true },
+    });
+
+    if (!estacao) {
+      return res.status(404).json({ success: false, message: "Estação não encontrada" });
+    }
+
+    return res.json({ success: true, data: estacao });
+  } catch (error) {
+    console.error("❌ ERRO BUSCAR ESTAÇÃO:", error);
+    return res.status(500).json({ success: false, message: "Erro ao buscar estação" });
+  }
+};
+
+/* =====================================================
    CRIAR ESTAÇÃO
 ===================================================== */
 const criarEstacao = async (req, res) => {
@@ -105,6 +128,7 @@ const atualizarEstacao = async (req, res) => {
 
 module.exports = {
   listarEstacoes,
+  buscarEstacaoPorId,
   criarEstacao,
   atualizarEstacao,
 };

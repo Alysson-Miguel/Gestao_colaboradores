@@ -22,6 +22,7 @@ import {
 import api from "../../services/api"
 import Sidebar from "../../components/Sidebar"
 import Header from "../../components/Header"
+import { useEstacao } from "../../context/EstacaoContext"
 
 /* ─── TOKENS ─────────────────────────────────────────────────────── */
 const BRAND = "#FA4C00"
@@ -530,6 +531,7 @@ export default function DashboardAtestados() {
   const [colaboradores, setColaboradores] = useState([])
   const [filtroTempoCasa, setFiltroTempoCasa] = useState("")
   const [filtroTurno, setFiltroTurno] = useState("")
+  const { estacaoId } = useEstacao()
 
   useEffect(() => {
     api.get("/empresas").then((res) => {
@@ -570,7 +572,7 @@ export default function DashboardAtestados() {
     }
   }
 
-  useEffect(() => { fetchAll() }, [inicio, fim, cid, sintoma, empresaId])
+  useEffect(() => { fetchAll() }, [inicio, fim, cid, sintoma, empresaId, estacaoId])
 
   const porEmpresa   = useMemo(() => dist?.porEmpresa   || [], [dist])
   const porSetor     = useMemo(() => dist?.porSetor     || [], [dist])

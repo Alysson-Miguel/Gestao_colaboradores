@@ -149,6 +149,38 @@ async function detectarFaltasAutomatico(dataInicio, dataFim) {
   }
 
   /* =====================================================
+     INVALIDAR SUGESTÕES PENDENTES CUJO "F" FOI ALTERADO
+     — Se a frequência vinculada não é mais "F", a sugestão
+       é rejeitada automaticamente antes de criar novas.
+  ===================================================== */
+  const sugestoesPendentes = await prisma.sugestaoMedidaDisciplinar.findMany({
+    where: {
+      status: "PENDENTE",
+      idFrequencia: { not: null },
+    },
+    include: {
+      frequencia: { include: { tipoAusencia: true } },
+    },
+  });
+
+  let totalInvalidadas = 0;
+  for (const sugestao of sugestoesPendentes) {
+    const codigoAtual = sugestao.frequencia?.tipoAusencia?.codigo;
+    if (codigoAtual !== "F") {
+      await prisma.sugestaoMedidaDisciplinar.update({
+        where: { idSugestao: sugestao.idSugestao },
+        data: { status: "REJEITADA" },
+      });
+      totalInvalidadas++;
+      console.log(`🗑️ Sugestão ${sugestao.idSugestao} invalidada (F → ${codigoAtual ?? "sem tipo"})`);
+    }
+  }
+
+  if (totalInvalidadas > 0) {
+    console.log(`⚠️ [DETECTOR FALTAS] ${totalInvalidadas} sugestão(ões) invalidada(s) por alteração do tipo de ausência`);
+  }
+
+  /* =====================================================
      ITERAR DIAS
   ===================================================== */
   let totalSugestoesCriadas = 0;
@@ -216,6 +248,7 @@ async function detectarFaltasAutomatico(dataInicio, dataFim) {
     periodo: { inicio: dataInicio, fim: dataFim },
     colaboradoresProcessados: colaboradores.length,
     sugestoesDisparadas: totalSugestoesCriadas,
+    sugestoesInvalidadas: totalInvalidadas,
     diasIgnorados: totalIgnorados,
   };
 

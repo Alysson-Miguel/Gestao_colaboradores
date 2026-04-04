@@ -69,9 +69,13 @@ export default function SugestoesMedidaDisciplinar() {
     const toastId = toast.loading("Varrendo faltas dos últimos 31 dias...");
     try {
       const res = await SugestoesAPI.backfill();
-      const { sugestoesDisparadas } = res.data ?? {};
-      if (sugestoesDisparadas > 0) {
-        toast.success(`${sugestoesDisparadas} nova(s) sugestão(ões) gerada(s)`, { id: toastId, duration: 5000 });
+      const { sugestoesDisparadas, sugestoesInvalidadas } = res.data?.data ?? {};
+      const partes = [];
+      if (sugestoesDisparadas > 0) partes.push(`${sugestoesDisparadas} nova(s) sugestão(ões) gerada(s)`);
+      if (sugestoesInvalidadas > 0) partes.push(`${sugestoesInvalidadas} sugestão(ões) invalidada(s) por falta alterada`);
+
+      if (partes.length > 0) {
+        toast.success(partes.join(" · "), { id: toastId, duration: 5000 });
       } else {
         toast.success("Painel atualizado — nenhuma sugestão nova encontrada.", { id: toastId, duration: 4000 });
       }
@@ -379,7 +383,9 @@ export default function SugestoesMedidaDisciplinar() {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-[#6B7280]">{s.aprovadoPor ?? "—"}</span>
+                          <span className="text-xs text-[#6B7280]">
+                            {user?.role === "ADMIN" ? (s.aprovadoPorEmail ?? "—") : "—"}
+                          </span>
                         )}
                       </td>
                     </tr>

@@ -252,6 +252,9 @@ const carregarDashboard = async (req, res) => {
           where: {
             status: "ATIVO",
             dataDesligamento: null,
+            ...(!req.dbContext?.isGlobal && req.dbContext?.estacaoId
+              ? { idEstacao: req.dbContext.estacaoId }
+              : {}),
           },
           include: {
             empresa: true,

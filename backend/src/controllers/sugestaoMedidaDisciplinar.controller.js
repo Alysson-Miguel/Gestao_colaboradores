@@ -70,6 +70,11 @@ const getAllSugestoes = async (req, res) => {
     const where = {};
     const colaboradorFilter = {};
 
+    // Filtro de estação
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      colaboradorFilter.idEstacao = req.dbContext.estacaoId;
+    }
+
     /* ==============================
        FILTRO STATUS
     ============================== */
@@ -161,7 +166,26 @@ const getAllSugestoes = async (req, res) => {
 
     });
 
-    return successResponse(res, sugestoes);
+    // Buscar emails dos usuários que aprovaram/rejeitaram
+    const opsIds = [...new Set(sugestoes.map(s => s.aprovadoPor).filter(Boolean))];
+
+    let emailMap = {};
+    if (opsIds.length > 0) {
+      const users = await prisma.user.findMany({
+        where: { opsId: { in: opsIds } },
+        select: { opsId: true, email: true },
+      });
+      emailMap = Object.fromEntries(users.map(u => [u.opsId, u.email]));
+    }
+
+    const result = sugestoes.map(s => ({
+      ...s,
+      aprovadoPorEmail: s.aprovadoPor === "SISTEMA"
+        ? "SISTEMA"
+        : (emailMap[s.aprovadoPor] ?? s.aprovadoPor ?? null),
+    }));
+
+    return successResponse(res, result);
 
   } catch (err) {
 
@@ -393,6 +417,7 @@ const rejeitarSugestao = async (req, res) => {
 
       data: {
         status: "REJEITADA",
+        aprovadoPor: req.user?.opsId || "SISTEMA",
       },
 
     })

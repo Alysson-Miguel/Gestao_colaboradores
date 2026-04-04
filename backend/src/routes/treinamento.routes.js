@@ -12,7 +12,7 @@ const { authenticate, authorize } = require("../middlewares/auth.middleware");
 router.get(
   "/participantes",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.listParticipantesPorSetor
 );
 
@@ -20,7 +20,7 @@ router.get(
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.createTreinamento
 );
 
@@ -28,7 +28,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.listTreinamentos
 );
 
@@ -36,7 +36,7 @@ router.get(
 router.post(
   "/:id/presign-ata",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.presignUploadAta
 );
 
@@ -44,7 +44,7 @@ router.post(
 router.put(
   "/:id/participantes",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.atualizarParticipantes
 );
 
@@ -52,7 +52,7 @@ router.put(
 router.post(
   "/:id/finalizar",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.finalizarTreinamento
 );
 
@@ -60,7 +60,7 @@ router.post(
 router.post(
   "/:id/cancelar",
   authenticate,
-  authorize("ADMIN", "GESTAO", "LIDERANCA"),
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.cancelarTreinamento
 );
 

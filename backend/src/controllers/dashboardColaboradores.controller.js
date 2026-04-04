@@ -258,8 +258,10 @@ const carregarDashboardColaboradores = async (req, res) => {
        - aplicado em colaboradores e nas séries mensais
     =============================== */
     const turnoNormFiltro = turno ? normalizeTurno(turno) : null;
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
     const whereColabBase = {
+      ...(estacaoId && { idEstacao: estacaoId }),
       ...(lider
         ? { lider: { nomeCompleto: { equals: lider, mode: "insensitive" } } }
         : {}),
