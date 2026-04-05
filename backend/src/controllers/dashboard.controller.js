@@ -140,9 +140,9 @@ function getStatusDoDiaOperacional(f) {
       case "LP":
         return { label: "Licença Paternidade", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
 
-      // Folga programada — conta no HC mas não é ausência
+      // Folga programada — não conta como escalado (igual DSR)
       case "FO":
-        return { label: "Folga", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+        return { label: "Folga", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
       case "S1":
         return { label: "Sinergia Enviada", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
       case "BH":
@@ -353,6 +353,7 @@ const carregarDashboard = async (req, res) => {
         }
 
         // só conta dias em que estava escalado (FO/DSR fora)
+        // e respeita filtro de turno para não misturar T1/T2/T3
         if (s.contaComoEscalado) {
           tendenciaPorDia[dataRef].escalados++;
 
@@ -419,7 +420,6 @@ const carregarDashboard = async (req, res) => {
       const setor = getSetor(registroSnapshot, c);
       turnoSetorAgg[turno].setores[setor] =
         (turnoSetorAgg[turno].setores[setor] || 0) + 1;
-      console.log("ADMISSAO:", c.nomeCompleto, c.dataAdmissao);
       const tempoCasa = calcularTempoDeCasa(c.dataAdmissao);
       // Status do snapshot (4 estados)
       statusPorTurno[turno][sSnap.label] =
@@ -667,17 +667,20 @@ const aderenciaDW =
         empresaPorTurno: Object.fromEntries(
           Object.entries(empresaPorTurno).map(([t, empresas]) => [
             t,
-            Object.entries(empresas).map(([empresa, dados]) => ({
-              empresa,
-              total: dados.total,
-              faltas: dados.faltas,
-              atestados: dados.atestados,
-              ausencias: dados.faltas + dados.atestados,
-              absenteismo:
-                dados.total > 0
-                  ? Number(((dados.ausencias / dados.total) * 100).toFixed(2))
-                  : 0,
-            })),
+            Object.entries(empresas).map(([empresa, dados]) => {
+              const ausencias = dados.faltas + dados.atestados;
+              return {
+                empresa,
+                total: dados.total,
+                faltas: dados.faltas,
+                atestados: dados.atestados,
+                ausencias,
+                absenteismo:
+                  dados.total > 0
+                    ? Number(((ausencias / dados.total) * 100).toFixed(2))
+                    : 0,
+              };
+            }),
           ])
         ),
 

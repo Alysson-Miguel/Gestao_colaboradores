@@ -32,7 +32,7 @@ export default function DashboardOperacional() {
   ===================================================== */
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dados, setDados] = useState(null);
-  const [turnoSelecionado, setTurnoSelecionado] = useState("T2"); // default UX
+  const [turnoSelecionado, setTurnoSelecionado] = useState("T1"); // default T1
   const [turnoAtual, setTurnoAtual] = useState(null); // informativo
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
