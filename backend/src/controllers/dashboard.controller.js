@@ -113,99 +113,69 @@ function getStatusDoDiaOperacional(f) {
   // Ausência registrada (tipoAusencia)
   if (f?.tipoAusencia) {
     const codigo = String(f.tipoAusencia.codigo || "").toUpperCase();
-    const desc = String(f.tipoAusencia.descricao || "").toUpperCase();
 
-    // ✅ NC -> não contratado (não escalado, não impacta abs)
-    if (codigo === "NC") {
-      return {
-        label: "Não contratado",
-        contaComoEscalado: false,
-        impactaAbsenteismo: false,
-        origem: "tipoAusencia",
-      };
-    }
-    // ✅ ON -> onboarding (não escalado, não impacta abs)
-    if (codigo === "ON") {
-      return {
-        label: "Onboarding",
-        contaComoEscalado: false,
-        impactaAbsenteismo: false,
-        origem: "tipoAusencia",
-      };
-    }
-    
-    // FO -> conta como HC Apto, não impacta absenteísmo
-    if (codigo === "FO") {
-      return {
-        label: "Folga",
-        contaComoEscalado: true,       // ✅ entra no HC APTO
-        impactaAbsenteismo: false,    // ✅ não é ausência
-        origem: "tipoAusencia",
-      };
-    }
+    switch (codigo) {
+      // Presença sem batida de ponto (ex: ajuste manual)
+      case "P":
+        return { label: "Presente", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
 
-    // DSR -> não escalado
-    if (codigo === "DSR") {
-      return {
-        label: "Folga",
-        contaComoEscalado: false,     // ❌ fora do HC
-        impactaAbsenteismo: false,
-        origem: "tipoAusencia",
-      };
-    }
+      // Não escalado / fora do HC
+      case "NC":
+        return { label: "Não contratado", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "ON":
+        return { label: "Onboarding", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "DSR":
+        return { label: "Folga", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "T":
+        return { label: "Transferido", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
 
-    
-        // FE -> Férias (não escalado, não impacta abs)
-    if (codigo === "FE" || desc.includes("FÉRIAS")) {
-      return {
-        label: "Férias",
-        contaComoEscalado: false,
-        impactaAbsenteismo: false,
-        origem: "tipoAusencia",
-      };
-    }
-    // Atestado médico (preferência por código AM; fallback por descrição)
-    if (codigo === "AM" || desc.includes("ATEST")) {
-      return {
-        label: "Atestado Médico",
-        contaComoEscalado: true,
-        impactaAbsenteismo: true,
-        origem: "tipoAusencia",
-      };
-    }
+      // Afastamentos / licenças — escalado mas não impacta absenteísmo operacional
+      case "FE":
+        return { label: "Férias", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "AFA":
+      case "AF":
+        return { label: "Afastamento", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "LM":
+        return { label: "Licença Maternidade", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "LP":
+        return { label: "Licença Paternidade", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
 
-    if (codigo === "S1" || desc.includes("SINERGIA")) {
-      return {
-        label: "Sinergia Enviada",
-        contaComoEscalado: true,      // ✅ entra no HC APTO
-        impactaAbsenteismo: false,   // ✅ NÃO conta como ausência
-        origem: "tipoAusencia",
-      };
+      // Folga programada — conta no HC mas não é ausência
+      case "FO":
+        return { label: "Folga", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "S1":
+        return { label: "Sinergia Enviada", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "BH":
+        return { label: "Banco de Horas", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+
+      // Ausências que impactam absenteísmo
+      case "AM":
+      case "AA":
+        return { label: "Atestado Médico", contaComoEscalado: true, impactaAbsenteismo: true, origem: "tipoAusencia" };
+      case "F":
+        return { label: "Falta", contaComoEscalado: true, impactaAbsenteismo: true, origem: "tipoAusencia" };
+
+      // Qualquer código desconhecido — não conta como escalado para não inflar métricas
+      default:
+        return { label: "Outro", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
     }
-    if (codigo === "BH" || desc.includes("Banco de Horas")) {
-      return {
-        label: "Banco de Horas",
-        contaComoEscalado: true,
-        impactaAbsenteismo: false,
-        origem: "tipoAusencia",
-      };
-    }
-    // Qualquer outra ausência conta como falta operacional
-    return {
-      label: "Falta",
-      contaComoEscalado: true,
-      impactaAbsenteismo: true,
-      origem: "tipoAusencia",
-    };
   }
 
-  // fallback (igual Admin: F)
+  // Sem registro no banco — falta real
   return {
     label: "Falta",
     contaComoEscalado: true,
     impactaAbsenteismo: true,
     origem: "semRegistro",
   };
+}
+
+/**
+ * Retorna true se o registro existe no banco mas está "vazio"
+ * (sem tipoAusencia e sem horaEntrada) — não deve ser contabilizado como falta.
+ */
+function isRegistroVazio(f) {
+  return f && !f.horaEntrada && !f.tipoAusencia;
 }
 
 /* =====================================================
@@ -275,6 +245,13 @@ const carregarDashboard = async (req, res) => {
             dataReferencia: {
               gte: inicio,
               lte: fim,
+            },
+            colaborador: {
+              status: "ATIVO",
+              dataDesligamento: null,
+              ...(!req.dbContext?.isGlobal && req.dbContext?.estacaoId
+                ? { idEstacao: req.dbContext.estacaoId }
+                : {}),
             },
           },
           include: {
@@ -396,6 +373,9 @@ const carregarDashboard = async (req, res) => {
       // Igual ao Admin: se não tem frequência no dia, ele não entra no snapshot do dia
       // (evita inventar escalado sem base)
       if (!registroSnapshot) return;
+
+      // Registro existe mas está vazio (sem tipo e sem hora) — trata como sem lançamento
+      if (isRegistroVazio(registroSnapshot)) return;
 
       const sSnap = getStatusDoDiaOperacional(registroSnapshot);
 

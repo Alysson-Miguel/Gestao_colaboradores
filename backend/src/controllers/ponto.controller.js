@@ -396,12 +396,16 @@ const registrarPontoCPF = async (req, res) => {
       where: { codigo: "P" },
     });
 
+    if (!tipoPresenca) {
+      return errorResponse(res, "Tipo de ausência 'P' não encontrado no banco. Contate o administrador.", 500);
+    }
+
     const registro = await prisma.frequencia.create({
       data: {
         opsId: colaborador.opsId,
         dataReferencia: dataReferenciaOperacional,
         horaEntrada: horaAgora,
-        idTipoAusencia: tipoPresenca?.idTipoAusencia ?? null,
+        idTipoAusencia: tipoPresenca.idTipoAusencia,
         registradoPor: colaborador.opsId,
         validado: false,
       },
