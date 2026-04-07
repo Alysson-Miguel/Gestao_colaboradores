@@ -12,6 +12,7 @@ const { asyncHandler } = require('../middlewares/error.middleware');
 // Rotas públicas
 router.post('/register', asyncHandler(authController.register));
 router.post('/login', asyncHandler(authController.login));
+router.get('/estacoes', asyncHandler(authController.listarEstacoesPublico));
 
 // Rotas protegidas
 router.get('/me', authenticate, asyncHandler(authController.getMe));

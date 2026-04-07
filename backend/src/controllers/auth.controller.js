@@ -15,7 +15,11 @@ const {
  * REGISTRO
  */
 const register = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, opsId, idEstacao } = req.body;
+
+  if (!name || !email || !password || !opsId) {
+    return errorResponse(res, 'Nome, email, senha e Ops ID são obrigatórios', 400);
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return errorResponse(res, 'Email já cadastrado', 409);
@@ -27,13 +31,17 @@ const register = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role || 'USER',
+      role: 'LIDERANCA',
+      opsId: opsId.trim(),
+      ...(idEstacao ? { idEstacao: parseInt(idEstacao) } : {}),
     },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
+      opsId: true,
+      idEstacao: true,
       isActive: true,
       createdAt: true,
     },
@@ -161,10 +169,22 @@ const changePassword = async (req, res) => {
   return successResponse(res, null, 'Senha alterada com sucesso');
 };
 
+/**
+ * LISTA ESTAÇÕES (público — usado no formulário de registro)
+ */
+const listarEstacoesPublico = async (req, res) => {
+  const estacoes = await prisma.estacao.findMany({
+    select: { idEstacao: true, nomeEstacao: true },
+    orderBy: { nomeEstacao: 'asc' },
+  });
+  return successResponse(res, estacoes);
+};
+
 module.exports = {
   register,
   login,
   getMe,
   updateMe,
   changePassword,
+  listarEstacoesPublico,
 };
