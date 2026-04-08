@@ -1,6 +1,16 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "./UIComponents";
+
+const DIAS_SEMANA = [
+  { value: 0, label: "Dom" },
+  { value: 1, label: "Seg" },
+  { value: 2, label: "Ter" },
+  { value: 3, label: "Qua" },
+  { value: 4, label: "Qui" },
+  { value: 5, label: "Sex" },
+  { value: 6, label: "Sáb" },
+];
 
 export default function EscalaModal({ escala, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -8,6 +18,7 @@ export default function EscalaModal({ escala, onClose, onSave }) {
     tipoEscala:      escala?.tipoEscala      || "",
     diasTrabalhados: escala?.diasTrabalhados != null ? String(escala.diasTrabalhados) : "",
     diasFolga:       escala?.diasFolga       != null ? String(escala.diasFolga)       : "",
+    diasDsr:         Array.isArray(escala?.diasDsr) ? escala.diasDsr : [],
     descricao:       escala?.descricao       || "",
     ativo:           escala?.ativo           ?? true,
   });
@@ -20,17 +31,27 @@ export default function EscalaModal({ escala, onClose, onSave }) {
 
   const handle = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
+  const toggleDiaDsr = (dia) => {
+    setForm((p) => ({
+      ...p,
+      diasDsr: p.diasDsr.includes(dia)
+        ? p.diasDsr.filter((d) => d !== dia)
+        : [...p.diasDsr, dia].sort((a, b) => a - b),
+    }));
+  };
+
   const handleSave = async () => {
     if (!form.nomeEscala.trim()) return;
     setSaving(true);
     try {
       await onSave({
-        nomeEscala: form.nomeEscala.trim(),
-        tipoEscala: form.tipoEscala.trim() || undefined,
+        nomeEscala:      form.nomeEscala.trim(),
+        tipoEscala:      form.tipoEscala.trim() || undefined,
         diasTrabalhados: form.diasTrabalhados !== "" ? parseInt(form.diasTrabalhados) : undefined,
-        diasFolga: form.diasFolga !== "" ? parseInt(form.diasFolga) : undefined,
-        descricao: form.descricao.trim() || undefined,
-        ativo: form.ativo,
+        diasFolga:       form.diasFolga !== ""       ? parseInt(form.diasFolga)       : undefined,
+        diasDsr:         form.diasDsr,
+        descricao:       form.descricao.trim() || undefined,
+        ativo:           form.ativo,
       });
     } finally {
       setSaving(false);
@@ -102,6 +123,38 @@ export default function EscalaModal({ escala, onClose, onSave }) {
                 className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-default text-page text-sm focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
               />
             </div>
+          </div>
+
+          {/* dias de DSR */}
+          <div>
+            <label className="block text-xs text-muted mb-2">
+              Dias de DSR
+              <span className="ml-1 text-muted/60">(dias que geram frequência automática de folga)</span>
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {DIAS_SEMANA.map((dia) => {
+                const ativo = form.diasDsr.includes(dia.value);
+                return (
+                  <button
+                    key={dia.value}
+                    type="button"
+                    onClick={() => toggleDiaDsr(dia.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                      ativo
+                        ? "bg-[#FA4C00]/15 border-[#FA4C00]/50 text-[#FA4C00]"
+                        : "bg-surface-2 border-default text-muted hover:border-[#FA4C00]/30"
+                    }`}
+                  >
+                    {dia.label}
+                  </button>
+                );
+              })}
+            </div>
+            {form.diasDsr.length > 0 && (
+              <p className="text-xs text-muted mt-2">
+                DSR em: {form.diasDsr.map((d) => DIAS_SEMANA.find((x) => x.value === d)?.label).join(", ")}
+              </p>
+            )}
           </div>
 
           {/* descrição */}

@@ -31,13 +31,14 @@ const getEscalaById = async (req, res) => {
 };
 
 const createEscala = async (req, res) => {
-  const { nomeEscala, tipoEscala, diasTrabalhados, diasFolga, descricao, ativo } = req.body;
+  const { nomeEscala, tipoEscala, diasTrabalhados, diasFolga, diasDsr, descricao, ativo } = req.body;
   const escala = await prisma.escala.create({
     data: {
       nomeEscala,
       ...(tipoEscala !== undefined && { tipoEscala }),
       ...(diasTrabalhados !== undefined && diasTrabalhados !== '' && { diasTrabalhados: parseInt(diasTrabalhados) }),
       ...(diasFolga !== undefined && diasFolga !== '' && { diasFolga: parseInt(diasFolga) }),
+      ...(Array.isArray(diasDsr) && { diasDsr }),
       ...(descricao !== undefined && { descricao }),
       ativo: ativo !== undefined ? ativo : true,
     },
@@ -46,7 +47,7 @@ const createEscala = async (req, res) => {
 };
 
 const updateEscala = async (req, res) => {
-  const { nomeEscala, tipoEscala, diasTrabalhados, diasFolga, descricao, ativo } = req.body;
+  const { nomeEscala, tipoEscala, diasTrabalhados, diasFolga, diasDsr, descricao, ativo } = req.body;
   const escala = await prisma.escala.update({
     where: { idEscala: parseInt(req.params.id) },
     data: {
@@ -54,6 +55,7 @@ const updateEscala = async (req, res) => {
       ...(tipoEscala !== undefined && { tipoEscala }),
       ...(diasTrabalhados !== undefined && { diasTrabalhados: diasTrabalhados !== '' && diasTrabalhados !== null ? parseInt(diasTrabalhados) : null }),
       ...(diasFolga !== undefined && { diasFolga: diasFolga !== '' && diasFolga !== null ? parseInt(diasFolga) : null }),
+      ...(Array.isArray(diasDsr) && { diasDsr }),
       ...(descricao !== undefined && { descricao }),
       ...(ativo !== undefined && { ativo }),
     },

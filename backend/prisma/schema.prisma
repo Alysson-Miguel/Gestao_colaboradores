@@ -193,6 +193,7 @@ model Escala {
   tipoEscala       String?                      @map("tipo_escala") @db.VarChar(50)
   diasTrabalhados  Int?                         @map("dias_trabalhados")
   diasFolga        Int?                         @map("dias_folga")
+  diasDsr          Int[]                        @default([]) @map("dias_dsr")
   descricao        String?
   ativo            Boolean                      @default(true)
   dataCriacao      DateTime                     @default(now()) @map("data_criacao")

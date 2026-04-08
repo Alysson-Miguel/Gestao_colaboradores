@@ -2,9 +2,7 @@ const { prisma } = require("../config/database");
 
 function agoraBrasil() {
   const now = new Date();
-  const spString = now.toLocaleString("en-US", {
-    timeZone: "America/Sao_Paulo",
-  });
+  const spString = now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
   return new Date(spString);
 }
 
@@ -14,60 +12,49 @@ function startOfDay(date) {
   return d;
 }
 
-function isDiaDSR(data, escala) {
-  const dow = new Date(data).getDay();
+/**
+ * Busca os dias de DSR de uma escala pelo nome.
+ * Prioriza o campo diasDsr do banco; faz fallback para o mapa legado (E/G/C)
+ * caso o campo ainda esteja vazio (escalas antigas antes da migration).
+ */
+async function getDiasDsr(nomeEscala, tx = prisma) {
+  if (!nomeEscala) return [];
 
-  const mapa = {
-    E: [0, 1],
-    G: [2, 3],
-    C: [4, 5],
-  };
+  const escala = await tx.escala.findFirst({
+    where: { nomeEscala: { equals: nomeEscala, mode: "insensitive" } },
+    select: { diasDsr: true },
+  });
 
-  return mapa[String(escala || "").toUpperCase()]?.includes(dow);
+  // diasDsr preenchido no banco → usa
+  if (escala?.diasDsr?.length) return escala.diasDsr;
+
+  // fallback legado para escalas E/G/C sem diasDsr gravado ainda
+  const legado = { E: [0, 1], G: [2, 3], C: [4, 5] };
+  return legado[String(nomeEscala).toUpperCase()] ?? [];
 }
 
-async function gerarDSRBackfillColaborador({
-  opsId,
-  nomeEscala,
-  dataInicio,
-  tx = prisma,
-}) {
+async function gerarDSRBackfillColaborador({ opsId, nomeEscala, dataInicio, tx = prisma }) {
   if (!opsId) throw new Error("opsId é obrigatório.");
   if (!nomeEscala) return { criados: 0 };
 
-  const escala = String(nomeEscala).toUpperCase();
-
-  if (!["E", "G", "C"].includes(escala)) {
-    return { criados: 0 };
-  }
+  const diasDsr = await getDiasDsr(nomeEscala, tx);
+  if (!diasDsr.length) return { criados: 0 };
 
   const tipoDSR = await tx.tipoAusencia.findFirst({
     where: { codigo: "DSR" },
     select: { idTipoAusencia: true },
   });
-
-  if (!tipoDSR) {
-    throw new Error("Tipo de ausência DSR não encontrado.");
-  }
+  if (!tipoDSR) throw new Error("Tipo de ausência DSR não encontrado.");
 
   const inicio = startOfDay(dataInicio || agoraBrasil());
-  const hoje = startOfDay(agoraBrasil());
+  const hoje   = startOfDay(agoraBrasil());
 
-  if (inicio > hoje) {
-    return { criados: 0 };
-  }
+  if (inicio > hoje) return { criados: 0 };
 
   const registros = [];
-
-  for (
-    let data = new Date(inicio);
-    data <= hoje;
-    data.setDate(data.getDate() + 1)
-  ) {
+  for (let data = new Date(inicio); data <= hoje; data.setDate(data.getDate() + 1)) {
     const dataRef = startOfDay(new Date(data));
-
-    if (!isDiaDSR(dataRef, escala)) continue;
-
+    if (!diasDsr.includes(dataRef.getDay())) continue;
     registros.push({
       opsId,
       dataReferencia: dataRef,
@@ -78,49 +65,31 @@ async function gerarDSRBackfillColaborador({
     });
   }
 
-  if (!registros.length) {
-    return { criados: 0 };
-  }
+  if (!registros.length) return { criados: 0 };
 
-  const resultado = await tx.frequencia.createMany({
-    data: registros,
-    skipDuplicates: true,
-  });
-
-  return {
-    criados: resultado.count || 0,
-  };
+  const resultado = await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
+  return { criados: resultado.count || 0 };
 }
 
-async function gerarDSRFuturoColaborador({
-  opsId,
-  nomeEscala,
-  tx = prisma,
-  dias = 90,
-}) {
+async function gerarDSRFuturoColaborador({ opsId, nomeEscala, tx = prisma, dias = 90 }) {
   if (!nomeEscala) return;
 
-  const escala = String(nomeEscala).toUpperCase();
-
-  if (!["E", "G", "C"].includes(escala)) return;
+  const diasDsr = await getDiasDsr(nomeEscala, tx);
+  if (!diasDsr.length) return;
 
   const tipoDSR = await tx.tipoAusencia.findFirst({
     where: { codigo: "DSR" },
     select: { idTipoAusencia: true },
   });
-
   if (!tipoDSR) return;
 
   const hoje = startOfDay(agoraBrasil());
-
   const registros = [];
 
   for (let i = 1; i <= dias; i++) {
     const data = new Date(hoje);
     data.setDate(data.getDate() + i);
-
-    if (!isDiaDSR(data, escala)) continue;
-
+    if (!diasDsr.includes(data.getDay())) continue;
     registros.push({
       opsId,
       dataReferencia: data,
@@ -132,17 +101,13 @@ async function gerarDSRFuturoColaborador({
   }
 
   if (registros.length) {
-    await tx.frequencia.createMany({
-      data: registros,
-      skipDuplicates: true,
-    });
+    await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
   }
 }
 
 /**
  * Gera os 2 dias de Onboarding (ON) para um colaborador:
  * data_admissao e data_admissao + 1 dia.
- * Faz upsert — sobrescreve qualquer registro existente nessas datas.
  */
 async function gerarOnboardingColaborador({ opsId, dataAdmissao, tx = prisma }) {
   if (!opsId) throw new Error("opsId é obrigatório.");
@@ -152,7 +117,6 @@ async function gerarOnboardingColaborador({ opsId, dataAdmissao, tx = prisma }) 
     where: { codigo: "ON" },
     select: { idTipoAusencia: true },
   });
-
   if (!tipoON) throw new Error("Tipo de ausência ON não encontrado.");
 
   const dia1 = startOfDay(new Date(dataAdmissao));
