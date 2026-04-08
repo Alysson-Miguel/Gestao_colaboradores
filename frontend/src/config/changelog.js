@@ -31,6 +31,7 @@ const CHANGELOG = {
       itens: [
         "Nome completo corrigido na tela de Folga Dominical",
         "Validação de domínio @shopee.com e estação obrigatória no cadastro de usuário",
+        "Correção no registro de saída T3: sistema não bloqueava mais a saída quando o dia seguinte era DSR — a query de jornada aberta agora ignora registros DSR (que não possuem hora de entrada)",
       ],
     },
     {
