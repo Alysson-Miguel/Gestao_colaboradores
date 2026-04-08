@@ -22,6 +22,7 @@ export default function NovoColaborador() {
     contatoEmergenciaNome: "",
     contatoEmergenciaTelefone: "",
     idEmpresa: "",
+    idEstacao: "",
     idSetor: "",
     idCargo: "",
     idTurno: "",

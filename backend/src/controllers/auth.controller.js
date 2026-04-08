@@ -21,6 +21,14 @@ const register = async (req, res) => {
     return errorResponse(res, 'Nome, email, senha e Ops ID são obrigatórios', 400);
   }
 
+  if (!idEstacao) {
+    return errorResponse(res, 'Selecione uma estação', 400);
+  }
+
+  if (!email.toLowerCase().endsWith('@shopee.com')) {
+    return errorResponse(res, 'O e-mail deve ser do domínio @shopee.com', 400);
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return errorResponse(res, 'Email já cadastrado', 409);
 

@@ -10,6 +10,8 @@ import { useParams, useNavigate } from "react-router-dom";import {
   Plus,
   Pencil,
   XCircle,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 
 import { printAtaTreinamento } from "../../utils/printAtaTreinamento";
@@ -48,6 +50,7 @@ export default function DetalhesTreinamento() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [motivoCancelamento, setMotivoCancelamento] = useState("");
   const [cancelando, setCancelando] = useState(false);
+  const [downloadingAta, setDownloadingAta] = useState(false);
 
   /* ================= LOAD ================= */
   async function load() {
@@ -153,7 +156,10 @@ export default function DetalhesTreinamento() {
     try {
       const presign = await api.post(`/treinamentos/${treinamento.idTreinamento}/presign-ata`);
       const { uploadUrl, key } = presign.data;
-      await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": "application/pdf" }, body: file });
+      const uploadRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": "application/pdf" }, body: file });
+      if (!uploadRes.ok) {
+        throw new Error(`Falha no upload para o R2 (${uploadRes.status})`);
+      }
       await api.post(`/treinamentos/${treinamento.idTreinamento}/finalizar`, {
         documentoKey: key, nome: file.name, mime: file.type, size: file.size,
       });
@@ -353,9 +359,39 @@ export default function DetalhesTreinamento() {
 
             {/* PDF FINAL */}
             {treinamento.status === "FINALIZADO" && treinamento.ataPdfUrl && (
-              <div className="flex items-center gap-2 text-[#34C759]">
-                <FileText size={16} />
-                ATA anexada
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
+                    <FileText size={18} className="text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-emerald-400">ATA do Treinamento</p>
+                    <p className="text-xs text-white/40 truncate mt-0.5">
+                      {treinamento.ataPdfNome || "ata-treinamento.pdf"}
+                    </p>
+                  </div>
+                  <button
+                    disabled={downloadingAta}
+                    onClick={async () => {
+                      try {
+                        setDownloadingAta(true);
+                        const res = await api.get(`/treinamentos/${treinamento.idTreinamento}/presign-download`);
+                        window.open(res.data.data.url, "_blank");
+                      } catch {
+                        alert("Erro ao abrir a ATA. Tente novamente.");
+                      } finally {
+                        setDownloadingAta(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                  >
+                    {downloadingAta
+                      ? <Loader2 size={15} className="animate-spin" />
+                      : <ExternalLink size={15} />
+                    }
+                    {downloadingAta ? "Abrindo…" : "Visualizar"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

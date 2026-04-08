@@ -1,5 +1,10 @@
 const { prisma } = require("../config/database");
 const crypto = require("crypto");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getR2Client } = require("../services/r2");
+
+const BUCKET = process.env.R2_BUCKET_NAME;
 
 /* =====================================================
    CRIAR TREINAMENTO
@@ -418,6 +423,47 @@ exports.atualizarParticipantes = async (req, res) => {
       message: "Erro ao atualizar participantes",
     });
 
+  }
+};
+
+
+/* =====================================================
+   PRESIGN DOWNLOAD ATA (PDF)
+===================================================== */
+exports.presignDownloadAta = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const treinamento = await prisma.treinamento.findUnique({
+      where: { idTreinamento: Number(id) },
+    });
+
+    if (!treinamento) {
+      return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
+    }
+
+    if (!treinamento.ataPdfUrl) {
+      return res.status(404).json({ success: false, message: "Nenhuma ATA anexada" });
+    }
+
+    if (!BUCKET) {
+      return res.status(500).json({ success: false, message: "R2_BUCKET_NAME não configurado" });
+    }
+
+    const r2 = getR2Client();
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: treinamento.ataPdfUrl,
+      ResponseContentType: "application/pdf",
+      ResponseContentDisposition: `inline; filename="${treinamento.ataPdfNome || "ata-treinamento.pdf"}"`,
+    });
+
+    const url = await getSignedUrl(r2, command, { expiresIn: 600 });
+
+    return res.json({ success: true, data: { url, expiresIn: 600 } });
+  } catch (err) {
+    console.error("❌ presignDownloadAta:", err);
+    return res.status(500).json({ success: false, message: "Erro ao gerar URL de download" });
   }
 };
 

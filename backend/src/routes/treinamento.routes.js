@@ -32,12 +32,20 @@ router.get(
   treinamentoController.listTreinamentos
 );
 
-/* PRESIGN ATA */
+/* PRESIGN UPLOAD ATA */
 router.post(
   "/:id/presign-ata",
   authenticate,
   authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
   treinamentoController.presignUploadAta
+);
+
+/* PRESIGN DOWNLOAD ATA */
+router.get(
+  "/:id/presign-download",
+  authenticate,
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
+  treinamentoController.presignDownloadAta
 );
 
 /* ATUALIZAR PARTICIPANTES */

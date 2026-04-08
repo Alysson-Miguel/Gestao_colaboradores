@@ -68,6 +68,16 @@ export default function Register() {
       return;
     }
 
+    if (!email.toLowerCase().endsWith("@shopee.com")) {
+      setError("O e-mail deve ser do domínio @shopee.com");
+      return;
+    }
+
+    if (!idEstacao) {
+      setError("Selecione uma estação.");
+      return;
+    }
+
     try {
       setLoading(true);
       await api.post("/auth/register", {
@@ -220,7 +230,7 @@ export default function Register() {
               onFocus={(e) => (e.currentTarget.style.borderColor = "#FA4C00")}
               onBlur={(e)  => (e.currentTarget.style.borderColor = T.inputBorder)}
             >
-              <option value="">Selecionar estação (opcional)</option>
+              <option value="">Selecionar estação *</option>
               {estacoes.map((e) => (
                 <option key={e.idEstacao} value={e.idEstacao}>
                   {e.nomeEstacao}
