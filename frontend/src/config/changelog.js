@@ -1,10 +1,32 @@
 const CHANGELOG = {
-  version: "1.9.1",
+  version: "1.9.2",
   titulo: "Novidades do Sistema",
   categorias: [
     {
+      nome: "Medidas Disciplinares",
+      icone: "�️",
+      itens: [
+        "MD aplicada nas faltas agora só é exibida após a carta estar assinada (status ASSINADO)",
+        "Tela de listagem: cores corrigidas para funcionar corretamente no tema claro",
+        "Tela de listagem: badges de status agora exibem labels legíveis ('Assinado', 'Pendente Assinatura', 'Cancelada')",
+        "Tela de listagem: adicionados filtros por Turno e Líder (selects populados dinamicamente)",
+        "Card de MD agora exibe turno e líder do colaborador",
+        "Tela de detalhe: cores dos campos corrigidas para respeitar o tema claro/escuro",
+      ],
+    },
+    {
+      nome: "Perfil do Colaborador",
+      icone: "�",
+      itens: [
+        "Seção de Medidas Disciplinares agora exibe apenas MDs com carta assinada",
+        "Cards de MD com destaque visual por status: verde para assinada, vermelho para cancelada",
+        "Faltas: badge diferenciado para 'MD aplicada' (laranja) e 'MD cancelada' (vermelho)",
+        "Correção: erro ao acessar o perfil quando chamadas secundárias (MDs, acidentes) falhavam — agora o perfil carrega mesmo com falhas parciais",
+      ],
+    },
+    {
       nome: "Escalas",
-      icone: "🗓️",
+      icone: "�️",
       itens: [
         "Novo campo 'Dias de DSR' no cadastro de escalas — agora é possível configurar os dias de folga diretamente no modal de escala",
         "Geração de DSR estendida para todas as escalas com base nos dias configurados",
@@ -15,14 +37,6 @@ const CHANGELOG = {
       icone: "📚",
       itens: [
         "Download de documentos de treinamento agora disponível na tela de detalhes",
-      ],
-    },
-    {
-      nome: "Perfil do Colaborador",
-      icone: "👤",
-      itens: [
-        "Redesign completo da tela de perfil com nova interface",
-        "Correção no carregamento ao editar escala e horário",
       ],
     },
     {
