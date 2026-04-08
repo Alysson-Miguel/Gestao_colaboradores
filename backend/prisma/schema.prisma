@@ -177,6 +177,7 @@ model Estacao {
   dataCriacao            DateTime      @default(now()) @map("data_criacao")
   idRegional             Int?          @map("id_regional")
   sheetsMetaProducaoId   String?       @map("sheets_meta_producao_id") @db.VarChar(200)
+  sheetsPresencaId       String?       @map("sheets_presenca_id") @db.VarChar(200)
   colaboradores          Colaborador[]
   users                  User[]
   setores                Setor[]

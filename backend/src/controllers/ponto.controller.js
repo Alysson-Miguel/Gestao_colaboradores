@@ -1217,6 +1217,25 @@ const exportarPresencaSheets = async (req, res) => {
       return errorResponse(res, "Parâmetro 'mes' inválido (use YYYY-MM)", 400);
     }
 
+    // Buscar sheetsPresencaId da estação do usuário logado
+    let sheetsPresencaId = null;
+    if (req.dbContext?.estacaoId) {
+      const estacao = await prisma.estacao.findUnique({
+        where: { idEstacao: req.dbContext.estacaoId },
+        select: { sheetsPresencaId: true, nomeEstacao: true },
+      });
+      sheetsPresencaId = estacao?.sheetsPresencaId || null;
+      console.log(`[${reqId}] Estação: ${estacao?.nomeEstacao} | sheetsPresencaId: ${sheetsPresencaId || 'usando padrão'}`);
+
+      if (!sheetsPresencaId) {
+        return errorResponse(
+          res,
+          "Esta estação não possui uma planilha de presença configurada. Configure o ID da planilha nas configurações da estação.",
+          400
+        );
+      }
+    }
+
     const inicioMes = new Date(ano, mesNum - 1, 1);
     const fimMes = new Date(ano, mesNum, 0, 23, 59, 59);
 
@@ -1226,6 +1245,7 @@ const exportarPresencaSheets = async (req, res) => {
     const whereColaborador = {
       status: "ATIVO",
       dataDesligamento: null,
+      ...(req.dbContext?.estacaoId ? { idEstacao: req.dbContext.estacaoId } : {}),
       cargo: {
         nomeCargo: {
           in: [
@@ -1468,7 +1488,7 @@ const exportarPresencaSheets = async (req, res) => {
       resultadoExportacao = await exportarControlePresenca(mes, {
         dias,
         colaboradores: resultado,
-      });
+      }, sheetsPresencaId);
     } catch (exportError) {
       console.error(`[${reqId}] ❌ Erro na exportação:`, exportError);
       return errorResponse(res, `Erro ao exportar para Google Sheets: ${exportError.message}`, 500);

@@ -9,10 +9,13 @@ import EstacaoModal from "../../../components/EstacaoModal";
 import EstacaoTable from "../../../components/EstacaoTable";
 import { EstacoesAPI } from "../../../services/estacoes";
 import { ThemeContext } from "../../../context/ThemeContext";
+import { AuthContext } from "../../../context/AuthContext";
 
 export default function EstacoesPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -154,6 +157,7 @@ export default function EstacoesPage() {
       {modalOpen && (
         <EstacaoModal
           estacao={selected}
+          isAdmin={isAdmin}
           onClose={() => setModalOpen(false)}
           onSave={async (data) => {
             try {
@@ -161,6 +165,7 @@ export default function EstacoesPage() {
                 nomeEstacao: data.nome,
                 idRegional: data.idRegional ? Number(data.idRegional) : undefined,
                 sheetsMetaProducaoId: data.sheetsMetaProducaoId || null,
+                sheetsPresencaId: data.sheetsPresencaId || null,
               };
               if (selected) {
                 await EstacoesAPI.atualizar(selected.idEstacao, payload);
