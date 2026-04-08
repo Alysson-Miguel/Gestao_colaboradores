@@ -275,7 +275,7 @@ const getColaboradorById = async (req, res) => {
       }),
 
       prisma.medidaDisciplinar.findMany({
-        where: { opsId },
+        where: { opsId, status: "ASSINADO" },
         select: {
           dataOcorrencia: true,
           tipoMedida: true,

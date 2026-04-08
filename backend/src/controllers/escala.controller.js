@@ -2,7 +2,8 @@ const { prisma } = require('../config/database');
 const { successResponse, createdResponse, deletedResponse, notFoundResponse } = require('../utils/response');
 
 const getAllEscalas = async (req, res) => {
-  const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
+  const isGlobal = req.dbContext?.isGlobal ?? true;
+  const estacaoId = (!isGlobal && req.dbContext?.estacaoId)
     ? req.dbContext.estacaoId
     : null;
 
@@ -13,6 +14,14 @@ const getAllEscalas = async (req, res) => {
 
   const escalas = await prisma.escala.findMany({
     orderBy: { nomeEscala: 'asc' },
+    // ALTA_GESTAO e demais roles com estação: filtra apenas escalas com colaboradores ativos na estação
+    ...(estacaoId ? {
+      where: {
+        colaboradores: {
+          some: { status: 'ATIVO', idEstacao: estacaoId },
+        },
+      },
+    } : {}),
     include: {
       _count: {
         select: {
