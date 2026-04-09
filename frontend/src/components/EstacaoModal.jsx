@@ -73,7 +73,7 @@ export default function EstacaoModal({ estacao, onClose, onSave, isAdmin = false
       >
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {estacao ? "Editar Estação" : "Nova Estação"}
           </h2>
 

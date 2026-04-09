@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { X } from "lucide-react";
 import { Button } from "./UIComponents";
+import { AuthContext } from "../context/AuthContext";
+import { EstacoesAPI } from "../services/estacoes";
+import { useEstacao } from "../context/EstacaoContext";
 
 const DIAS_SEMANA = [
   { value: 0, label: "Dom" },
@@ -13,6 +16,12 @@ const DIAS_SEMANA = [
 ];
 
 export default function EscalaModal({ escala, onClose, onSave }) {
+  const { user } = useContext(AuthContext);
+  const { estacaoId: estacaoSelecionada } = useEstacao();
+
+  const isAdmin = user?.role === "ADMIN";
+  const precisaEscolherEstacao = isAdmin && !estacaoSelecionada && !escala;
+
   const [form, setForm] = useState({
     nomeEscala:      escala?.nomeEscala      || "",
     tipoEscala:      escala?.tipoEscala      || "",
@@ -21,13 +30,21 @@ export default function EscalaModal({ escala, onClose, onSave }) {
     diasDsr:         Array.isArray(escala?.diasDsr) ? escala.diasDsr : [],
     descricao:       escala?.descricao       || "",
     ativo:           escala?.ativo           ?? true,
+    idEstacao:       escala?.idEstacao || estacaoSelecionada || "",
   });
   const [saving, setSaving] = useState(false);
+  const [estacoes, setEstacoes] = useState([]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "auto"; };
   }, []);
+
+  useEffect(() => {
+    if (precisaEscolherEstacao) {
+      EstacoesAPI.listar().then(setEstacoes).catch(() => {});
+    }
+  }, [precisaEscolherEstacao]);
 
   const handle = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
@@ -52,13 +69,14 @@ export default function EscalaModal({ escala, onClose, onSave }) {
         diasDsr:         form.diasDsr,
         descricao:       form.descricao.trim() || undefined,
         ativo:           form.ativo,
+        ...(form.idEstacao ? { idEstacao: Number(form.idEstacao) } : {}),
       });
     } finally {
       setSaving(false);
     }
   };
 
-  const isValid = form.nomeEscala.trim().length > 0;
+  const isValid = form.nomeEscala.trim().length > 0 && (!precisaEscolherEstacao || form.idEstacao);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 sm:px-6">
@@ -67,7 +85,7 @@ export default function EscalaModal({ escala, onClose, onSave }) {
       <div className="relative z-10 w-full max-w-lg max-h-[92vh] bg-surface border border-default rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col">
         {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {escala ? "Editar Escala" : "Nova Escala"}
           </h2>
           <button onClick={onClose} className="p-2 rounded-md hover:bg-surface-2 text-muted">
@@ -181,6 +199,24 @@ export default function EscalaModal({ escala, onClose, onSave }) {
               <option value="false">Inativo</option>
             </select>
           </div>
+
+          {precisaEscolherEstacao && (
+            <div>
+              <label className="block text-xs text-muted mb-1">
+                Estação <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={form.idEstacao}
+                onChange={(e) => handle("idEstacao", e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-default text-page text-sm"
+              >
+                <option value="">Selecione uma estação</option>
+                {estacoes.map((est) => (
+                  <option key={est.idEstacao} value={est.idEstacao}>{est.nomeEstacao}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* FOOTER */}

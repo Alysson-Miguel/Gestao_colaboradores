@@ -10,10 +10,14 @@ import EmpresaModal from "../components/EmpresaModal";
 import EmpresaTable from "../components/EmpresaTable";
 import { EmpresasAPI } from "../services/empresas";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function EmpresasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -136,6 +140,8 @@ export default function EmpresasPage() {
             ) : (
               <EmpresaTable
                 empresas={empresas}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(empresa) => { setSelected(empresa); setModalOpen(true); }}
                 onDelete={async (empresa) => {
                   if (!window.confirm(`Deseja excluir a empresa "${empresa.razaoSocial}"?`)) return;

@@ -13,8 +13,8 @@ const {
 
 router.get("/", asyncHandler(listarEstacoes));
 router.get("/:idEstacao", asyncHandler(buscarEstacaoPorId));
-router.post("/", authorize("ADMIN", "ALTA_GESTAO"), asyncHandler(criarEstacao));
-router.put("/:idEstacao", authorize("ADMIN", "ALTA_GESTAO"), asyncHandler(atualizarEstacao));
-router.delete("/:idEstacao", authorize("ADMIN", "ALTA_GESTAO"), asyncHandler(excluirEstacao));
+router.post("/", authorize("ADMIN"), asyncHandler(criarEstacao));
+router.put("/:idEstacao", authorize("ADMIN"), asyncHandler(atualizarEstacao));
+router.delete("/:idEstacao", authorize("ADMIN"), asyncHandler(excluirEstacao));
 
 module.exports = router;

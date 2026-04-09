@@ -27,7 +27,7 @@ const THEME = {
   },
 };
 
-export default function SetorTable({ setores, onEdit, onDelete }) {
+export default function SetorTable({ setores, onEdit, onDelete, isAdmin = false }) {
   const { isDark } = useContext(ThemeContext);
   const T = THEME[isDark ? "dark" : "light"];
 
@@ -45,13 +45,13 @@ export default function SetorTable({ setores, onEdit, onDelete }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, padding: 20 }}>
       {setores.map((s) => (
-        <SetorCard key={s.idSetor} setor={s} T={T} onEdit={onEdit} onDelete={onDelete} />
+        <SetorCard key={s.idSetor} setor={s} T={T} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function SetorCard({ setor: s, T, onEdit, onDelete }) {
+function SetorCard({ setor: s, T, onEdit, onDelete, isAdmin }) {
   const [hov, setHov] = useState(false);
   const inicial = s.nomeSetor?.[0]?.toUpperCase() || "?";
   const ativo = s.ativo;
@@ -82,6 +82,11 @@ function SetorCard({ setor: s, T, onEdit, onDelete }) {
           <div>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.textMain }}>{s.nomeSetor}</p>
             <p style={{ margin: "2px 0 0", fontSize: 11, color: T.textSubtle }}>ID #{s.idSetor}</p>
+            {isAdmin && s.estacao && (
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: T.textSubtle, opacity: 0.7 }}>
+                {s.estacao.nomeEstacao}
+              </p>
+            )}
           </div>
         </div>
         <span style={{

@@ -49,6 +49,7 @@ const getAllSetores = async (req, res) => {
       take,
       orderBy: { nomeSetor: 'asc' },
       include: {
+        estacao: { select: { idEstacao: true, nomeEstacao: true } },
         _count: {
           select: { colaboradores: { where: { status: 'ATIVO' } } },
         },
@@ -63,6 +64,7 @@ const getAllSetores = async (req, res) => {
     descricao: s.descricao,
     ativo: s.ativo,
     idEstacao: s.idEstacao,
+    estacao: s.estacao,
     totalColaboradores: s._count.colaboradores,
   }));
 

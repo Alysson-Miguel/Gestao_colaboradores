@@ -36,7 +36,7 @@ function formatTime(val) {
   return d.toISOString().slice(11, 16);
 }
 
-export default function TurnoTable({ turnos, onEdit, onDelete }) {
+export default function TurnoTable({ turnos, onEdit, onDelete, isAdmin = false, userEstacaoId = null }) {
   const { isDark } = useContext(ThemeContext);
   const T = THEME[isDark ? "dark" : "light"];
 
@@ -54,19 +54,21 @@ export default function TurnoTable({ turnos, onEdit, onDelete }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, padding: 20 }}>
       {turnos.map((t) => (
-        <TurnoCard key={t.idTurno} turno={t} T={T} onEdit={onEdit} onDelete={onDelete} />
+        <TurnoCard key={t.idTurno} turno={t} T={T} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} userEstacaoId={userEstacaoId} />
       ))}
     </div>
   );
 }
 
-function TurnoCard({ turno: t, T, onEdit, onDelete }) {
+function TurnoCard({ turno: t, T, onEdit, onDelete, isAdmin, userEstacaoId }) {
   const [hov, setHov] = useState(false);
   const inicial = t.nomeTurno?.[0]?.toUpperCase() || "?";
   const ativo   = t.ativo !== false;
   const inicio  = formatTime(t.horarioInicio);
   const fim     = formatTime(t.horarioFim);
   const ativos  = t._count?.colaboradores ?? 0;
+
+  const podeEditar = isAdmin || (t.idEstacao != null && t.idEstacao === userEstacaoId);
 
   return (
     <div
@@ -94,6 +96,11 @@ function TurnoCard({ turno: t, T, onEdit, onDelete }) {
           <div>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.textMain }}>{t.nomeTurno}</p>
             <p style={{ margin: "2px 0 0", fontSize: 11, color: T.textSubtle }}>ID #{t.idTurno}</p>
+            {isAdmin && t.estacao && (
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: T.textSubtle, opacity: 0.7 }}>
+                {t.estacao.nomeEstacao}
+              </p>
+            )}
           </div>
         </div>
         <span style={{
@@ -137,10 +144,12 @@ function TurnoCard({ turno: t, T, onEdit, onDelete }) {
       </div>
 
       {/* ações */}
-      <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
-        <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(t)} />
-        <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(t)} />
-      </div>
+      {podeEditar && (
+        <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
+          <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(t)} />
+          <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(t)} />
+        </div>
+      )}
     </div>
   );
 }

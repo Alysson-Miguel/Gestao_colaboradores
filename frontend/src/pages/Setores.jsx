@@ -9,6 +9,7 @@ import SetorModal from "../components/SetorModal";
 import SetorTable from "../components/SetorTable";
 import { SetoresAPI } from "../services/setores";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function SetoresPage() {
   const [setores,     setSetores]     = useState([]);
@@ -20,6 +21,8 @@ export default function SetoresPage() {
 
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -135,6 +138,7 @@ export default function SetoresPage() {
             ) : (
               <SetorTable
                 setores={setores}
+                isAdmin={isAdmin}
                 onEdit={(s) => { setSelected(s); setModalOpen(true); }}
                 onDelete={async (s) => {
                   if (!window.confirm(`Excluir ${s.nomeSetor}?`)) return;

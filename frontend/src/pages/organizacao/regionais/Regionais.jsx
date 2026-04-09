@@ -9,10 +9,13 @@ import RegionalModal from "../../../components/RegionalModal";
 import RegionalTable from "../../../components/RegionalTable";
 import { RegionaisAPI } from "../../../services/regionais";
 import { ThemeContext } from "../../../context/ThemeContext";
+import { AuthContext } from "../../../context/AuthContext";
 
 export default function RegionaisPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -85,7 +88,7 @@ export default function RegionaisPage() {
               <button
                 onClick={() => { setSelected(null); setModalOpen(true); }}
                 style={{
-                  display: "flex", alignItems: "center", gap: 6,
+                  display: isAdmin ? "flex" : "none", alignItems: "center", gap: 6,
                   padding: "8px 16px", borderRadius: 10, border: "none",
                   background: "#FA4C00", color: "#FFFFFF",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
@@ -135,6 +138,7 @@ export default function RegionaisPage() {
             ) : (
               <RegionalTable
                 regionais={regionais}
+                isAdmin={isAdmin}
                 onEdit={(regional) => { setSelected(regional); setModalOpen(true); }}
                 onDelete={async (regional) => {
                   if (!window.confirm(`Deseja excluir a regional "${regional.nome}"?`)) return;

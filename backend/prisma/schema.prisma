@@ -127,16 +127,21 @@ model User {
 
 model Empresa {
   idEmpresa       Int            @id @default(autoincrement()) @map("id_empresa")
-  razaoSocial     String         @unique @map("razao_social") @db.VarChar(200)
-  cnpj            String?        @unique @db.VarChar(18)
+  razaoSocial     String         @map("razao_social") @db.VarChar(200)
+  cnpj            String?        @db.VarChar(18)
   ativo           Boolean        @default(true)
   dataCriacao     DateTime       @default(now()) @map("data_criacao")
   dataAtualizacao DateTime       @default(now()) @updatedAt @map("data_atualizacao")
+  idEstacao       Int?           @map("id_estacao")
+  estacao         Estacao?       @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_empresa_estacao")
   colaboradores   Colaborador[]
   contratos       Contrato[]
   desligamentos   Desligamento[]
   dwReais         DwReal[]
 
+  @@unique([razaoSocial, idEstacao], map: "uq_empresa_razao_estacao")
+  @@unique([cnpj, idEstacao], map: "uq_empresa_cnpj_estacao")
+  @@index([idEstacao], map: "idx_empresa_id_estacao")
   @@map("empresa")
 }
 
@@ -158,13 +163,17 @@ model Setor {
 
 model Cargo {
   idCargo       Int           @id @default(autoincrement()) @map("id_cargo")
-  nomeCargo     String        @unique @map("nome_cargo") @db.VarChar(100)
+  nomeCargo     String        @map("nome_cargo") @db.VarChar(100)
   nivel         String?       @db.VarChar(50)
   descricao     String?
   ativo         Boolean       @default(true)
   dataCriacao   DateTime      @default(now()) @map("data_criacao")
+  idEstacao     Int?          @map("id_estacao")
+  estacao       Estacao?      @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_cargo_estacao")
   colaboradores Colaborador[]
 
+  @@unique([nomeCargo, idEstacao], map: "uq_cargo_nome_estacao")
+  @@index([idEstacao], map: "idx_cargo_id_estacao")
   @@map("cargo")
 }
 
@@ -181,6 +190,10 @@ model Estacao {
   colaboradores          Colaborador[]
   users                  User[]
   setores                Setor[]
+  cargos                 Cargo[]
+  turnos                 Turno[]
+  empresas               Empresa[]
+  escalas                Escala[]
   desligamentos          Desligamento[]
   regional               Regional?     @relation(fields: [idRegional], references: [idRegional], onUpdate: NoAction, map: "fk_estacao_regional")
 
@@ -190,7 +203,7 @@ model Estacao {
 
 model Escala {
   idEscala         Int                          @id @default(autoincrement()) @map("id_escala")
-  nomeEscala       String                       @unique @map("nome_escala") @db.VarChar(100)
+  nomeEscala       String                       @map("nome_escala") @db.VarChar(100)
   tipoEscala       String?                      @map("tipo_escala") @db.VarChar(50)
   diasTrabalhados  Int?                         @map("dias_trabalhados")
   diasFolga        Int?                         @map("dias_folga")
@@ -198,23 +211,31 @@ model Escala {
   descricao        String?
   ativo            Boolean                      @default(true)
   dataCriacao      DateTime                     @default(now()) @map("data_criacao")
+  idEstacao        Int?                         @map("id_estacao")
+  estacao          Estacao?                     @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_escala_estacao")
   colaboradores    Colaborador[]
   historicoEscalas ColaboradorEscalaHistorico[]
 
+  @@unique([nomeEscala, idEstacao], map: "uq_escala_nome_estacao")
+  @@index([idEstacao], map: "idx_escala_id_estacao")
   @@map("escala")
 }
 
 model Turno {
   idTurno       Int           @id @default(autoincrement()) @map("id_turno")
-  nomeTurno     String        @unique @map("nome_turno") @db.VarChar(50)
+  nomeTurno     String        @map("nome_turno") @db.VarChar(50)
   horarioInicio DateTime      @map("horario_inicio") @db.Time(6)
   horarioFim    DateTime      @map("horario_fim") @db.Time(6)
   ativo         Boolean       @default(true)
   dataCriacao   DateTime      @default(now()) @map("data_criacao")
+  idEstacao     Int?          @map("id_estacao")
+  estacao       Estacao?      @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_turno_estacao")
   colaboradores Colaborador[]
   dwPlanejados  DwPlanejado[]
   dwReais       DwReal[]
 
+  @@unique([nomeTurno, idEstacao], map: "uq_turno_nome_estacao")
+  @@index([idEstacao], map: "idx_turno_id_estacao")
   @@map("turno")
 }
 

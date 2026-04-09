@@ -1,20 +1,34 @@
 const CHANGELOG = {
-  version: "1.9.2",
-  titulo: "Exportação de Sheets por Estação",
+  version: "1.10.0",
+  titulo: "Controle de Escopo e Permissões por Estação",
   categorias: [
     {
-      nome: "🐛 Correções",
+      nome: "Novo",
       itens: [
-        "Corrigido bug crítico onde todas as estações exportavam o Controle de Presença para a mesma planilha Google Sheets.",
-        "A exportação agora filtra apenas os colaboradores da estação do usuário logado.",
+        "Turnos, Cargos, Escalas e Empresas agora possuem idEstacao — cada registro pertence a uma estação específica",
+        "Admin visualiza todos os registros com identificação discreta da estação de origem em cada card",
+        "Alta Gestão e demais perfis visualizam apenas os registros da própria estação",
+        "Ao criar Turno, Cargo, Escala ou Empresa, o registro recebe automaticamente a assinatura da estação do usuário",
+        "Admin sem estação selecionada pode escolher a estação destino diretamente no modal de criação",
       ],
     },
     {
-      nome: "✨ Novidades",
+      nome: "Permissões",
       itens: [
-        "Cada estação agora possui seu próprio ID de planilha Google Sheets para o Controle de Presença.",
-        "Adicionado campo 'ID da Planilha Google Sheets (Controle de Presença)' nas configurações de cada estação.",
-        "Os campos de configuração de planilhas (Gestão Operacional e Controle de Presença) agora são visíveis apenas para administradores.",
+        "Cargos: apenas Admin pode editar/excluir cargos globais; usuários da estação podem editar/excluir apenas cargos assinados pela própria estação",
+        "Turnos: mesma regra de assinatura de estação aplicada para edição e exclusão",
+        "Escalas: mesma regra de assinatura de estação aplicada para edição e exclusão",
+        "Empresas: mesma regra de assinatura de estação aplicada para edição e exclusão",
+        "Estações: criação, edição e exclusão restritas exclusivamente ao perfil Admin",
+        "Regionais: edição e exclusão restritas exclusivamente ao perfil Admin",
+        "Proteção aplicada em dupla camada — backend retorna 403 e frontend oculta os botões de ação",
+      ],
+    },
+    {
+      nome: "Correções",
+      itens: [
+        "Modais (Cargo, Turno, Escala, Empresa, Setor, Regional, Estação) corrigidos no Light Mode — títulos e botões agora respeitam o tema",
+        "Botão Cancelar nos modais corrigido para usar as variáveis CSS do tema em vez de classes Tailwind hardcoded",
       ],
     },
   ],

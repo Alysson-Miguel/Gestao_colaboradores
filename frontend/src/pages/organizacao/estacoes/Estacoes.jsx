@@ -88,7 +88,7 @@ export default function EstacoesPage() {
               <button
                 onClick={() => { setSelected(null); setModalOpen(true); }}
                 style={{
-                  display: "flex", alignItems: "center", gap: 6,
+                  display: isAdmin ? "flex" : "none", alignItems: "center", gap: 6,
                   padding: "8px 16px", borderRadius: 10, border: "none",
                   background: "#FA4C00", color: "#FFFFFF",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
@@ -138,6 +138,7 @@ export default function EstacoesPage() {
             ) : (
               <EstacaoTable
                 estacoes={estacoes}
+                isAdmin={isAdmin}
                 onEdit={(estacao) => { setSelected(estacao); setModalOpen(true); }}
                 onDelete={async (estacao) => {
                   if (!window.confirm(`Deseja excluir a estação "${estacao.nomeEstacao || estacao.nome}"?`)) return;

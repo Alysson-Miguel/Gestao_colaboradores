@@ -9,10 +9,14 @@ import TurnoModal from "../../components/TurnoModal";
 import TurnoTable from "../../components/TurnoTable";
 import { TurnosAPI } from "../../services/turnos";
 import { ThemeContext } from "../../context/ThemeContext";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function TurnosPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
   const [turnos, setTurnos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -132,6 +136,8 @@ export default function TurnosPage() {
             ) : (
               <TurnoTable
                 turnos={filtered}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(t) => { setSelected(t); setModalOpen(true); }}
                 onDelete={async (t) => {
                   if (!window.confirm(`Excluir o turno "${t.nomeTurno}"?`)) return;

@@ -55,7 +55,7 @@ export default function SetorModal({ setor, onClose, onSave }) {
       <div className="relative z-10 w-full max-w-lg max-h-[92vh] bg-surface border border-default rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col">
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {setor ? "Editar Setor" : "Novo Setor"}
           </h2>
           <button onClick={onClose} className="p-2 rounded-md hover:bg-surface-2 text-muted">

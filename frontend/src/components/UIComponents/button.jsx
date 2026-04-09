@@ -1,67 +1,101 @@
 ﻿export const Button = {
-  Primary: ({ children, icon, disabled, ...props }) => (
+  Primary: ({ children, icon, disabled, onClick, className = "", style = {} }) => (
     <button
-      {...props}
+      onClick={onClick}
       disabled={disabled}
-      className={`
-        inline-flex items-center gap-2
-        px-5 py-2.5 rounded-lg text-sm font-semibold
-        transition
-        ${
-          disabled
-            ? "bg-brand/40 cursor-not-allowed text-white/70"
-            : "bg-brand hover:bg-brandHover shadow hover:shadow-brand/30"
-        }
-        text-white
-      `}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 20px",
+        borderRadius: 10,
+        border: "none",
+        background: disabled ? "rgba(250,76,0,0.4)" : "#FA4C00",
+        color: "#FFFFFF",
+        fontSize: 14,
+        fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
+        transition: "background 0.15s",
+        ...style,
+      }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = "#e64500"; }}
+      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = "#FA4C00"; }}
+      className={className}
     >
       {icon}
       {children}
     </button>
   ),
 
-  Secondary: ({ children, icon, ...props }) => (
+  Secondary: ({ children, icon, onClick, className = "", style = {} }) => (
     <button
-      {...props}
-      className="
-        inline-flex items-center gap-2
-        px-5 py-2.5 rounded-lg text-sm font-medium
-        bg-surfaceHover hover:bg-surface-3
-        text-text transition
-      "
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 20px",
+        borderRadius: 10,
+        background: "var(--color-surface-2)",
+        border: "1px solid var(--color-border)",
+        color: "var(--color-text)",
+        fontSize: 14,
+        fontWeight: 500,
+        cursor: "pointer",
+        transition: "background 0.15s",
+        ...style,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-3)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--color-surface-2)"; }}
+      className={className}
     >
       {icon}
       {children}
     </button>
   ),
 
-  Outline: ({ children, ...props }) => (
+  Outline: ({ children, onClick, className = "" }) => (
     <button
-      {...props}
-      className="
-        px-5 py-2.5 rounded-lg text-sm font-medium
-        border border-brand/40 text-brand
-        hover:bg-brand/10 transition
-      "
+      onClick={onClick}
+      style={{
+        padding: "10px 20px",
+        borderRadius: 10,
+        background: "transparent",
+        border: "1px solid rgba(250,76,0,0.4)",
+        color: "#FA4C00",
+        fontSize: 14,
+        fontWeight: 500,
+        cursor: "pointer",
+        transition: "background 0.15s",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(250,76,0,0.1)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+      className={className}
     >
       {children}
     </button>
   ),
 
-  IconButton: ({ children, variant = "default", ...props }) => {
-    const variants = {
-      default: "bg-surfaceHover hover:bg-surface-3 text-text",
-      danger: "bg-danger/10 hover:bg-danger/20 text-danger",
-      success: "bg-success/10 hover:bg-success/20 text-success",
+  IconButton: ({ children, variant = "default", onClick, className = "" }) => {
+    const styles = {
+      default: { background: "var(--color-surface-2)", color: "var(--color-text)" },
+      danger:  { background: "rgba(239,68,68,0.1)",    color: "#EF4444" },
+      success: { background: "rgba(34,197,94,0.1)",    color: "#22C55E" },
     };
 
     return (
       <button
-        {...props}
-        className={`
-          p-2 rounded-lg transition
-          ${variants[variant]}
-        `}
+        onClick={onClick}
+        style={{
+          padding: 8,
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer",
+          transition: "background 0.15s",
+          ...styles[variant],
+        }}
+        className={className}
       >
         {children}
       </button>

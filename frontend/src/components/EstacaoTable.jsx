@@ -21,7 +21,7 @@ const THEME = {
   },
 };
 
-export default function EstacaoTable({ estacoes, onEdit, onDelete }) {
+export default function EstacaoTable({ estacoes, onEdit, onDelete, isAdmin = false }) {
   const { isDark } = useContext(ThemeContext);
   const T = THEME[isDark ? "dark" : "light"];
 
@@ -39,13 +39,13 @@ export default function EstacaoTable({ estacoes, onEdit, onDelete }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, padding: 20 }}>
       {estacoes.map((e) => (
-        <EstacaoCard key={e.idEstacao} estacao={e} T={T} onEdit={onEdit} onDelete={onDelete} />
+        <EstacaoCard key={e.idEstacao} estacao={e} T={T} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function EstacaoCard({ estacao: e, T, onEdit, onDelete }) {
+function EstacaoCard({ estacao: e, T, onEdit, onDelete, isAdmin }) {
   const [hov, setHov] = useState(false);
   const nome    = e.nomeEstacao || e.nome || "—";
   const inicial = nome[0]?.toUpperCase() || "?";
@@ -87,10 +87,12 @@ function EstacaoCard({ estacao: e, T, onEdit, onDelete }) {
       )}
 
       {/* ações */}
-      <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
-        <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(e)} />
-        <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(e)} />
-      </div>
+      {isAdmin && (
+        <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
+          <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(e)} />
+          <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(e)} />
+        </div>
+      )}
     </div>
   );
 }

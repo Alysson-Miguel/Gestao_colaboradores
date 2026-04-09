@@ -9,10 +9,14 @@ import EscalaModal from "../../components/EscalaModal";
 import EscalaTable from "../../components/EscalaTable";
 import { EscalasAPI } from "../../services/escalas";
 import { ThemeContext } from "../../context/ThemeContext";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function EscalasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
   const [escalas,     setEscalas]     = useState([]);
   const [loading,     setLoading]     = useState(false);
   const [modalOpen,   setModalOpen]   = useState(false);
@@ -131,6 +135,8 @@ export default function EscalasPage() {
             ) : (
               <EscalaTable
                 escalas={filtered}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(e) => { setSelected(e); setModalOpen(true); }}
                 onDelete={async (e) => {
                   if (!window.confirm(`Excluir a escala "${e.nomeEscala}"?`)) return;

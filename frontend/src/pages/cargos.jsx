@@ -10,6 +10,7 @@ import CargoModal from "../components/CargoModal";
 import CargoTable from "../components/CargoTable";
 import { CargosAPI } from "../services/cargos";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function CargosPage() {
   const [cargos,      setCargos]      = useState([]);
@@ -21,6 +22,9 @@ export default function CargosPage() {
 
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -141,6 +145,8 @@ export default function CargosPage() {
             ) : (
               <CargoTable
                 cargos={filtered}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(c) => { setSelected(c); setModalOpen(true); }}
                 onDelete={async (c) => {
                   if (!window.confirm(`Excluir ${c.nomeCargo}?`)) return;

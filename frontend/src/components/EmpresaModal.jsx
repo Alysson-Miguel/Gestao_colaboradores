@@ -1,21 +1,34 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useContext } from "react";
 import { Button } from "../components/UIComponents";
 import { X } from "lucide-react";
+import { AuthContext } from "../context/AuthContext";
+import { EstacoesAPI } from "../services/estacoes";
+import { useEstacao } from "../context/EstacaoContext";
 
 export default function EmpresaModal({ empresa = null, onClose, onSave }) {
+  const { user } = useContext(AuthContext);
+  const { estacaoId: estacaoSelecionada } = useEstacao();
+
+  const isAdmin = user?.role === "ADMIN";
+  const precisaEscolherEstacao = isAdmin && !estacaoSelecionada && !empresa;
+
   const [form, setForm] = useState(() => ({
     idEmpresa: empresa?.idEmpresa ?? null,
     razaoSocial: empresa?.razaoSocial ?? "",
     cnpj: empresa?.cnpj ?? "",
     ativo: empresa?.ativo ?? true,
+    idEstacao: empresa?.idEstacao || estacaoSelecionada || "",
   }));
   const [saving, setSaving] = useState(false);
+  const [estacoes, setEstacoes] = useState([]);
 
   const handle = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
+  const isValid = form.razaoSocial && form.cnpj && (!precisaEscolherEstacao || form.idEstacao);
+
   const submit = async () => {
-    if (!form.razaoSocial || !form.cnpj) return;
+    if (!isValid) return;
     setSaving(true);
     try {
       await onSave({ ...form, ativo: Boolean(form.ativo) });
@@ -27,10 +40,14 @@ export default function EmpresaModal({ empresa = null, onClose, onSave }) {
   // 🔒 Bloqueia scroll do body
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
+    return () => { document.body.style.overflow = "auto"; };
   }, []);
+
+  useEffect(() => {
+    if (precisaEscolherEstacao) {
+      EstacoesAPI.listar().then(setEstacoes).catch(() => {});
+    }
+  }, [precisaEscolherEstacao]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 sm:px-6">
@@ -57,7 +74,7 @@ export default function EmpresaModal({ empresa = null, onClose, onSave }) {
       >
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {form.idEmpresa ? "Editar Empresa" : "Nova Empresa"}
           </h2>
 
@@ -145,6 +162,24 @@ export default function EmpresaModal({ empresa = null, onClose, onSave }) {
               <option value="false">Inativa</option>
             </select>
           </div>
+
+          {precisaEscolherEstacao && (
+            <div>
+              <label className="block text-xs text-muted mb-1">
+                Estação <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={form.idEstacao}
+                onChange={(e) => handle("idEstacao", e.target.value)}
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-surface-2 border border-default text-page text-sm"
+              >
+                <option value="">Selecione uma estação</option>
+                {estacoes.map((e) => (
+                  <option key={e.idEstacao} value={e.idEstacao}>{e.nomeEstacao}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* FOOTER */}
@@ -158,7 +193,7 @@ export default function EmpresaModal({ empresa = null, onClose, onSave }) {
 
           <Button.Primary
             onClick={submit}
-            disabled={saving || !form.razaoSocial || !form.cnpj}
+            disabled={saving || !isValid}
             className="w-full sm:w-auto"
           >
             {saving ? "Salvando..." : form.idEmpresa ? "Salvar alterações" : "Criar empresa"}
