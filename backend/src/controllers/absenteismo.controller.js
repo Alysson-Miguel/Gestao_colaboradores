@@ -159,11 +159,12 @@ const getResumoAbsenteismo = async (req, res) => {
     return successResponse(res, {
       kpis: {
         totalPeriodo,
-        totalFaltas:    faltasUnicas,
+        totalFaltas:              faltasUnicas,
         totalAtestados,
         diasAfastados,
         recorrencia,
         colaboradoresImpactados,
+        colaboradoresRecorrentes,
         percentualHC,
         hoje:   faltasHoje + atestadosHoje,
         semana: faltasSemana + atestadosSemana,
@@ -212,53 +213,42 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
       }),
     ]);
 
-    const acc = {
-      empresa: {}, setor: {}, turno: {}, genero: {},
-      lider: {}, diaSemana: {}, escala: {}, tipo: {},
+    /* acc: cada chave armazena { faltas, atestados } */
+    const acc = { empresa: {}, setor: {}, turno: {}, genero: {}, lider: {}, diaSemana: {}, escala: {} };
+
+    const inc = (obj, key, tipo) => {
+      if (!obj[key]) obj[key] = { faltas: 0, atestados: 0 };
+      obj[key][tipo]++;
     };
 
-    /* faltas */
     for (const f of faltas) {
       const c = f.colaborador;
       if (!c) continue;
-      const empresa   = c.empresa?.razaoSocial || "N/I";
-      const setor     = c.setor?.nomeSetor      || "N/I";
-      const turno     = c.turno?.nomeTurno      || "N/I";
-      const genero    = c.genero                || "N/I";
-      const lider     = c.lider?.nomeCompleto   || "Sem líder";
-      const diaSemana = DIAS_SEMANA[new Date(f.dataReferencia).getDay()];
-      const escala    = c.escala?.nomeEscala    || "N/I";
-      acc.empresa[empresa]     = (acc.empresa[empresa]     || 0) + 1;
-      acc.setor[setor]         = (acc.setor[setor]         || 0) + 1;
-      acc.turno[turno]         = (acc.turno[turno]         || 0) + 1;
-      acc.genero[genero]       = (acc.genero[genero]       || 0) + 1;
-      acc.lider[lider]         = (acc.lider[lider]         || 0) + 1;
-      acc.diaSemana[diaSemana] = (acc.diaSemana[diaSemana] || 0) + 1;
-      acc.escala[escala]       = (acc.escala[escala]       || 0) + 1;
-      acc.tipo["Falta"]        = (acc.tipo["Falta"]        || 0) + 1;
+      inc(acc.empresa,   c.empresa?.razaoSocial                          || "N/I", "faltas");
+      inc(acc.setor,     c.setor?.nomeSetor                              || "N/I", "faltas");
+      inc(acc.turno,     c.turno?.nomeTurno                              || "N/I", "faltas");
+      inc(acc.genero,    c.genero                                        || "N/I", "faltas");
+      inc(acc.lider,     c.lider?.nomeCompleto                           || "Sem líder", "faltas");
+      inc(acc.diaSemana, DIAS_SEMANA[new Date(f.dataReferencia).getDay()]         , "faltas");
+      inc(acc.escala,    c.escala?.nomeEscala                            || "N/I", "faltas");
     }
 
-    /* atestados */
     for (const a of atestados) {
       const c = a.colaborador;
       if (!c) continue;
-      const empresa   = c.empresa?.razaoSocial || "N/I";
-      const setor     = c.setor?.nomeSetor      || "N/I";
-      const turno     = c.turno?.nomeTurno      || "N/I";
-      const genero    = c.genero                || "N/I";
-      const lider     = c.lider?.nomeCompleto   || "Sem líder";
-      const escala    = c.escala?.nomeEscala    || "N/I";
-      acc.empresa[empresa]    = (acc.empresa[empresa]    || 0) + 1;
-      acc.setor[setor]        = (acc.setor[setor]        || 0) + 1;
-      acc.turno[turno]        = (acc.turno[turno]        || 0) + 1;
-      acc.genero[genero]      = (acc.genero[genero]      || 0) + 1;
-      acc.lider[lider]        = (acc.lider[lider]        || 0) + 1;
-      acc.escala[escala]      = (acc.escala[escala]      || 0) + 1;
-      acc.tipo["Atestado"]    = (acc.tipo["Atestado"]    || 0) + 1;
+      inc(acc.empresa,   c.empresa?.razaoSocial || "N/I", "atestados");
+      inc(acc.setor,     c.setor?.nomeSetor      || "N/I", "atestados");
+      inc(acc.turno,     c.turno?.nomeTurno      || "N/I", "atestados");
+      inc(acc.genero,    c.genero                || "N/I", "atestados");
+      inc(acc.lider,     c.lider?.nomeCompleto   || "Sem líder", "atestados");
+      inc(acc.escala,    c.escala?.nomeEscala    || "N/I", "atestados");
     }
 
+    /* toArray: retorna { name, faltas, atestados, value } ordenado por total */
     const toArray = (obj) =>
-      Object.entries(obj).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+      Object.entries(obj)
+        .map(([name, v]) => ({ name, faltas: v.faltas, atestados: v.atestados, value: v.faltas + v.atestados }))
+        .sort((a, b) => b.value - a.value);
 
     return successResponse(res, {
       porEmpresa:   toArray(acc.empresa),
@@ -268,7 +258,6 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
       porLider:     toArray(acc.lider).slice(0, 10),
       porDiaSemana: toArray(acc.diaSemana),
       porEscala:    toArray(acc.escala),
-      porTipo:      toArray(acc.tipo),
     });
   } catch (err) {
     console.error("❌ DISTRIBUIÇÕES ABSENTEISMO:", err);

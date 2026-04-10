@@ -418,84 +418,115 @@ function AreaBlock({ data, onDateClick, selectedDate }) {
   )
 }
 
+/* label dentro de cada segmento da barra empilhada */
+const SegLabel = ({ x, y, width, height, value }) => {
+  if (!value || height < 14 || width < 18) return null
+  return (
+    <text x={x + width / 2} y={y + height / 2} fill="#fff" textAnchor="middle"
+      dominantBaseline="central" fontSize={10} fontWeight={700}>
+      {value}
+    </text>
+  )
+}
+
+/* label dentro de cada segmento horizontal */
+const SegLabelH = ({ x, y, width, height, value }) => {
+  if (!value || width < 18) return null
+  return (
+    <text x={x + width / 2} y={y + height / 2} fill="#fff" textAnchor="middle"
+      dominantBaseline="central" fontSize={10} fontWeight={700}>
+      {value}
+    </text>
+  )
+}
+
 function BarBlock({ data, onBarClick, activeBar }) {
   if (!data?.length) return <Empty />
-  const h = Math.max(200, data.length * 46)
-  const clickable = !!onBarClick
+  const h      = Math.max(200, data.length * 52)
+  const click  = !!onBarClick
+  const opFn   = (name) => activeBar && name !== activeBar ? 0.3 : 1
+
   return (
     <div style={{ position: "relative" }}>
-      {clickable && (
-        <p style={{ position: "absolute", top: 0, right: 0, margin: 0, fontSize: 10, color: "var(--color-subtle)" }}>
-          Clique para filtrar
-        </p>
-      )}
+      {click && <p style={{ position: "absolute", top: 0, right: 0, margin: 0, fontSize: 10, color: "var(--color-subtle)" }}>Clique para filtrar</p>}
       <ResponsiveContainer width="100%" height={h}>
-        <BarChart data={data} margin={{ top: clickable ? 18 : 4, right: 8, bottom: 0, left: -8 }}>
+        <BarChart data={data} margin={{ top: click ? 16 : 4, right: 8, bottom: 0, left: -8 }}>
           <CartesianGrid stroke="var(--color-border)" vertical={false} />
           <XAxis dataKey="name" tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false} tickMargin={6}
-            tickFormatter={(v) => v?.length > 14 ? v.slice(0, 12) + "…" : v} />
+            tickFormatter={(v) => v?.length > 13 ? v.slice(0, 11) + "…" : v} />
           <YAxis allowDecimals={false} tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-          <Bar
-            dataKey="value"
-            name="Ausências"
-            radius={[6, 6, 0, 0]}
-            maxBarSize={40}
-            cursor={clickable ? "pointer" : "default"}
-            onClick={clickable ? (d) => onBarClick(d.name) : undefined}
-          >
-            {data.map((d, i) => {
-              const isActive = activeBar && d.name === activeBar
-              return (
-                <Cell
-                  key={i}
-                  fill={isActive ? "#ffffff" : BRAND}
-                  opacity={activeBar && !isActive ? 0.35 : 1}
-                />
-              )
-            })}
-            <LabelList dataKey="value" position="top" style={{ fill: "var(--color-muted)", fontSize: 11 }} />
+
+          {/* Faltas — laranja, base */}
+          <Bar dataKey="faltas" name="Faltas" stackId="a" maxBarSize={44}
+            cursor={click ? "pointer" : "default"}
+            onClick={click ? (d) => onBarClick(d.name) : undefined}>
+            {data.map((d, i) => <Cell key={i} fill={COLOR_FALTA} opacity={opFn(d.name)} />)}
+            <LabelList dataKey="faltas" content={SegLabel} />
+          </Bar>
+
+          {/* Atestados — azul, topo */}
+          <Bar dataKey="atestados" name="Atestados" stackId="a" radius={[6, 6, 0, 0]} maxBarSize={44}
+            cursor={click ? "pointer" : "default"}
+            onClick={click ? (d) => onBarClick(d.name) : undefined}>
+            {data.map((d, i) => <Cell key={i} fill={COLOR_ATESTADO} opacity={opFn(d.name)} />)}
+            <LabelList dataKey="atestados" content={SegLabel} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      {/* legenda */}
+      <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 6 }}>
+        {[["Faltas", COLOR_FALTA], ["Atestados", COLOR_ATESTADO]].map(([lbl, clr]) => (
+          <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: clr }} />
+            <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{lbl}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
 
 function BarBlockH({ data, onBarClick, activeBar }) {
   if (!data?.length) return <Empty />
-  const h = Math.max(200, data.length * 40)
-  const clickable = !!onBarClick
+  const h     = Math.max(200, data.length * 42)
+  const click = !!onBarClick
+  const opFn  = (name) => activeBar && name !== activeBar ? 0.3 : 1
+
   return (
-    <ResponsiveContainer width="100%" height={h}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 40, bottom: 0, left: 0 }}>
-        <CartesianGrid stroke="var(--color-border)" horizontal={false} />
-        <XAxis type="number" allowDecimals={false} tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" width={130} tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false}
-          tickFormatter={(v) => v?.length > 18 ? v.slice(0, 16) + "…" : v} />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
-        <Bar
-          dataKey="value"
-          name="Ausências"
-          radius={[0, 6, 6, 0]}
-          maxBarSize={22}
-          cursor={clickable ? "pointer" : "default"}
-          onClick={clickable ? (d) => onBarClick(d.name) : undefined}
-        >
-          {data.map((d, i) => {
-            const isActive = activeBar && d.name === activeBar
-            return (
-              <Cell
-                key={i}
-                fill={isActive ? "#ffffff" : BRAND}
-                opacity={activeBar && !isActive ? 0.35 : 1}
-              />
-            )
-          })}
-          <LabelList dataKey="value" position="right" style={{ fill: "var(--color-muted)", fontSize: 11 }} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={h}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke="var(--color-border)" horizontal={false} />
+          <XAxis type="number" allowDecimals={false} tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="name" width={130} tick={{ fill: "var(--color-muted)", fontSize: 11 }} axisLine={false} tickLine={false}
+            tickFormatter={(v) => v?.length > 18 ? v.slice(0, 16) + "…" : v} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+
+          <Bar dataKey="faltas" name="Faltas" stackId="a" maxBarSize={22}
+            cursor={click ? "pointer" : "default"}
+            onClick={click ? (d) => onBarClick(d.name) : undefined}>
+            {data.map((d, i) => <Cell key={i} fill={COLOR_FALTA} opacity={opFn(d.name)} />)}
+            <LabelList dataKey="faltas" content={SegLabelH} />
+          </Bar>
+
+          <Bar dataKey="atestados" name="Atestados" stackId="a" radius={[0, 6, 6, 0]} maxBarSize={22}
+            cursor={click ? "pointer" : "default"}
+            onClick={click ? (d) => onBarClick(d.name) : undefined}>
+            {data.map((d, i) => <Cell key={i} fill={COLOR_ATESTADO} opacity={opFn(d.name)} />)}
+            <LabelList dataKey="atestados" content={SegLabelH} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 6 }}>
+        {[["Faltas", COLOR_FALTA], ["Atestados", COLOR_ATESTADO]].map(([lbl, clr]) => (
+          <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: clr }} />
+            <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{lbl}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -903,8 +934,17 @@ export default function DashboardAbsenteismo() {
       setColaboradores(tabela)
       setTopOfensores(top)
       const mapaTempo = {}
-      tabela.forEach((c) => { mapaTempo[c.tempoCasa] = (mapaTempo[c.tempoCasa] || 0) + 1 })
-      setPorTempoCasa(Object.entries(mapaTempo).map(([name, value]) => ({ name, value })))
+      tabela.forEach((c) => {
+        const k = c.tempoCasa || "N/I"
+        if (!mapaTempo[k]) mapaTempo[k] = { faltas: 0, atestados: 0 }
+        mapaTempo[k].faltas    += c.totalFaltas    || 0
+        mapaTempo[k].atestados += c.totalAtestados || 0
+      })
+      setPorTempoCasa(
+        Object.entries(mapaTempo).map(([name, v]) => ({
+          name, faltas: v.faltas, atestados: v.atestados, value: v.faltas + v.atestados,
+        }))
+      )
     } catch (err) {
       console.error("❌ DASHBOARD ABSENTEISMO:", err)
       setError("Erro ao carregar dashboard de absenteísmo.")
@@ -1108,7 +1148,7 @@ export default function DashboardAbsenteismo() {
                 {loading ? (
                   <Skeleton style={{ height: 320 }} />
                 ) : (
-                  <BarBlockH data={topOfensores.map((c) => ({ name: c.nome, value: c.totalAusencias }))} />
+                  <BarBlockH data={topOfensores.map((c) => ({ name: c.nome, faltas: c.totalFaltas, atestados: c.totalAtestados, value: c.totalAusencias }))} />
                 )}
               </Card>
             </div>
@@ -1117,7 +1157,7 @@ export default function DashboardAbsenteismo() {
           {/* ── 05 — PERFIL ─────────────────────────────────── */}
           <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <SectionLabel num="05" title="Perfil dos Ausentes" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ minWidth: 0 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" style={{ minWidth: 0 }}>
               <Card title="Por Turno" subtitle="Clique para filtrar por turno">
                 {loading ? <Skeleton style={{ height: 210 }} /> : (
                   <BarBlock data={porTurno} onBarClick={handleTurnoClick} activeBar={drillTurno} />
@@ -1126,8 +1166,20 @@ export default function DashboardAbsenteismo() {
               <Card title="Por Gênero" subtitle="Perfil de gênero dos ausentes">
                 {loading ? <Skeleton style={{ height: 210 }} /> : <PieBlock data={porGenero} />}
               </Card>
+              <Card title="Recorrentes" subtitle="Ausentes com 2+ ocorrências no período">
+                {loading ? <Skeleton style={{ height: 210 }} /> : (
+                  <PieBlock data={(() => {
+                    const rec    = kpis?.colaboradoresRecorrentes || 0
+                    const naoRec = Math.max(0, (kpis?.colaboradoresImpactados || 0) - rec)
+                    return [
+                      { name: "Recorrentes",     value: rec },
+                      { name: "Não Recorrentes", value: naoRec },
+                    ].filter(d => d.value > 0)
+                  })()} />
+                )}
+              </Card>
               <Card title="Tempo de Casa" subtitle="Maturidade vs. frequência de ausências">
-                {loading ? <Skeleton style={{ height: 260 }} /> : <BarBlock data={porTempoCasa} />}
+                {loading ? <Skeleton style={{ height: 210 }} /> : <BarBlock data={porTempoCasa} />}
               </Card>
             </div>
           </section>
