@@ -10,12 +10,14 @@ const usersController = require('../controllers/users.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const { authorizeRoles } = require('../middlewares/authorizeRoles');
 const { asyncHandler } = require('../middlewares/error.middleware');
+const { injectDbContext } = require('../middlewares/dbContext.middleware');
 
 // 🔍 CONSULTA — ADMIN + LIDERANCA (READ ONLY)
 router.get(
   '/',
   authenticate,
   authorizeRoles('ADMIN', 'LIDERANCA'),
+  injectDbContext,
   asyncHandler(usersController.list)
 );
 

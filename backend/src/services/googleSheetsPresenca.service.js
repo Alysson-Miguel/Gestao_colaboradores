@@ -92,11 +92,15 @@ const garantirAbaExiste = async (sheets, spreadsheetId, nomeAba) => {
 };
 
 // 📊 Exportar controle de presença para Google Sheets
-const exportarControlePresenca = async (mes, dadosPresenca) => {
+const exportarControlePresenca = async (mes, dadosPresenca, spreadsheetId) => {
   try {
     console.log('\n📊 ===== EXPORTAR CONTROLE DE PRESENÇA =====');
     console.log(`📅 Mês: ${mes}`);
     console.log(`👥 Colaboradores: ${dadosPresenca.colaboradores?.length || 0}`);
+
+    // Usa o spreadsheetId da estação se fornecido, senão cai no padrão do .env
+    const targetSpreadsheetId = spreadsheetId || PRESENCA_SPREADSHEET_ID;
+    console.log(`📊 Planilha destino: ${targetSpreadsheetId}`);
 
     const sheets = getGoogleSheetsClient();
     const [ano, mesNum] = mes.split('-').map(Number);
@@ -107,7 +111,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
     console.log(`📑 Aba de destino: ${nomeAba}`);
 
     // 🔍 Verificar se a aba existe, se não, criar
-    await garantirAbaExiste(sheets, PRESENCA_SPREADSHEET_ID, nomeAba);
+    await garantirAbaExiste(sheets, targetSpreadsheetId, nomeAba);
 
     // 🏗️ Construir cabeçalho
     const headers = [
@@ -171,7 +175,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
     // 🧹 Limpar aba antes de escrever
     try {
       await sheets.spreadsheets.values.clear({
-        spreadsheetId: PRESENCA_SPREADSHEET_ID,
+        spreadsheetId: targetSpreadsheetId,
         range: nomeAba,
       });
       console.log('✅ Aba limpa com sucesso');
@@ -181,7 +185,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
 
     // ✍️ Escrever dados na planilha
     const response = await sheets.spreadsheets.values.update({
-      spreadsheetId: PRESENCA_SPREADSHEET_ID,
+      spreadsheetId: targetSpreadsheetId,
       range: `${nomeAba}!A1`,
       valueInputOption: 'RAW',
       resource: { values },
@@ -202,7 +206,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
     });
 
     await sheets.spreadsheets.values.update({
-      spreadsheetId: PRESENCA_SPREADSHEET_ID,
+      spreadsheetId: targetSpreadsheetId,
       range: `${nomeAba}!AL1`,
       valueInputOption: 'RAW',
       resource: {
@@ -214,7 +218,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
 
     // 🎯 Obter sheetId da aba para formatação
     const spreadsheet = await sheets.spreadsheets.get({
-      spreadsheetId: PRESENCA_SPREADSHEET_ID,
+      spreadsheetId: targetSpreadsheetId,
     });
     
     const sheet = spreadsheet.data.sheets.find(
@@ -226,7 +230,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
 
     // 🎨 Formatar cabeçalho (negrito e cor de fundo)
     await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: PRESENCA_SPREADSHEET_ID,
+      spreadsheetId: targetSpreadsheetId,
       resource: {
         requests: [
           {
@@ -301,7 +305,7 @@ const exportarControlePresenca = async (mes, dadosPresenca) => {
         celulasAtualizadas: response.data.updatedCells,
         linhas: values.length,
         colunas: headers.length,
-        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${PRESENCA_SPREADSHEET_ID}`,
+        spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}`,
       },
     };
 
@@ -432,8 +436,14 @@ const sincronizarControlePresenca = async (prisma) => {
           continue;
         }
 
+        // DSR — verificar ANTES do atestado
+        const dow = dataCalendario.getDay();
+        const dsrDias = { E: [0, 1], G: [2, 3], C: [4, 5] };
+        const escalaKey = String(c.escala?.nomeEscala || '').toUpperCase();
+        const isDSR = dsrDias[escalaKey]?.includes(dow);
+
         // Status administrativo
-        const atestado = c.atestadosMedicos?.find(
+        const atestado = !isDSR && c.atestadosMedicos?.find(
           a => dataCalendario >= new Date(a.dataInicio) && dataCalendario <= new Date(a.dataFim)
         );
         if (atestado) {
@@ -467,10 +477,7 @@ const sincronizarControlePresenca = async (prisma) => {
         }
 
         // DSR
-        const dow = dataCalendario.getDay();
-        const dsrMap = { A: [0, 3], B: [1, 2], C: [4, 5] };
-        const dias = dsrMap[String(c.escala?.nomeEscala || '').toUpperCase()];
-        if (dias?.includes(dow)) {
+        if (isDSR) {
           diasMap[dataISO] = { status: 'DSR', manual: false };
           continue;
         }

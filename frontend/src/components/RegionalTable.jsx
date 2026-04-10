@@ -23,7 +23,7 @@ const THEME = {
   },
 };
 
-export default function RegionalTable({ regionais, onEdit, onDelete }) {
+export default function RegionalTable({ regionais, onEdit, onDelete, isAdmin = false }) {
   const { isDark } = useContext(ThemeContext);
   const T = THEME[isDark ? "dark" : "light"];
 
@@ -41,13 +41,13 @@ export default function RegionalTable({ regionais, onEdit, onDelete }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, padding: 20 }}>
       {regionais.map((r) => (
-        <RegionalCard key={r.idRegional} regional={r} T={T} onEdit={onEdit} onDelete={onDelete} />
+        <RegionalCard key={r.idRegional} regional={r} T={T} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function RegionalCard({ regional: r, T, onEdit, onDelete }) {
+function RegionalCard({ regional: r, T, onEdit, onDelete, isAdmin }) {
   const [hov, setHov] = useState(false);
   const inicial  = r.nome?.[0]?.toUpperCase() || "?";
   const estacoes = r.estacoes || [];
@@ -109,10 +109,12 @@ function RegionalCard({ regional: r, T, onEdit, onDelete }) {
       )}
 
       {/* ações */}
-      <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
-        <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(r)} />
-        <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(r)} />
-      </div>
+      {isAdmin && (
+        <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
+          <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(r)} />
+          <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(r)} />
+        </div>
+      )}
     </div>
   );
 }

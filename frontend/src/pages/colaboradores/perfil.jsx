@@ -1,6 +1,7 @@
 import { AuthContext } from "../../context/AuthContext";
 import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import MainLayout from "../../components/MainLayout";
 import {
   ArrowLeft,
   Pencil,
@@ -80,8 +81,8 @@ export default function PerfilColaborador() {
         setLoading(true);
         const [colabRes, mdRes, acRes] = await Promise.all([
           api.get(`/colaboradores/${opsId}`),
-          api.get(`/medidas-disciplinares?opsId=${opsId}`),
-          api.get(`/acidentes/colaborador/${opsId}`),
+          api.get(`/medidas-disciplinares?opsId=${opsId}`).catch(() => ({ data: { data: [] } })),
+          api.get(`/acidentes/colaborador/${opsId}`).catch(() => ({ data: { data: [] } })),
         ]);
         const payload = colabRes.data.data;
         setColaborador(payload.colaborador);
@@ -124,7 +125,7 @@ export default function PerfilColaborador() {
     <div className="flex min-h-screen bg-page text-page">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 pb-16">
@@ -387,23 +388,33 @@ export default function PerfilColaborador() {
 
                 {faltas.itens.length > 0 ? (
                   <div className="space-y-2">
-                    {faltas.itens.map((f) => (
+                    {faltas.itens.map((f) => {
+                      const aprovada = f.temMD && f.statusMD === "ASSINADO";
+                      const cancelada = f.temMD && f.statusMD === "CANCELADA";
+                      return (
                       <div
                         key={f.idFrequencia}
                         className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${
-                          f.temMD
+                          aprovada
                             ? "border-orange-500/30 bg-orange-500/8 hover:bg-orange-500/12"
+                            : cancelada
+                            ? "border-red-500/30 bg-red-500/8 hover:bg-red-500/12"
                             : "border-default bg-page hover:border-red-500/20"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full shrink-0 ${f.temMD ? "bg-orange-400" : "bg-red-400"}`} />
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${aprovada ? "bg-orange-400" : cancelada ? "bg-red-400" : "bg-red-400"}`} />
                           <span className="text-sm font-semibold">{fmt(f.data)}</span>
                         </div>
-                        {f.temMD ? (
+                        {aprovada ? (
                           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400">
                             <ShieldAlert size={11} />
                             MD aplicada
+                          </span>
+                        ) : cancelada ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/25 text-red-400">
+                            <ShieldAlert size={11} />
+                            MD cancelada
                           </span>
                         ) : (
                           <span className="text-xs text-muted bg-surface-2 px-2.5 py-1 rounded-full">
@@ -411,7 +422,8 @@ export default function PerfilColaborador() {
                           </span>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <EmptyState text="Nenhuma falta registrada." />
@@ -434,20 +446,43 @@ export default function PerfilColaborador() {
               <EmptyState text="Nenhuma medida disciplinar registrada." />
             ) : (
               <div className="space-y-3">
-                {medidas.map((md) => (
-                  <div key={md.idMedida} className="flex items-start gap-4 bg-page border border-default rounded-xl p-4">
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
-                      <FileText size={14} className="text-orange-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold">{md.tipoMedida}</p>
-                        <p className="text-xs text-muted">{new Date(md.dataAplicacao).toLocaleDateString("pt-BR")}</p>
+                {medidas.map((md) => {
+                  const assinada = md.status === "ASSINADO";
+                  const cancelada = md.status === "CANCELADA";
+                  const cardStyle = assinada
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : cancelada
+                    ? "border-red-500/30 bg-red-500/5"
+                    : "border-default bg-page";
+                  const iconBg = assinada ? "bg-emerald-500/15" : cancelada ? "bg-red-500/15" : "bg-orange-500/15";
+                  const iconColor = assinada ? "text-emerald-400" : cancelada ? "text-red-400" : "text-orange-400";
+                  return (
+                    <div key={md.idMedida} className={`flex items-start gap-4 border rounded-xl p-4 transition-colors ${cardStyle}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                        <FileText size={14} className={iconColor} />
                       </div>
-                      <p className="text-sm text-muted">{md.motivo}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-semibold">{md.tipoMedida}</p>
+                          <div className="flex items-center gap-2">
+                            {assinada && (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
+                                Assinada
+                              </span>
+                            )}
+                            {cancelada && (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/25 text-red-400">
+                                Cancelada
+                              </span>
+                            )}
+                            <p className="text-xs text-muted">{new Date(md.dataAplicacao).toLocaleDateString("pt-BR")}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted">{md.motivo}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </ProfileSection>
@@ -518,7 +553,7 @@ export default function PerfilColaborador() {
           </ProfileSection>
 
         </main>
-      </div>
+      </MainLayout>
     </div>
   );
 }

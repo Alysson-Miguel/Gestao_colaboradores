@@ -2,7 +2,7 @@ const { buscarDwResumo } = require('../services/dwResumo.service');
 
 const getDwResumo = async (req, res) => {
   try {
-    const { data, idTurno } = req.query;
+    const { data, idTurno, idEstacao, estacaoId } = req.query;
 
     if (!data || !idTurno) {
       return res.status(400).json({
@@ -13,7 +13,8 @@ const getDwResumo = async (req, res) => {
 
     const resumo = await buscarDwResumo({
       data,
-      idTurno: Number(idTurno)
+      idTurno: Number(idTurno),
+      idEstacao: idEstacao ? Number(idEstacao) : estacaoId ? Number(estacaoId) : null
     });
 
     res.json({

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useCallback, useContext } from "react";
 import { Plus, Search, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MainLayout from "../components/MainLayout";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -9,10 +10,14 @@ import EmpresaModal from "../components/EmpresaModal";
 import EmpresaTable from "../components/EmpresaTable";
 import { EmpresasAPI } from "../services/empresas";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function EmpresasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -49,7 +54,7 @@ export default function EmpresasPage() {
     <div style={{ display: "flex", minHeight: "100vh", background: bg, color: textMain }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -135,6 +140,8 @@ export default function EmpresasPage() {
             ) : (
               <EmpresaTable
                 empresas={empresas}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(empresa) => { setSelected(empresa); setModalOpen(true); }}
                 onDelete={async (empresa) => {
                   if (!window.confirm(`Deseja excluir a empresa "${empresa.razaoSocial}"?`)) return;
@@ -149,7 +156,7 @@ export default function EmpresasPage() {
             )}
           </section>
         </main>
-      </div>
+      </MainLayout>
 
       {modalOpen && (
         <EmpresaModal

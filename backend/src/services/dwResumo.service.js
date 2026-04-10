@@ -1,28 +1,33 @@
 const { buscarDwPlanejado } = require('./googleSheetsDW.service');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { buscarDwPlanejadoBanco } = require('./dwPlanejado.service');
+const { prisma } = require('../config/database');
 
-const buscarDwResumo = async ({ data, idTurno }) => {
-  // 1️⃣ Planejado (Sheets)
-  const turnoMap = {
-    1: 'T1',
-    2: 'T2',
-    3: 'T3'
-  };
+const ESTACAO_SHEETS = 1;
 
-  const planejadoResult = await buscarDwPlanejado(
-    turnoMap[idTurno],
-    data
-  );
+const buscarDwResumo = async ({ data, idTurno, idEstacao }) => {
+  const turnoMap = { 1: 'T1', 2: 'T2', 3: 'T3' };
+  const estacaoNum = idEstacao ? Number(idEstacao) : null;
 
-  const dwPlanejado = planejadoResult.data.dwPlanejado;
+  // 1️⃣ Planejado
+  let dwPlanejado = 0;
+  if (estacaoNum === ESTACAO_SHEETS || !estacaoNum) {
+    const planejadoResult = await buscarDwPlanejado(turnoMap[idTurno], data);
+    dwPlanejado = planejadoResult.data.dwPlanejado;
+  } else {
+    const registro = await buscarDwPlanejadoBanco({ data, idTurno, idEstacao: estacaoNum });
+    dwPlanejado = registro?.quantidade ?? 0;
+  }
 
   // 2️⃣ Real (Banco)
+  const where = {
+    data: new Date(data),
+    idTurno
+  };
+
+  if (idEstacao) where.idEstacao = Number(idEstacao);
+
   const dwReais = await prisma.dwReal.findMany({
-    where: {
-      data: new Date(data),
-      idTurno
-    },
+    where,
     include: {
       empresa: true
     },

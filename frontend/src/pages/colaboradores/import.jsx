@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Upload, ArrowLeft, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import MainLayout from "../../components/MainLayout";
 
 import Sidebar from "../../components/Sidebar"
 import Header from "../../components/Header"
 import api from "../../services/api"
+import * as ExcelJS from "exceljs"
 import { EmpresasAPI } from "../../services/empresas"
 import { SetoresAPI } from "../../services/setores"
 import { TurnosAPI } from "../../services/turnos"
@@ -182,13 +184,102 @@ export default function ImportarColaboradores() {
       ]
     : []
 
+  async function downloadModelo() {
+    const ExcelJSModule = await import("exceljs")
+    const ExcelJSLib = ExcelJSModule.default ?? ExcelJSModule
+    const wb = new ExcelJSLib.Workbook()
+
+    const headers = [
+      "ops_id","nome_completo","genero","matricula","data_admissao",
+      "hora_inicio_jornada","id_setor","id_cargo","id_lider","id_empresa",
+      "id_escala","id_turno","cpf","data_nascimento","email","telefone",
+      "contato_emergencia_nome","contato_emergencia_telefone","id_estacao",
+    ]
+
+    // ── Aba principal ──────────────────────────────────────────────
+    const wsMain = wb.addWorksheet("Modelo")
+
+    wsMain.columns = headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.max(h.length + 4, 18),
+    }))
+
+    // Estilo do header
+    wsMain.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } }
+      cell.alignment = { horizontal: "center", vertical: "middle" }
+    })
+    wsMain.getRow(1).height = 22
+
+    // Congelar primeira linha
+    wsMain.views = [{ state: "frozen", ySplit: 1 }]
+
+    // Validação de dados: dropdown MASCULINO / FEMININO na coluna genero (col 3)
+    const generoColLetter = wsMain.getColumn("genero").letter
+    for (let row = 2; row <= 1000; row++) {
+      wsMain.getCell(`${generoColLetter}${row}`).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"MASCULINO,FEMININO"'],
+        showErrorMessage: true,
+        errorTitle: "Valor inválido",
+        error: "Selecione MASCULINO ou FEMININO",
+      }
+    }
+
+    // ── Aba de referências ─────────────────────────────────────────
+    const wsRef = wb.addWorksheet("Configuracoes")
+    wsRef.columns = [
+      { header: "tipo",      key: "tipo",      width: 18 },
+      { header: "id",        key: "id",        width: 20 },
+      { header: "descricao", key: "descricao", width: 40 },
+    ]
+
+    wsRef.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } }
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF374151" } }
+    })
+    wsRef.getRow(1).height = 20
+    wsRef.views = [{ state: "frozen", ySplit: 1 }]
+
+    if (refs) {
+      const groups = [
+        { tipo: "id_setor",   items: refs.setores.map((s) => ({ id: s.idSetor,   descricao: s.nomeSetor })) },
+        { tipo: "id_cargo",   items: refs.cargos.map((c)  => ({ id: c.idCargo,   descricao: c.nomeCargo })) },
+        { tipo: "id_lider",   items: refs.lideres.map((l) => ({ id: l.opsId,     descricao: l.nomeCompleto })) },
+        { tipo: "id_empresa", items: refs.empresas.map((e)=> ({ id: e.idEmpresa, descricao: e.razaoSocial })) },
+        { tipo: "id_escala",  items: refs.escalas.map((e) => ({ id: e.idEscala,  descricao: e.nomeEscala })) },
+        { tipo: "id_turno",   items: refs.turnos.map((t)  => ({ id: t.idTurno,   descricao: t.nomeTurno })) },
+        { tipo: "id_estacao", items: refs.estacoes.map((e)=> ({ id: e.idEstacao, descricao: e.nomeEstacao })) },
+      ]
+      groups.forEach(({ tipo, items }) => {
+        items.forEach(({ id, descricao }) => wsRef.addRow({ tipo, id, descricao }))
+        wsRef.addRow({}) // linha em branco entre grupos
+      })
+    }
+
+    // ── Download ───────────────────────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "modelo_importacao_massa.xlsx"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // FIX #4: botão desabilitado também durante o checkingStatus
   const isSubmitDisabled = !file || loading || checkingStatus
 
   return (
     <div className="flex min-h-screen bg-page text-page">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="p-8 max-w-2xl mx-auto space-y-6">
 
@@ -325,25 +416,13 @@ export default function ImportarColaboradores() {
 
           <div className="bg-surface border border-default rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">Modelo CSV</p>
+              <p className="text-sm font-semibold text-white">Modelo de Importação em Massa</p>
               <button
-                onClick={() => {
-                  const header =
-                    "ops_id,nome_completo,matricula,cpf,data_admissao,id_estacao,id_setor,id_cargo,id_empresa,id_turno,id_escala,id_lider,genero,data_nascimento,email,telefone,hora_inicio_jornada"
-                  const example =
-                    "Ops123456,João da Silva,MAT001,123.456.789-00,01/03/2024,1,1,1,1,1,1,Ops000001,M,15/06/1995,joao@email.com,11999999999,05:25"
-                  const blob = new Blob([header + "\n" + example], { type: "text/csv" })
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement("a")
-                  a.href = url
-                  a.download = "modelo_colaboradores.csv"
-                  a.click()
-                  URL.revokeObjectURL(url)
-                }}
+                onClick={downloadModelo}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-[#3D3D40] text-sm text-orange-400 transition"
               >
                 <FileText size={14} />
-                Baixar modelo
+                Baixar Modelo de Importação em Massa
               </button>
             </div>
 
@@ -414,7 +493,7 @@ export default function ImportarColaboradores() {
           </div>
 
         </main>
-      </div>
+      </MainLayout>
     </div>
   )
 }

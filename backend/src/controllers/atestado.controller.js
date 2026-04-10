@@ -433,6 +433,19 @@ const getAllAtestados = async (req, res) => {
 const updateAtestado = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Isolamento: verifica estação antes de atualizar
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      const existing = await prisma.atestadoMedico.findUnique({
+        where: { idAtestado: Number(id) },
+        select: { colaborador: { select: { idEstacao: true } } },
+      });
+      if (!existing) return notFoundResponse(res, "Atestado não encontrado");
+      if (existing.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+        return errorResponse(res, "Acesso negado", 403);
+      }
+    }
+
     const data = { ...req.body };
 
     if (data.dataInicio) data.dataInicio = dateOnlyBrasil(data.dataInicio);
@@ -457,6 +470,19 @@ const updateAtestado = async (req, res) => {
 
 const finalizarAtestado = async (req, res) => {
   const { id } = req.params;
+
+  // Isolamento: verifica estação antes de finalizar
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+    const existing = await prisma.atestadoMedico.findUnique({
+      where: { idAtestado: Number(id) },
+      select: { colaborador: { select: { idEstacao: true } } },
+    });
+    if (!existing) return notFoundResponse(res, "Atestado não encontrado");
+    if (existing.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+      return errorResponse(res, "Acesso negado", 403);
+    }
+  }
+
   const atestado = await prisma.atestadoMedico.update({
     where: { idAtestado: Number(id) },
     data: { status: "FINALIZADO" },
@@ -470,10 +496,18 @@ const cancelarAtestado = async (req, res) => {
 
     const atestado = await prisma.atestadoMedico.findUnique({
       where: { idAtestado: Number(id) },
+      include: { colaborador: { select: { idEstacao: true } } },
     });
 
     if (!atestado) {
       return notFoundResponse(res, "Atestado não encontrado");
+    }
+
+    // Isolamento: verifica estação antes de cancelar
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      if (atestado.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+        return errorResponse(res, "Acesso negado", 403);
+      }
     }
 
     const { opsId, dataInicio, dataFim } = atestado;

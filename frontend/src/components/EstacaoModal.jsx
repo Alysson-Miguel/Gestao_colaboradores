@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 
-export default function EstacaoModal({ estacao, onClose, onSave }) {
+export default function EstacaoModal({ estacao, onClose, onSave, isAdmin = false }) {
   const [form, setForm] = useState(() => ({
     nome: estacao?.nomeEstacao || estacao?.nome || "",
     idRegional: estacao?.idRegional || "",
     sheetsMetaProducaoId: estacao?.sheetsMetaProducaoId || "",
+    sheetsPresencaId: estacao?.sheetsPresencaId || "",
   }));
 
   const [regionais, setRegionais] = useState([]);
@@ -72,7 +73,7 @@ export default function EstacaoModal({ estacao, onClose, onSave }) {
       >
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {estacao ? "Editar Estação" : "Nova Estação"}
           </h2>
 
@@ -103,13 +104,25 @@ export default function EstacaoModal({ estacao, onClose, onSave }) {
             valueKey="idRegional"
           />
 
-          <Input
-            label="ID da Planilha Google Sheets (Gestão Operacional)"
-            name="sheetsMetaProducaoId"
-            value={form.sheetsMetaProducaoId}
-            onChange={handleChange}
-            placeholder="Ex: 17Dpmr1Kn6ybvK3rah2JvoCBsAeOvotvM6k_7uaATPz0"
-          />
+          {isAdmin && (
+            <>
+              <Input
+                label="ID da Planilha Google Sheets (Gestão Operacional)"
+                name="sheetsMetaProducaoId"
+                value={form.sheetsMetaProducaoId}
+                onChange={handleChange}
+                placeholder="Ex: 17Dpmr1Kn6ybvK3rah2JvoCBsAeOvotvM6k_7uaATPz0"
+              />
+
+              <Input
+                label="ID da Planilha Google Sheets (Controle de Presença)"
+                name="sheetsPresencaId"
+                value={form.sheetsPresencaId}
+                onChange={handleChange}
+                placeholder="Ex: 1lgrpflaIybMq7Z-8tZ7A6cueepYZ0yNBTSyDYvNaWNk"
+              />
+            </>
+          )}
         </div>
 
         {/* FOOTER */}

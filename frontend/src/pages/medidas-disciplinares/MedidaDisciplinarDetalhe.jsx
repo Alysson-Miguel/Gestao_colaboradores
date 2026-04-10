@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Upload, FileText, Clock, User, AlertCircle, CheckCircle2, XCircle, ArrowLeft, Download, Printer } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
@@ -6,6 +6,7 @@ import Header from "../../components/Header";
 import { MedidasDisciplinaresAPI } from "../../services/medidasDisciplinares";
 import { AuthContext } from "../../context/AuthContext";
 import { printCartaMedidaDisciplinar } from "../../utils/Printcartamedidadisciplinar";
+import MainLayout from "../../components/MainLayout";
 
 export default function MedidaDisciplinarDetalhe() {
   const { id } = useParams();
@@ -36,54 +37,40 @@ export default function MedidaDisciplinarDetalhe() {
     load();
   }, [id]);
 
-    async function enviarPdf() {
+  async function enviarPdf() {
+    if (!file) {
+      alert("Selecione um arquivo PDF");
+      return;
+    }
 
-  if (!file) {
-    alert("Selecione um arquivo PDF");
-    return;
+    if (file.type !== "application/pdf") {
+      alert("Por favor, selecione apenas arquivos PDF");
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const presign = await MedidasDisciplinaresAPI.presignUpload(id);
+      const { uploadUrl, key } = presign.data.data;
+
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/pdf" }
+      });
+
+      await MedidasDisciplinaresAPI.finalizar(id, { documentoKey: key });
+
+      alert("✅ Documento enviado e medida finalizada com sucesso!");
+      load();
+    } catch (err) {
+      console.error(err);
+      alert("❌ Erro ao enviar documento. Tente novamente.");
+    } finally {
+      setUploading(false);
+    }
   }
-
-  if (file.type !== "application/pdf") {
-    alert("Por favor, selecione apenas arquivos PDF");
-    return;
-  }
-
-  setUploading(true);
-
-  try {
-
-    const presign = await MedidasDisciplinaresAPI.presignUpload(id);
-
-    const { uploadUrl, key } = presign.data.data;
-
-    await fetch(uploadUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": "application/pdf"
-      }
-    });
-
-    await MedidasDisciplinaresAPI.finalizar(id, {
-      documentoKey: key
-    });
-
-    alert("✅ Documento enviado e medida finalizada com sucesso!");
-
-    load();
-
-  } catch (err) {
-
-    console.error(err);
-    alert("❌ Erro ao enviar documento. Tente novamente.");
-
-  } finally {
-
-    setUploading(false);
-
-  }
-
-}
 
   async function baixarCarta() {
     try {
@@ -163,15 +150,11 @@ export default function MedidaDisciplinarDetalhe() {
 
   return (
     <div className="flex min-h-screen bg-page text-page">
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        navigate={navigate}
-      />
-      
-      <div className="flex-1 lg:ml-64">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
+
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="p-8 space-y-8 max-w-6xl">
           {/* HEADER */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -232,27 +215,27 @@ export default function MedidaDisciplinarDetalhe() {
                 <User size={20} className="text-[#FA4C00]" />
                 <h2 className="font-semibold text-lg">Informações do Colaborador</h2>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted">Nome Completo</span>
-                  <p className="text-white font-medium mt-1">
+                  <p className="text-page font-medium mt-1">
                     {medida.colaborador?.nomeCompleto || "—"}
                   </p>
                 </div>
                 <div>
                   <span className="text-muted">Staff ID (OPS)</span>
-                  <p className="text-white font-medium mt-1">{medida.opsId || "—"}</p>
+                  <p className="text-page font-medium mt-1">{medida.opsId || "—"}</p>
                 </div>
                 <div>
                   <span className="text-muted">Cargo</span>
-                  <p className="text-white font-medium mt-1">
+                  <p className="text-page font-medium mt-1">
                     {medida.colaborador?.cargo || "—"}
                   </p>
                 </div>
                 <div>
                   <span className="text-muted">Matrícula</span>
-                  <p className="text-white font-medium mt-1">
+                  <p className="text-page font-medium mt-1">
                     {medida.colaborador?.matricula || "—"}
                   </p>
                 </div>
@@ -271,11 +254,11 @@ export default function MedidaDisciplinarDetalhe() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-5">
                 <div>
                   <span className="text-muted">Tipo de Medida</span>
-                  <p className="text-white font-medium mt-1">{medida.tipoMedida || "—"}</p>
+                  <p className="text-page font-medium mt-1">{medida.tipoMedida || "—"}</p>
                 </div>
                 <div>
                   <span className="text-muted">Violação</span>
-                  <p className="text-white font-medium mt-1">{medida.violacao || "—"}</p>
+                  <p className="text-page font-medium mt-1">{medida.violacao || "—"}</p>
                 </div>
               </div>
 
@@ -302,14 +285,14 @@ export default function MedidaDisciplinarDetalhe() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted">Data de Criação</span>
-                  <p className="text-white font-medium mt-1">
+                  <p className="text-page font-medium mt-1">
                     {formatDate(medida.createdAt)}
                   </p>
                 </div>
                 {medida.dataFinalizacao && (
                   <div>
                     <span className="text-muted">Data de Finalização</span>
-                    <p className="text-white font-medium mt-1">
+                    <p className="text-page font-medium mt-1">
                       {formatDate(medida.dataFinalizacao)}
                     </p>
                   </div>
@@ -317,7 +300,7 @@ export default function MedidaDisciplinarDetalhe() {
                 {medida.responsavel && (
                   <div>
                     <span className="text-muted">Responsável</span>
-                    <p className="text-white font-medium mt-1">{medida.responsavel}</p>
+                    <p className="text-page font-medium mt-1">{medida.responsavel}</p>
                   </div>
                 )}
               </div>
@@ -337,7 +320,6 @@ export default function MedidaDisciplinarDetalhe() {
                     Faça o upload do PDF da medida disciplinar devidamente assinado para finalizar o processo.
                   </p>
 
-                  {/* Drop zone customizada */}
                   <label className={`flex flex-col items-center justify-center gap-2 w-full border-2 border-dashed rounded-xl px-6 py-8 cursor-pointer transition
                     ${file
                       ? "border-[#FA4C00] bg-[#FA4C00]/5"
@@ -409,7 +391,7 @@ export default function MedidaDisciplinarDetalhe() {
             )}
           </div>
         </main>
-      </div>
+      </MainLayout>
     </div>
   );
 }

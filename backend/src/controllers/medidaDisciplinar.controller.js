@@ -347,7 +347,7 @@ const getAllMedidas = async (req, res) => {
 
   try {
 
-    const { cpf, opsId, data, nome } = req.query;
+    const { cpf, opsId, data, nome, turno, lider } = req.query;
 
     const where = {};
 
@@ -357,28 +357,32 @@ const getAllMedidas = async (req, res) => {
     }
 
     if (data) {
-
       const inicio = new Date(`${data}T00:00:00`);
       const fim = new Date(`${data}T23:59:59`);
-
-      where.dataAplicacao = {
-        gte: inicio,
-        lte: fim,
-      };
-
+      where.dataAplicacao = { gte: inicio, lte: fim };
     }
 
+    // Filtros que operam sobre o colaborador são mesclados para não sobrescrever uns aos outros
+    const colaboradorFilter = where.colaborador?.is || {};
+
     if (nome) {
+      colaboradorFilter.nomeCompleto = { contains: nome, mode: "insensitive" };
+    }
 
-      where.colaborador = {
-        is: {
-          nomeCompleto: {
-            contains: nome,
-            mode: "insensitive",
-          },
-        },
+    if (turno) {
+      colaboradorFilter.turno = {
+        is: { nomeTurno: { contains: turno, mode: "insensitive" } },
       };
+    }
 
+    if (lider) {
+      colaboradorFilter.lider = {
+        is: { nomeCompleto: { contains: lider, mode: "insensitive" } },
+      };
+    }
+
+    if (Object.keys(colaboradorFilter).length > 0) {
+      where.colaborador = { is: colaboradorFilter };
     }
 
     if (cpf) {
@@ -396,6 +400,7 @@ const getAllMedidas = async (req, res) => {
     } else if (opsId) {
 
       where.opsId = opsId;
+      where.status = "ASSINADO"; // perfil: oculta pendentes
 
     }
 
@@ -412,6 +417,8 @@ const getAllMedidas = async (req, res) => {
             opsId: true,
             nomeCompleto: true,
             matricula: true,
+            turno: { select: { nomeTurno: true } },
+            lider: { select: { nomeCompleto: true } },
           },
         },
 

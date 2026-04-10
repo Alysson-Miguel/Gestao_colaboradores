@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useCallback, useContext } from "react";
 import { Plus, Search, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MainLayout from "../../../components/MainLayout";
 
 import Sidebar from "../../../components/Sidebar";
 import Header from "../../../components/Header";
@@ -8,10 +9,13 @@ import RegionalModal from "../../../components/RegionalModal";
 import RegionalTable from "../../../components/RegionalTable";
 import { RegionaisAPI } from "../../../services/regionais";
 import { ThemeContext } from "../../../context/ThemeContext";
+import { AuthContext } from "../../../context/AuthContext";
 
 export default function RegionaisPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -48,7 +52,7 @@ export default function RegionaisPage() {
     <div style={{ display: "flex", minHeight: "100vh", background: bg, color: textMain }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -84,7 +88,7 @@ export default function RegionaisPage() {
               <button
                 onClick={() => { setSelected(null); setModalOpen(true); }}
                 style={{
-                  display: "flex", alignItems: "center", gap: 6,
+                  display: isAdmin ? "flex" : "none", alignItems: "center", gap: 6,
                   padding: "8px 16px", borderRadius: 10, border: "none",
                   background: "#FA4C00", color: "#FFFFFF",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
@@ -134,6 +138,7 @@ export default function RegionaisPage() {
             ) : (
               <RegionalTable
                 regionais={regionais}
+                isAdmin={isAdmin}
                 onEdit={(regional) => { setSelected(regional); setModalOpen(true); }}
                 onDelete={async (regional) => {
                   if (!window.confirm(`Deseja excluir a regional "${regional.nome}"?`)) return;
@@ -148,7 +153,7 @@ export default function RegionaisPage() {
             )}
           </section>
         </main>
-      </div>
+      </MainLayout>
 
       {modalOpen && (
         <RegionalModal

@@ -29,7 +29,7 @@ const THEME = {
   },
 };
 
-export default function EscalaTable({ escalas, onEdit, onDelete }) {
+export default function EscalaTable({ escalas, onEdit, onDelete, isAdmin = false, userEstacaoId = null }) {
   const { isDark } = useContext(ThemeContext);
   const T = THEME[isDark ? "dark" : "light"];
 
@@ -47,13 +47,13 @@ export default function EscalaTable({ escalas, onEdit, onDelete }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 16, padding: 20 }}>
       {escalas.map((e) => (
-        <EscalaCard key={e.idEscala} escala={e} T={T} onEdit={onEdit} onDelete={onDelete} />
+        <EscalaCard key={e.idEscala} escala={e} T={T} onEdit={onEdit} onDelete={onDelete} isAdmin={isAdmin} userEstacaoId={userEstacaoId} />
       ))}
     </div>
   );
 }
 
-function EscalaCard({ escala: e, T, onEdit, onDelete }) {
+function EscalaCard({ escala: e, T, onEdit, onDelete, isAdmin, userEstacaoId }) {
   const [hov, setHov] = useState(false);
   const inicial = e.nomeEscala?.[0]?.toUpperCase() || "?";
   const ativo   = e.ativo !== false;
@@ -61,6 +61,8 @@ function EscalaCard({ escala: e, T, onEdit, onDelete }) {
   const regime  = (e.diasTrabalhados != null && e.diasFolga != null)
     ? `${e.diasTrabalhados}x${e.diasFolga}`
     : null;
+
+  const podeEditar = isAdmin || (e.idEstacao != null && e.idEstacao === userEstacaoId);
 
   return (
     <div
@@ -88,6 +90,11 @@ function EscalaCard({ escala: e, T, onEdit, onDelete }) {
           <div>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.textMain }}>{e.nomeEscala}</p>
             <p style={{ margin: "2px 0 0", fontSize: 11, color: T.textSubtle }}>ID #{e.idEscala}</p>
+            {isAdmin && e.estacao && (
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: T.textSubtle, opacity: 0.7 }}>
+                {e.estacao.nomeEstacao}
+              </p>
+            )}
           </div>
         </div>
         <span style={{
@@ -153,10 +160,12 @@ function EscalaCard({ escala: e, T, onEdit, onDelete }) {
       )}
 
       {/* ações */}
-      <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
-        <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(e)} />
-        <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(e)} />
-      </div>
+      {podeEditar && (
+        <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `1px solid ${T.cardBorder}` }}>
+          <ActionBtn label="Editar"  icon={<Pencil size={13}/>} bg={T.editBg}   border={T.editBorder}   color={T.editText}   hover={T.editHover}   onClick={() => onEdit(e)} />
+          <ActionBtn label="Excluir" icon={<Trash2 size={13}/>} bg={T.deleteBg} border={T.deleteBorder} color={T.deleteText} hover={T.deleteHover} onClick={() => onDelete(e)} />
+        </div>
+      )}
     </div>
   );
 }

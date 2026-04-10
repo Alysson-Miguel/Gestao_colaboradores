@@ -1,4 +1,4 @@
-﻿// src/pages/folgaDominical/folgaDominical.jsx
+// src/pages/folgaDominical/folgaDominical.jsx
 "use client";
 
 import { useEffect, useState, useCallback, useContext, useMemo } from "react";
@@ -11,17 +11,19 @@ import { useNavigate } from "react-router-dom";
 
 import Sidebar  from "../../components/Sidebar";
 import Header   from "../../components/Header";
+import MainLayout from "../../components/MainLayout";
 import api      from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
+import { ThemeContext } from "../../context/ThemeContext";
 
-/* ─── TOKENS ──────────────────────────────────────────────────────── */
+/* --- TOKENS -------------------------------------------------------- */
 const BRAND   = "#FA4C00"
 const GREEN   = "#22C55E"
 const RED     = "#EF4444"
 const YELLOW  = "#F59E0B"
 const BLUE    = "#3B82F6"
 
-/* ─── STATIC DATA ─────────────────────────────────────────────────── */
+/* --- STATIC DATA --------------------------------------------------- */
 const MESES = [
   { value: 1,  label: "Janeiro"   },
   { value: 2,  label: "Fevereiro" },
@@ -37,7 +39,7 @@ const MESES = [
   { value: 12, label: "Dezembro"  },
 ];
 
-/* ─── UTILS ───────────────────────────────────────────────────────── */
+/* --- UTILS --------------------------------------------------------- */
 function getMesAtual() {
   const now = new Date();
   return { ano: now.getFullYear(), mes: now.getMonth() + 1 };
@@ -60,7 +62,7 @@ function formatDateWithWeekday(dateStr) {
   });
 }
 
-/* ─── CSS GLOBAL ──────────────────────────────────────────────────── */
+/* --- CSS GLOBAL ---------------------------------------------------- */
 const CSS = `
   @keyframes shimmer {
     0%   { background-position: -600px 0 }
@@ -72,25 +74,24 @@ const CSS = `
   }
   .fd-fade { animation: fadeIn 0.28s ease both }
   .fd-skeleton {
-    background: linear-gradient(90deg,#1f1f1f 25%,#2a2a2a 50%,#1f1f1f 75%);
+    background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-surface-3) 50%, var(--color-surface-2) 75%);
     background-size: 600px 100%;
     animation: shimmer 1.4s infinite linear;
     border-radius: 10px;
   }
-  select { color-scheme: dark; }
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
   ::-webkit-scrollbar        { width:5px; height:5px }
-  ::-webkit-scrollbar-track  { background:#111 }
-  ::-webkit-scrollbar-thumb  { background:#333; border-radius:4px }
+  ::-webkit-scrollbar-track  { background: var(--color-surface) }
+  ::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius:4px }
 `
 
-/* ─── SKELETON ────────────────────────────────────────────────────── */
+/* --- SKELETON ------------------------------------------------------ */
 function Sk({ h = 40, w = "100%", r = 10 }) {
   return <div className="fd-skeleton" style={{ height: h, width: w, borderRadius: r }} />;
 }
 
-/* ─── SECTION LABEL ───────────────────────────────────────────────── */
+/* --- SECTION LABEL ------------------------------------------------- */
 function SectionLabel({ num, title, sub }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
@@ -101,21 +102,21 @@ function SectionLabel({ num, title, sub }) {
       }}>{num}</span>
       <div>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
-          textTransform: "uppercase", color: "rgba(255,255,255,0.28)" }}>
+          textTransform: "uppercase", color: "var(--color-muted)" }}>
           {title}
         </p>
-        {sub && <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.20)" }}>{sub}</p>}
+        {sub && <p style={{ margin: 0, fontSize: 11, color: "var(--color-subtle)" }}>{sub}</p>}
       </div>
     </div>
   )
 }
 
-/* ─── CARD ────────────────────────────────────────────────────────── */
+/* --- CARD ---------------------------------------------------------- */
 function SurfaceCard({ children, style = {} }) {
   return (
     <div style={{
-      background: "#141414",
-      border: "1px solid rgba(255,255,255,0.06)",
+      background: "var(--color-surface)",
+      border: "1px solid var(--color-border)",
       borderRadius: 18,
       padding: "22px 24px",
       ...style,
@@ -125,14 +126,14 @@ function SurfaceCard({ children, style = {} }) {
   )
 }
 
-/* ─── KPI CARD ────────────────────────────────────────────────────── */
+/* --- KPI CARD ------------------------------------------------------ */
 function KpiCard({ label, value, icon: Icon, color = BRAND, sub, onClick, active, loading }) {
   return (
     <div
       onClick={onClick}
       style={{
-        background: active ? `${color}12` : "#141414",
-        border: `1px solid ${active ? color : "rgba(255,255,255,0.06)"}`,
+        background: active ? `${color}12` : "var(--color-surface)",
+        border: `1px solid ${active ? color : "var(--color-border)"}`,
         borderRadius: 16,
         padding: "16px 18px",
         cursor: onClick ? "pointer" : "default",
@@ -141,9 +142,8 @@ function KpiCard({ label, value, icon: Icon, color = BRAND, sub, onClick, active
         overflow: "hidden",
       }}
       onMouseEnter={(e) => onClick && (e.currentTarget.style.borderColor = color)}
-      onMouseLeave={(e) => onClick && !active && (e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)")}
+      onMouseLeave={(e) => onClick && !active && (e.currentTarget.style.borderColor = "var(--color-border)")}
     >
-      {/* accent bar */}
       <div style={{
         position: "absolute", top: 0, left: 0, width: 3,
         height: "100%", background: active ? color : "transparent",
@@ -151,18 +151,18 @@ function KpiCard({ label, value, icon: Icon, color = BRAND, sub, onClick, active
       }} />
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
         <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.35)",
+          <p style={{ margin: 0, fontSize: 11, color: "var(--color-muted)",
             fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
             {label}
           </p>
           {loading
             ? <Sk h={28} w={60} />
             : <p style={{ margin: 0, fontSize: 26, fontWeight: 800, lineHeight: 1,
-                color: active ? color : "#fff" }}>
-                {value ?? "—"}
+                color: active ? color : "var(--color-text)" }}>
+                {value ?? "-"}
               </p>
           }
-          {sub && <p style={{ margin: "5px 0 0", fontSize: 11, color: "rgba(255,255,255,0.28)" }}>{sub}</p>}
+          {sub && <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--color-subtle)" }}>{sub}</p>}
         </div>
         {Icon && (
           <div style={{
@@ -178,12 +178,12 @@ function KpiCard({ label, value, icon: Icon, color = BRAND, sub, onClick, active
   )
 }
 
-/* ─── BADGE ───────────────────────────────────────────────────────── */
+/* --- BADGE --------------------------------------------------------- */
 const TURNO_COLORS = { T1: "#3B82F6", T2: BRAND, T3: "#A855F7" }
 const ESCALA_COLORS = { B: "#22C55E", C: "#F59E0B", G: "#EC4899" }
 
 function Badge({ value, map }) {
-  const color = map?.[value] || "rgba(255,255,255,0.3)"
+  const color = map?.[value] || "var(--color-muted)"
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -191,14 +191,14 @@ function Badge({ value, map }) {
       background: `${color}18`, color, fontSize: 11, fontWeight: 700,
       border: `1px solid ${color}30`,
     }}>
-      {value || "—"}
+      {value || "-"}
     </span>
   )
 }
 
-/* ─── DIAS SEM FOLGA BADGE ────────────────────────────────────────── */
+/* --- DIAS SEM FOLGA BADGE ------------------------------------------ */
 function DiasBadge({ dias }) {
-  if (dias == null) return <span style={{ color: "rgba(255,255,255,0.25)" }}>—</span>
+  if (dias == null) return <span style={{ color: "var(--color-subtle)" }}>—</span>
   const color = dias >= 30 ? RED : dias >= 20 ? YELLOW : GREEN
   return (
     <span style={{
@@ -211,7 +211,7 @@ function DiasBadge({ dias }) {
   )
 }
 
-/* ─── ALERT BANNER ────────────────────────────────────────────────── */
+/* --- ALERT BANNER -------------------------------------------------- */
 function AlertBanner({ type = "error", children }) {
   const cfg = {
     error:   { bg: `${RED}10`,   border: `${RED}40`,   icon: AlertTriangle,  color: RED    },
@@ -231,48 +231,48 @@ function AlertBanner({ type = "error", children }) {
   )
 }
 
-/* ─── SELECT ──────────────────────────────────────────────────────── */
-function StyledSelect({ value, onChange, children, placeholder }) {
+/* --- SELECT -------------------------------------------------------- */
+function StyledSelect({ value, onChange, children }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
-        background: "#1c1c1c", border: "1px solid rgba(255,255,255,0.08)",
-        color: "#fff", fontSize: 13, borderRadius: 12, padding: "9px 14px",
+        background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
+        color: "var(--color-text)", fontSize: 13, borderRadius: 12, padding: "9px 14px",
         outline: "none", cursor: "pointer", transition: "border-color 0.2s",
       }}
       onFocus={(e)  => (e.target.style.borderColor = `${BRAND}60`)}
-      onBlur={(e)   => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
+      onBlur={(e)   => (e.target.style.borderColor = "var(--color-border)")}
     >
       {children}
     </select>
   )
 }
 
-/* ─── TABLE HEADER CELL ───────────────────────────────────────────── */
+/* --- TABLE HEADER CELL --------------------------------------------- */
 function TH({ children, center = false }) {
   return (
     <th style={{
       padding: "12px 16px", fontSize: 11, fontWeight: 700,
-      color: "rgba(255,255,255,0.30)", textTransform: "uppercase",
+      color: "var(--color-muted)", textTransform: "uppercase",
       letterSpacing: "0.08em", textAlign: center ? "center" : "left",
-      whiteSpace: "nowrap", background: "#111",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      whiteSpace: "nowrap", background: "var(--color-surface-2)",
+      borderBottom: "1px solid var(--color-border)",
     }}>
       {children}
     </th>
   )
 }
 
-/* ─── TABLE DATA CELL ─────────────────────────────────────────────── */
+/* --- TABLE DATA CELL ----------------------------------------------- */
 function TD({ children, center = false, style = {} }) {
   return (
     <td style={{
       padding: "11px 16px", fontSize: 13,
-      color: "rgba(255,255,255,0.72)",
+      color: "var(--color-text)",
       textAlign: center ? "center" : "left",
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: "1px solid var(--color-border)",
       ...style,
     }}>
       {children}
@@ -280,12 +280,12 @@ function TD({ children, center = false, style = {} }) {
   )
 }
 
-/* ─── CAPACIDADE MINI CARD ────────────────────────────────────────── */
+/* --- CAPACIDADE MINI CARD ------------------------------------------ */
 function CapacidadeCard({ turno, dias }) {
   const color = TURNO_COLORS[turno] || BRAND
   return (
     <div style={{
-      background: "#111", border: "1px solid rgba(255,255,255,0.06)",
+      background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
       borderRadius: 14, padding: "16px 18px",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -296,7 +296,7 @@ function CapacidadeCard({ turno, dias }) {
         }}>
           <Clock size={13} color={color} />
         </span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{turno}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)" }}>{turno}</span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -308,7 +308,7 @@ function CapacidadeCard({ turno, dias }) {
           return (
             <div key={data}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.40)" }}>
+                <span style={{ fontSize: 11, color: "var(--color-muted)" }}>
                   {formatDateBR(data)}
                 </span>
                 <span style={{
@@ -318,7 +318,7 @@ function CapacidadeCard({ turno, dias }) {
                   {planejadas} / {capacidade}
                 </span>
               </div>
-              <div style={{ height: 4, borderRadius: 4, background: "rgba(255,255,255,0.06)" }}>
+              <div style={{ height: 4, borderRadius: 4, background: "var(--color-border)" }}>
                 <div style={{
                   height: "100%", width: `${pct}%`, borderRadius: 4,
                   background: barColor, transition: "width 0.5s ease",
@@ -332,7 +332,7 @@ function CapacidadeCard({ turno, dias }) {
   )
 }
 
-/* ─── MAIN ────────────────────────────────────────────────────────── */
+/* --- MAIN ---------------------------------------------------------- */
 export default function FolgaDominicalPage() {
   const navigate = useNavigate();
   const { user }  = useContext(AuthContext);
@@ -361,7 +361,7 @@ export default function FolgaDominicalPage() {
   const previewInvalido    = !!previewData && Array.isArray(previewData.naoAlocados) && previewData.naoAlocados.length > 0;
   const previewNaoExecutado = !previewData;
 
-  /* ── fetch ─────────────────────────────────── */
+  /* -- fetch ----------------------------------- */
   const load = useCallback(async () => {
     setLoading(true); setErro("");
     try {
@@ -380,7 +380,7 @@ export default function FolgaDominicalPage() {
     setPreviewData(null); setPreviewErro("");
   }, [ano, mes]);
 
-  /* ── actions ────────────────────────────────── */
+  /* -- actions ---------------------------------- */
   async function gerar() {
     if (!isAdmin && !isAltaGestao) return;
     if (previewInvalido) { setErro("Existem colaboradores não alocados na simulação. Ajuste antes de gerar."); return; }
@@ -414,7 +414,7 @@ export default function FolgaDominicalPage() {
     } finally { setPreviewLoading(false); }
   }
 
-  /* ── memos ──────────────────────────────────── */
+  /* -- memos ------------------------------------ */
   const total      = resumo?.total    ?? 0;
   const porDomingo = resumo?.porDomingo ?? {};
 
@@ -452,20 +452,20 @@ export default function FolgaDominicalPage() {
 
   const hasActiveFilter = domingoSelecionado || turnoSelecionado || escalaSelecionada || liderSelecionado;
 
-  /* ────────────────────────────────────────────── */
+  /* ---------------------------------------------- */
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#080808", color: "#fff" }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--color-page)", color: "var(--color-text)" }}>
       <style>{CSS}</style>
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div style={{ flex: 1, minWidth: 0 }} className="lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main style={{ padding: "32px 24px 80px", maxWidth: 1400, margin: "0 auto",
           display: "flex", flexDirection: "column", gap: 36 }}>
 
-          {/* ── PAGE HEADER ─────────────────────────────────── */}
+          {/* -- PAGE HEADER ----------------------------------- */}
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between",
             alignItems: "flex-end", gap: 20 }}>
             <div>
@@ -475,7 +475,7 @@ export default function FolgaDominicalPage() {
                   Projeção de Folgas Dominicais
                 </h1>
               </div>
-              <p style={{ margin: "0 0 0 14px", fontSize: 13, color: "rgba(255,255,255,0.32)" }}>
+              <p style={{ margin: "0 0 0 14px", fontSize: 13, color: "var(--color-muted)" }}>
                 Distribuição automática de DSR aos domingos — Escalas B, C e G
               </p>
             </div>
@@ -484,16 +484,16 @@ export default function FolgaDominicalPage() {
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 10 }}>
               {/* Ano */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.30)", fontWeight: 700,
+                <label style={{ fontSize: 10, color: "var(--color-muted)", fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.12em" }}>Ano</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 8,
-                  background: "#1c1c1c", border: "1px solid rgba(255,255,255,0.08)",
+                  background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
                   borderRadius: 12, padding: "9px 14px" }}>
                   <CalendarDays size={14} color={BRAND} />
                   <input
                     type="number" value={ano}
                     onChange={(e) => setAno(Number(e.target.value))}
-                    style={{ background: "transparent", outline: "none", color: "#fff",
+                    style={{ background: "transparent", outline: "none", color: "var(--color-text)",
                       fontSize: 13, width: 52, border: "none" }}
                   />
                 </div>
@@ -501,7 +501,7 @@ export default function FolgaDominicalPage() {
 
               {/* Mês */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <label style={{ fontSize: 10, color: "rgba(255,255,255,0.30)", fontWeight: 700,
+                <label style={{ fontSize: 10, color: "var(--color-muted)", fontWeight: 700,
                   textTransform: "uppercase", letterSpacing: "0.12em" }}>Mês</label>
                 <StyledSelect value={mes} onChange={(v) => setMes(Number(v))}>
                   {MESES.map((m) => (
@@ -516,13 +516,13 @@ export default function FolgaDominicalPage() {
                 disabled={loading || previewLoading}
                 style={{
                   height: 40, padding: "0 18px", borderRadius: 12,
-                  background: "#1c1c1c", border: "1px solid rgba(255,255,255,0.08)",
-                  color: "#fff", fontSize: 13, fontWeight: 600,
+                  background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
+                  color: "var(--color-text)", fontSize: 13, fontWeight: 600,
                   cursor: "pointer", display: "flex", alignItems: "center", gap: 7,
                   opacity: (loading || previewLoading) ? 0.5 : 1, transition: "all 0.2s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-border-2)")}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
               >
                 <RefreshCcw size={14} style={{ animation: loading ? "spin 0.8s linear infinite" : "none" }} />
                 Atualizar
@@ -543,7 +543,7 @@ export default function FolgaDominicalPage() {
                   onMouseLeave={(e) => (e.currentTarget.style.background = BLUE)}
                 >
                   <Play size={14} style={{ animation: previewLoading ? "spin 0.8s linear infinite" : "none" }} />
-                  {previewLoading ? "Simulando…" : "Simular"}
+                  {previewLoading ? "Simulando..." : "Simular"}
                 </button>
               )}
 
@@ -556,7 +556,7 @@ export default function FolgaDominicalPage() {
                     title={previewNaoExecutado ? "Execute a simulação antes de gerar" : previewInvalido ? "Existem colaboradores não alocados" : "Gerar planejamento"}
                     style={{
                       height: 40, padding: "0 20px", borderRadius: 12,
-                      background: (previewInvalido || previewNaoExecutado) ? "#2a2a2a" : BRAND,
+                      background: (previewInvalido || previewNaoExecutado) ? "var(--color-surface-3)" : BRAND,
                       color: "#fff", fontSize: 13, fontWeight: 700,
                       border: "none", cursor: (previewInvalido || previewNaoExecutado) ? "not-allowed" : "pointer",
                       display: "flex", alignItems: "center", gap: 7,
@@ -590,14 +590,14 @@ export default function FolgaDominicalPage() {
             </div>
           </div>
 
-          {/* ── ERRO GLOBAL ──────────────────────────────────── */}
+          {/* -- ERRO GLOBAL ------------------------------------ */}
           {!loading && erro && (
             <div className="fd-fade">
               <AlertBanner type="error">{erro}</AlertBanner>
             </div>
           )}
 
-          {/* ── LOADING SKELETON ─────────────────────────────── */}
+          {/* -- LOADING SKELETON ------------------------------- */}
           {loading && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -607,9 +607,9 @@ export default function FolgaDominicalPage() {
             </div>
           )}
 
-          {/* ─────────────────────────────────────────────────── */}
-          {/* ── SECTION 01: SIMULAÇÃO ────────────────────────── */}
-          {/* ─────────────────────────────────────────────────── */}
+          {/* --------------------------------------------------- */}
+          {/* -- SECTION 01: SIMULAÇÃO -------------------------- */}
+          {/* --------------------------------------------------- */}
           {previewLoading && (
             <SurfaceCard>
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -644,7 +644,7 @@ export default function FolgaDominicalPage() {
                         textTransform: "uppercase", letterSpacing: "0.1em",
                       }}>Preview</span>
                     </div>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.28)" }}>
+                    <span style={{ fontSize: 12, color: "var(--color-muted)" }}>
                       {MESES.find(m => m.value === mes)?.label} {ano}
                     </span>
                   </div>
@@ -683,7 +683,7 @@ export default function FolgaDominicalPage() {
                   {Object.keys(previewData.capacidade || {}).length > 0 && (
                     <div>
                       <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 600,
-                        color: "rgba(255,255,255,0.28)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                         Capacidade por Turno
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -706,12 +706,12 @@ export default function FolgaDominicalPage() {
                         {previewData.naoAlocados.map((c) => (
                           <div key={c.opsId} style={{
                             display: "flex", alignItems: "center", justifyContent: "space-between",
-                            gap: 12, background: "#111", borderRadius: 10, padding: "10px 14px",
+                            gap: 12, background: "var(--color-surface-2)", borderRadius: 10, padding: "10px 14px",
                             border: `1px solid ${RED}20`,
                           }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{c.nome}</span>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
-                              {c.turno} • Slot {c.slotBase}{c.motivo ? ` • ${c.motivo}` : ""}
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{c.nome}</span>
+                            <span style={{ fontSize: 11, color: "var(--color-muted)", textAlign: "right" }}>
+                              {c.turno} — Slot {c.slotBase}{c.motivo ? ` — ${c.motivo}` : ""}
                             </span>
                           </div>
                         ))}
@@ -725,7 +725,7 @@ export default function FolgaDominicalPage() {
                       {/* Filtros preview */}
                       <div style={{ display: "flex", alignItems: "center", gap: 10,
                         flexWrap: "wrap", marginBottom: 14 }}>
-                        <Filter size={13} color="rgba(255,255,255,0.30)" />
+                        <Filter size={13} color="var(--color-muted)" />
                         <StyledSelect value={previewTurno} onChange={setPreviewTurno}>
                           <option value="">Todos os turnos</option>
                           <option value="T1">T1</option>
@@ -742,24 +742,23 @@ export default function FolgaDominicalPage() {
                           <button
                             onClick={() => { setPreviewTurno(""); setPreviewDomingo(""); }}
                             style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
-                              borderRadius: 8, background: "rgba(255,255,255,0.06)",
-                              border: "none", color: "rgba(255,255,255,0.50)", fontSize: 12,
+                              borderRadius: 8, background: "var(--color-surface-2)",
+                              border: "1px solid var(--color-border)", color: "var(--color-muted)", fontSize: 12,
                               cursor: "pointer", transition: "background 0.2s" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
                           >
                             <X size={12} /> Limpar
                           </button>
                         )}
-                        <span style={{ marginLeft: "auto", fontSize: 12,
-                          color: "rgba(255,255,255,0.28)" }}>
+                        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--color-muted)" }}>
                           {previewFiltrado.length} registros
                         </span>
                       </div>
 
                       {/* Tabela preview */}
                       <div style={{ overflowX: "auto", borderRadius: 12,
-                        border: "1px solid rgba(255,255,255,0.06)" }}>
+                        border: "1px solid var(--color-border)" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
                           <thead>
                             <tr>
@@ -777,17 +776,17 @@ export default function FolgaDominicalPage() {
                             {previewFiltrado.map((item) => (
                               <tr key={`${item.opsId}-${item.domingo}`}
                                 style={{ transition: "background 0.15s" }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
                                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                               >
                                 <TD><span style={{ fontWeight: 700, color: BLUE }}>{item.opsId}</span></TD>
                                 <TD>{item.nome}</TD>
                                 <TD center><Badge value={item.turno} map={TURNO_COLORS} /></TD>
                                 <TD center><Badge value={item.escala} map={ESCALA_COLORS} /></TD>
-                                <TD center>{item.slot || "—"}</TD>
-                                <TD center>{item.domingo ? formatDateBR(item.domingo) : "—"}</TD>
-                                <TD center style={{ color: "rgba(255,255,255,0.45)" }}>
-                                  {item.ultimaFolgaAnterior ? formatDateBR(item.ultimaFolgaAnterior) : "—"}
+                                <TD center>{item.slot || "-"}</TD>
+                                <TD center>{item.domingo ? formatDateBR(item.domingo) : "-"}</TD>
+                                <TD center style={{ color: "var(--color-muted)" }}>
+                                  {item.ultimaFolgaAnterior ? formatDateBR(item.ultimaFolgaAnterior) : "-"}
                                 </TD>
                                 <TD center><DiasBadge dias={item.diasDesdeUltimaFolga} /></TD>
                               </tr>
@@ -802,9 +801,9 @@ export default function FolgaDominicalPage() {
             </section>
           )}
 
-          {/* ─────────────────────────────────────────────────── */}
-          {/* ── SECTION 02: RESUMO DO PLANEJAMENTO ───────────── */}
-          {/* ─────────────────────────────────────────────────── */}
+          {/* --------------------------------------------------- */}
+          {/* -- SECTION 02: RESUMO DO PLANEJAMENTO ------------- */}
+          {/* --------------------------------------------------- */}
           {!loading && resumo && (
             <section style={{ display: "flex", flexDirection: "column", gap: 14 }} className="fd-fade">
               <SectionLabel num={previewData ? "02" : "01"} title="Resumo do Planejamento"
@@ -837,9 +836,9 @@ export default function FolgaDominicalPage() {
             </section>
           )}
 
-          {/* ─────────────────────────────────────────────────── */}
-          {/* ── SECTION 03: TABELA DE COLABORADORES ─────────── */}
-          {/* ─────────────────────────────────────────────────── */}
+          {/* --------------------------------------------------- */}
+          {/* -- SECTION 03: TABELA DE COLABORADORES ----------- */}
+          {/* --------------------------------------------------- */}
           {!loading && resumo && (
             <section style={{ display: "flex", flexDirection: "column", gap: 14 }} className="fd-fade">
               <SectionLabel num={previewData ? "03" : "02"} title="Colaboradores no Planejamento" />
@@ -849,20 +848,20 @@ export default function FolgaDominicalPage() {
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   flexWrap: "wrap", gap: 14, padding: "18px 22px",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  borderBottom: "1px solid var(--color-border)",
                 }}>
                   <div>
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
                       Escala de folgas
                     </p>
-                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.30)" }}>
+                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--color-muted)" }}>
                       {colaboradoresFiltrados.length} de {resumo?.colaboradores?.length ?? 0} colaboradores
                       {hasActiveFilter && " (filtro ativo)"}
                     </p>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <Filter size={13} color="rgba(255,255,255,0.30)" />
+                    <Filter size={13} color="var(--color-muted)" />
 
                     <StyledSelect value={turnoSelecionado} onChange={setTurnoSelecionado}>
                       <option value="">Todos os turnos</option>
@@ -914,12 +913,12 @@ export default function FolgaDominicalPage() {
                         }}
                         style={{
                           display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
-                          borderRadius: 8, background: "rgba(255,255,255,0.06)",
-                          border: "none", color: "rgba(255,255,255,0.45)",
+                          borderRadius: 8, background: "var(--color-surface-2)",
+                          border: "1px solid var(--color-border)", color: "var(--color-muted)",
                           fontSize: 12, cursor: "pointer", transition: "background 0.2s",
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-3)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
                       >
                         <X size={12} /> Limpar filtros
                       </button>
@@ -948,7 +947,7 @@ export default function FolgaDominicalPage() {
                         <tr>
                           <td colSpan={8} style={{
                             padding: "48px 24px", textAlign: "center",
-                            color: "rgba(255,255,255,0.20)", fontSize: 13,
+                            color: "var(--color-subtle)", fontSize: 13,
                           }}>
                             Nenhum colaborador encontrado com os filtros aplicados.
                           </td>
@@ -958,26 +957,26 @@ export default function FolgaDominicalPage() {
                           <tr
                             key={`${colab.opsId}-${colab.dataDomingo}`}
                             style={{ transition: "background 0.15s" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             <TD>
                               <span style={{ fontWeight: 700, color: BRAND }}>{colab.opsId}</span>
                             </TD>
                             <TD>
-                              <span style={{ color: "#fff", fontWeight: 500 }}>
-                                {colab.nome}
+                              <span style={{ color: "var(--color-text)", fontWeight: 500 }}>
+                                {colab.nome?.split(" ").slice(0, 3).join(" ")}
                               </span>
                             </TD>
                             <TD center><Badge value={colab.turno} map={TURNO_COLORS} /></TD>
                             <TD center><Badge value={colab.escala} map={ESCALA_COLORS} /></TD>
-                            <TD>{colab.lider || "—"}</TD>
-                            <TD>{colab.setor || "—"}</TD>
-                            <TD center style={{ color: "#fff", fontWeight: 600 }}>
-                              {colab.dataDomingo ? formatDateWithWeekday(colab.dataDomingo) : "—"}
+                            <TD>{colab.lider || "-"}</TD>
+                            <TD>{colab.setor || "-"}</TD>
+                            <TD center style={{ color: "var(--color-text)", fontWeight: 600 }}>
+                              {colab.dataDomingo ? formatDateWithWeekday(colab.dataDomingo) : "-"}
                             </TD>
-                            <TD center style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                              {colab.ultimoDSR ? formatDateWithWeekday(colab.ultimoDSR) : "—"}
+                            <TD center style={{ color: "var(--color-muted)", fontSize: 12 }}>
+                              {colab.ultimoDSR ? formatDateWithWeekday(colab.ultimoDSR) : "-"}
                             </TD>
                             <TD center><DiasBadge dias={colab.diasSemDSR} /></TD>
                           </tr>
@@ -991,7 +990,8 @@ export default function FolgaDominicalPage() {
           )}
 
         </main>
-      </div>
+      </MainLayout>
     </div>
   );
 }
+

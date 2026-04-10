@@ -56,7 +56,7 @@ export default function RegionalModal({ regional, onClose, onSave }) {
       >
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {regional ? "Editar Regional" : "Nova Regional"}
           </h2>
 

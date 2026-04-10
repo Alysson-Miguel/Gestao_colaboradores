@@ -1,7 +1,9 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { prisma } = require("../config/database");
 const { getDateOperacional } = require("../utils/dateOperacional");
 const { buscarDwPlanejado } = require("../services/googleSheetsDW.service");
+const { buscarDwPlanejadoBanco } = require("../services/dwPlanejado.service");
+
+const ESTACAO_SHEETS = 1;
 
 /* =====================================================
    ⏰ TIMEZONE FIXO — BRASIL
@@ -549,6 +551,7 @@ const carregarDashboard = async (req, res) => {
    7️⃣ DIARISTAS PRESENTES (REAIS)
 =============================== */
 const diaristasPresentes = { T1: 0, T2: 0, T3: 0 };
+const estacaoIdDash = req.dbContext?.isGlobal ? null : (req.dbContext?.estacaoId ?? null);
 
 await Promise.all(
   ["T1", "T2", "T3"].map(async (turno) => {
@@ -557,12 +560,13 @@ await Promise.all(
         turno === "T1" ? 1 :
         turno === "T2" ? 2 : 3;
 
-      const diaristasReais = await prisma.dwReal.findMany({
-        where: {
-          data: new Date(dataSnapshotStr),
-          idTurno: turnoId,
-        },
-      });
+      const whereReal = {
+        data: new Date(dataSnapshotStr),
+        idTurno: turnoId,
+      };
+      if (estacaoIdDash) whereReal.idEstacao = estacaoIdDash;
+
+      const diaristasReais = await prisma.dwReal.findMany({ where: whereReal });
 
       diaristasPresentes[turno] = diaristasReais.reduce(
         (total, dw) => total + Number(dw.quantidade || 0),
@@ -579,18 +583,26 @@ await Promise.all(
 );
 
 /* ===============================
-   7️⃣.1 DIARISTAS PLANEJADOS (Sheets)
+   7️⃣.1 DIARISTAS PLANEJADOS
 =============================== */
 const diaristasPlanejadosPorTurno = { T1: 0, T2: 0, T3: 0 };
 
 for (const turno of ["T1", "T2", "T3"]) {
   try {
-    const resultado = await buscarDwPlanejado(turno, dataSnapshotStr);
-
-    // 🔥 ÚNICA FONTE VÁLIDA
-    diaristasPlanejadosPorTurno[turno] = Number(
-      resultado?.data?.dwPlanejado || 0
-    );
+    if (!estacaoIdDash || estacaoIdDash === ESTACAO_SHEETS) {
+      // Estação 1 ou global: busca no Sheets
+      const resultado = await buscarDwPlanejado(turno, dataSnapshotStr);
+      diaristasPlanejadosPorTurno[turno] = Number(resultado?.data?.dwPlanejado || 0);
+    } else {
+      // Demais estações: busca no banco
+      const turnoId = turno === "T1" ? 1 : turno === "T2" ? 2 : 3;
+      const registro = await buscarDwPlanejadoBanco({
+        data: dataSnapshotStr,
+        idTurno: turnoId,
+        idEstacao: estacaoIdDash
+      });
+      diaristasPlanejadosPorTurno[turno] = registro?.quantidade ?? 0;
+    }
   } catch (err) {
     console.warn(`⚠️ DW Planejado falhou para ${turno}:`, err.message);
     diaristasPlanejadosPorTurno[turno] = 0;
@@ -698,16 +710,19 @@ const aderenciaDW =
           absenteismo: absenteismoPeriodo,
         },
 
-        distribuicaoTurnoSetor: Object.values(turnoSetorAgg).map((t) => ({
-          ...t,
-          diaristasPlanejados: diaristasPlanejadosPorTurno[t.turno] || 0,
-          diaristasPresentes: diaristasPresentes[t.turno] || 0,
-          aderenciaDW: aderenciaDwPorTurno[t.turno] || 0,
-          setores: Object.entries(t.setores).map(([setor, quantidade]) => ({
-            setor,
-            quantidade,
-          })),
-        })),
+        distribuicaoTurnoSetor: ["T1", "T2", "T3"].map((turno) => {
+          const t = turnoSetorAgg[turno] || { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {} };
+          return {
+            ...t,
+            diaristasPlanejados: diaristasPlanejadosPorTurno[turno] || 0,
+            diaristasPresentes: diaristasPresentes[turno] || 0,
+            aderenciaDW: aderenciaDwPorTurno[turno] || 0,
+            setores: Object.entries(t.setores).map(([setor, quantidade]) => ({
+              setor,
+              quantidade,
+            })),
+          };
+        }),
 
         generoPorTurno: Object.fromEntries(
           Object.entries(generoPorTurno).map(([t, g]) => [

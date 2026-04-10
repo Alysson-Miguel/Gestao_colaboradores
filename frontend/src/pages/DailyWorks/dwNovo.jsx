@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
+import MainLayout from "../../components/MainLayout";
 
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
@@ -21,6 +22,9 @@ export default function DwNovoPage() {
   const location = useLocation();
   const editData = location.state;
 
+  const idEstacao = Number(localStorage.getItem("estacao_selecionada")) || null;
+  const isEstacaoSheets = idEstacao === 1 || !idEstacao;
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingDw, setLoadingDw] = useState(false);
@@ -29,11 +33,8 @@ export default function DwNovoPage() {
     data: editData?.data || "",
     idTurno: editData?.turno || "",
     observacao: "",
-    quantidades: {
-      12: "",
-      13: "",
-      14: "",
-    },
+    planejado: "",
+    quantidades: { 12: "", 13: "", 14: "" },
   });
 
   /* ==============================
@@ -46,15 +47,14 @@ export default function DwNovoPage() {
       try {
         setLoadingDw(true);
 
-        const res = await api.get("/dw/real", {
-          params: {
-            data: editData.data,
-            idTurno: editData.turno,
-          },
-        });
+        const [resReal, resPlanejado] = await Promise.all([
+          api.get("/dw/real", { params: { data: editData.data, idTurno: editData.turno } }),
+          !isEstacaoSheets
+            ? api.get("/dw/planejado/manual", { params: { data: editData.data, idTurno: editData.turno, idEstacao } })
+            : Promise.resolve(null),
+        ]);
 
-        const registros = res.data.data || [];
-
+        const registros = resReal.data.data || [];
         const novasQuantidades = { 12: "", 13: "", 14: "" };
         let obs = "";
 
@@ -67,6 +67,7 @@ export default function DwNovoPage() {
           ...prev,
           quantidades: novasQuantidades,
           observacao: obs,
+          planejado: resPlanejado?.data?.data?.quantidade ?? "",
         }));
       } catch (error) {
         console.error("Erro ao carregar DW:", error);
@@ -102,21 +103,38 @@ export default function DwNovoPage() {
       return;
     }
 
+    if (!isEstacaoSheets && form.planejado === "") {
+      alert("Informe a quantidade planejada");
+      return;
+    }
+
     try {
       setSaving(true);
 
-      await Promise.all(
-        EMPRESAS.map((e) =>
-          api.post("/dw/real", {
-            data: form.data,
-            idTurno: Number(form.idTurno),
-            idEmpresa: e.idEmpresa,
-            quantidade: Number(form.quantidades[e.idEmpresa]),
-            observacao: form.observacao || null,
-          })
-        )
+      const promises = EMPRESAS.map((e) =>
+        api.post("/dw/real", {
+          data: form.data,
+          idTurno: Number(form.idTurno),
+          idEmpresa: e.idEmpresa,
+          idEstacao,
+          quantidade: Number(form.quantidades[e.idEmpresa]),
+          observacao: form.observacao || null,
+        })
       );
 
+      // Salvar planejado manual para estações != 1
+      if (!isEstacaoSheets) {
+        promises.push(
+          api.post("/dw/planejado/manual", {
+            data: form.data,
+            idTurno: Number(form.idTurno),
+            idEstacao,
+            quantidade: Number(form.planejado),
+          })
+        );
+      }
+
+      await Promise.all(promises);
       navigate("/dw");
     } catch (error) {
       console.error(error);
@@ -138,7 +156,7 @@ export default function DwNovoPage() {
         navigate={navigate}
       />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-8 max-w-4xl mx-auto space-y-8">
@@ -197,20 +215,37 @@ export default function DwNovoPage() {
             />
           </Section>
 
-          {/* ================= QUANTIDADES ================= */}
-          <Section title="Quantidade Real por Empresa">
-            {EMPRESAS.map((e) => (
+          {/* ================= PLANEJADO MANUAL (estações != 1) ================= */}
+          {!isEstacaoSheets && (
+            <Section title="Quantidade Planejada">
               <Input
-                key={e.idEmpresa}
                 type="number"
                 min="0"
-                label={`${e.nome} *`}
-                value={form.quantidades[e.idEmpresa]}
-                onChange={(ev) =>
-                  handleQuantidade(e.idEmpresa, ev.target.value)
-                }
+                label="Quantidade Planejada *"
+                value={form.planejado}
+                onChange={(e) => setForm((p) => ({ ...p, planejado: e.target.value }))}
               />
-            ))}
+            </Section>
+          )}
+
+          {/* ================= QUANTIDADES ================= */}
+          <Section title="Quantidade Real por Empresa">
+            {loadingDw ? (
+              <div className="md:col-span-2 text-sm text-muted">Carregando...</div>
+            ) : (
+              EMPRESAS.map((e) => (
+                <Input
+                  key={e.idEmpresa}
+                  type="number"
+                  min="0"
+                  label={`${e.nome} *`}
+                  value={form.quantidades[e.idEmpresa]}
+                  onChange={(ev) =>
+                    handleQuantidade(e.idEmpresa, ev.target.value)
+                  }
+                />
+              ))
+            )}
           </Section>
 
           {/* ================= OBS ================= */}
@@ -224,7 +259,7 @@ export default function DwNovoPage() {
             />
           </Section>
         </main>
-      </div>
+      </MainLayout>
     </div>
   );
 }

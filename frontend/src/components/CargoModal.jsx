@@ -1,21 +1,45 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useContext } from "react";
 import { Button } from "../components/UIComponents";
 import { X } from "lucide-react";
+import { AuthContext } from "../context/AuthContext";
+import { EstacoesAPI } from "../services/estacoes";
+import { useEstacao } from "../context/EstacaoContext";
 
 export default function CargoModal({ cargo, onClose, onSave }) {
+  const { user } = useContext(AuthContext);
+  const { estacaoId: estacaoSelecionada } = useEstacao();
+
+  const isAdmin = user?.role === "ADMIN";
+  const precisaEscolherEstacao = isAdmin && !estacaoSelecionada && !cargo;
+
   const [form, setForm] = useState(() => ({
     nomeCargo: cargo?.nomeCargo || "",
     nivel: cargo?.nivel || "",
     descricao: cargo?.descricao || "",
     ativo: cargo?.ativo ?? true,
+    idEstacao: cargo?.idEstacao || estacaoSelecionada || "",
   }));
   const [saving, setSaving] = useState(false);
+  const [estacoes, setEstacoes] = useState([]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = "auto"; };
+  }, []);
+
+  useEffect(() => {
+    if (precisaEscolherEstacao) {
+      EstacoesAPI.listar().then(setEstacoes).catch(() => {});
+    }
+  }, [precisaEscolherEstacao]);
 
   const handle = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
+  const isValid = form.nomeCargo.trim() && (!precisaEscolherEstacao || form.idEstacao);
+
   const handleSave = async () => {
-    if (!form.nomeCargo.trim()) return;
+    if (!isValid) return;
     setSaving(true);
     try {
       await onSave(form);
@@ -23,14 +47,6 @@ export default function CargoModal({ cargo, onClose, onSave }) {
       setSaving(false);
     }
   };
-
-  // 🔥 Bloqueia scroll do body enquanto modal aberto
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 sm:px-6">
@@ -57,7 +73,7 @@ export default function CargoModal({ cargo, onClose, onSave }) {
       >
         {/* HEADER */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-default">
-          <h2 className="text-base sm:text-lg font-semibold text-white">
+          <h2 className="text-base sm:text-lg font-semibold text-page">
             {cargo ? "Editar Cargo" : "Novo Cargo"}
           </h2>
 
@@ -139,6 +155,24 @@ export default function CargoModal({ cargo, onClose, onSave }) {
               <option value="false">Inativo</option>
             </select>
           </div>
+
+          {precisaEscolherEstacao && (
+            <div>
+              <label className="block text-xs text-muted mb-1">
+                Estação <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={form.idEstacao}
+                onChange={(e) => handle("idEstacao", e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-surface-2 border border-default text-page text-sm"
+              >
+                <option value="">Selecione uma estação</option>
+                {estacoes.map((e) => (
+                  <option key={e.idEstacao} value={e.idEstacao}>{e.nomeEstacao}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* FOOTER */}
@@ -149,7 +183,7 @@ export default function CargoModal({ cargo, onClose, onSave }) {
 
           <Button.Primary
             onClick={handleSave}
-            disabled={saving || !form.nomeCargo.trim()}
+            disabled={saving || !isValid}
             className="w-full sm:w-auto"
           >
             {saving ? "Salvando..." : cargo ? "Salvar alterações" : "Criar cargo"}

@@ -9,7 +9,7 @@ const {
  */
 const postDwReal = async (req, res) => {
   try {
-    const { data, idTurno, idEmpresa, quantidade, observacao } = req.body;
+    const { data, idTurno, idEmpresa, idEstacao, quantidade, observacao } = req.body;
 
     if (!data || !idTurno || !idEmpresa || quantidade === undefined) {
       return res.status(400).json({
@@ -22,6 +22,7 @@ const postDwReal = async (req, res) => {
       data,
       idTurno: Number(idTurno),
       idEmpresa: Number(idEmpresa),
+      idEstacao: idEstacao ? Number(idEstacao) : null,
       quantidade: Number(quantidade),
       observacao: observacao || null
     });
@@ -36,7 +37,7 @@ const postDwReal = async (req, res) => {
     console.error('❌ Erro ao salvar DW Real:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao salvar DW Real'
+      message: error.message || 'Erro ao salvar DW Real'
     });
   }
 };
@@ -47,7 +48,7 @@ const postDwReal = async (req, res) => {
  */
 const getDwReal = async (req, res) => {
   try {
-    const { data, idTurno } = req.query;
+    const { data, idTurno, idEstacao, estacaoId } = req.query;
 
     if (!data || !idTurno) {
       return res.status(400).json({
@@ -58,7 +59,8 @@ const getDwReal = async (req, res) => {
 
     const registros = await listarDwRealPorTurno({
       data,
-      idTurno: Number(idTurno)
+      idTurno: Number(idTurno),
+      idEstacao: idEstacao ? Number(idEstacao) : estacaoId ? Number(estacaoId) : null
     });
 
     res.json({

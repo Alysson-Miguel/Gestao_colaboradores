@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState, useCallback, useContext } from "react";
 import { Plus, Search, Radio } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MainLayout from "../../../components/MainLayout";
 
 import Sidebar from "../../../components/Sidebar";
 import Header from "../../../components/Header";
@@ -8,10 +9,13 @@ import EstacaoModal from "../../../components/EstacaoModal";
 import EstacaoTable from "../../../components/EstacaoTable";
 import { EstacoesAPI } from "../../../services/estacoes";
 import { ThemeContext } from "../../../context/ThemeContext";
+import { AuthContext } from "../../../context/AuthContext";
 
 export default function EstacoesPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -48,7 +52,7 @@ export default function EstacoesPage() {
     <div style={{ display: "flex", minHeight: "100vh", background: bg, color: textMain }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -84,7 +88,7 @@ export default function EstacoesPage() {
               <button
                 onClick={() => { setSelected(null); setModalOpen(true); }}
                 style={{
-                  display: "flex", alignItems: "center", gap: 6,
+                  display: isAdmin ? "flex" : "none", alignItems: "center", gap: 6,
                   padding: "8px 16px", borderRadius: 10, border: "none",
                   background: "#FA4C00", color: "#FFFFFF",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
@@ -134,6 +138,7 @@ export default function EstacoesPage() {
             ) : (
               <EstacaoTable
                 estacoes={estacoes}
+                isAdmin={isAdmin}
                 onEdit={(estacao) => { setSelected(estacao); setModalOpen(true); }}
                 onDelete={async (estacao) => {
                   if (!window.confirm(`Deseja excluir a estação "${estacao.nomeEstacao || estacao.nome}"?`)) return;
@@ -148,11 +153,12 @@ export default function EstacoesPage() {
             )}
           </section>
         </main>
-      </div>
+      </MainLayout>
 
       {modalOpen && (
         <EstacaoModal
           estacao={selected}
+          isAdmin={isAdmin}
           onClose={() => setModalOpen(false)}
           onSave={async (data) => {
             try {
@@ -160,6 +166,7 @@ export default function EstacoesPage() {
                 nomeEstacao: data.nome,
                 idRegional: data.idRegional ? Number(data.idRegional) : undefined,
                 sheetsMetaProducaoId: data.sheetsMetaProducaoId || null,
+                sheetsPresencaId: data.sheetsPresencaId || null,
               };
               if (selected) {
                 await EstacoesAPI.atualizar(selected.idEstacao, payload);

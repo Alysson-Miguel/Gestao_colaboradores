@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useEffect, useState, useMemo } from "react"
+import MainLayout from "../../components/MainLayout";
 import {
   ResponsiveContainer,
   BarChart,
@@ -50,20 +51,20 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <div
       style={{
-        background: "#1A1A1A",
-        border: "1px solid rgba(255,255,255,0.10)",
+        background: "var(--color-surface-2)",
+        border: "1px solid var(--color-border)",
         borderRadius: 12,
         padding: "10px 16px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
       }}
     >
       {label && (
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginBottom: 4 }}>
+        <p style={{ color: "var(--color-muted)", fontSize: 11, marginBottom: 4 }}>
           {label}
         </p>
       )}
       {payload.map((p, i) => (
-        <p key={i} style={{ color: "#fff", fontSize: 14, fontWeight: 600, margin: 0 }}>
+        <p key={i} style={{ color: "var(--color-text)", fontSize: 14, fontWeight: 600, margin: 0 }}>
           <span style={{ color: p.color || BRAND }}>● </span>
           {p.value}
         </p>
@@ -77,7 +78,7 @@ function Skeleton({ style = {} }) {
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.05)",
+        background: "var(--color-surface-2)",
         borderRadius: 10,
         animation: "pulse 1.5s ease-in-out infinite",
         ...style,
@@ -95,7 +96,7 @@ function Empty() {
         alignItems: "center",
         justifyContent: "center",
         height: 160,
-        color: "rgba(255,255,255,0.18)",
+        color: "var(--color-muted)",
         fontSize: 13,
       }}
     >
@@ -172,8 +173,8 @@ function KpiCard({ label, value, sub, loading }) {
   return (
     <div
       style={{
-        background: "#111111",
-        border: "1px solid rgba(255,255,255,0.07)",
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
         borderLeft: `3px solid ${color}`,
         borderRadius: 12,
         padding: "16px 18px",
@@ -183,27 +184,27 @@ function KpiCard({ label, value, sub, loading }) {
         cursor: "default",
         transition: "background 0.2s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#161616")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "#111111")}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-surface)")}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <Icon c={color} s={13} />
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 500, margin: 0 }}>
+        <p style={{ fontSize: 11, color: "var(--color-muted)", fontWeight: 500, margin: 0 }}>
           {label}
         </p>
       </div>
       {loading ? (
         <Skeleton style={{ height: 28, width: "60%" }} />
       ) : (
-        <p style={{ fontSize: 24, fontWeight: 700, color: "#F0F0F0", margin: 0, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+        <p style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text)", margin: 0, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
           {value ?? "—"}
         </p>
       )}
       {sub && !loading && (
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", margin: 0 }}>{sub}</p>
+        <p style={{ fontSize: 11, color: "var(--color-muted)", margin: 0 }}>{sub}</p>
       )}
       {!sub && (
-        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", margin: 0 }}>{desc}</p>
+        <p style={{ fontSize: 10, color: "var(--color-subtle)", margin: 0 }}>{desc}</p>
       )}
     </div>
   )
@@ -216,7 +217,7 @@ function SectionLabel({ num, title }) {
       <span style={{ fontSize: 10, fontWeight: 800, color: BRAND, textTransform: "uppercase", letterSpacing: "0.16em" }}>
         {num}
       </span>
-      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", textTransform: "uppercase", letterSpacing: "0.16em" }}>
+      <span style={{ fontSize: 10, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.16em" }}>
         {title}
       </span>
     </div>
@@ -228,8 +229,8 @@ function Card({ title, subtitle, icon, children, style = {} }) {
   return (
     <div
       style={{
-        background: "#111111",
-        border: "1px solid rgba(255,255,255,0.06)",
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
         borderRadius: 18,
         padding: "20px 24px",
         display: "flex",
@@ -261,11 +262,11 @@ function Card({ title, subtitle, icon, children, style = {} }) {
             </div>
           )}
           <div>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
               {title}
             </h2>
             {subtitle && (
-              <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(255,255,255,0.30)" }}>
+              <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--color-muted)" }}>
                 {subtitle}
               </p>
             )}
@@ -284,7 +285,7 @@ function DateInput({ label, value, onChange }) {
       <label
         style={{
           fontSize: 10,
-          color: "rgba(255,255,255,0.35)",
+          color: "var(--color-muted)",
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.12em",
@@ -297,9 +298,9 @@ function DateInput({ label, value, onChange }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
-          background: "#1A1A1A",
-          border: "1px solid rgba(255,255,255,0.08)",
-          color: "#fff",
+          background: "var(--color-surface-2)",
+          border: "1px solid var(--color-border)",
+          color: "var(--color-text)",
           fontSize: 13,
           borderRadius: 12,
           padding: "9px 14px",
@@ -308,7 +309,7 @@ function DateInput({ label, value, onChange }) {
           colorScheme: "dark",
         }}
         onFocus={(e) => (e.target.style.borderColor = "rgba(250,76,0,0.5)")}
-        onBlur={(e)  => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
+        onBlur={(e)  => (e.target.style.borderColor = "var(--color-border)")}
       />
     </div>
   )
@@ -322,7 +323,7 @@ function TurnoSelector({ value, onChange }) {
       <label
         style={{
           fontSize: 10,
-          color: "rgba(255,255,255,0.35)",
+          color: "var(--color-muted)",
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.12em",
@@ -330,7 +331,7 @@ function TurnoSelector({ value, onChange }) {
       >
         Turno
       </label>
-      <div style={{ display: "flex", gap: 4, background: "#1A1A1A", borderRadius: 12, padding: 4, border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div style={{ display: "flex", gap: 4, background: "var(--color-surface-2)", borderRadius: 12, padding: 4, border: "1px solid var(--color-border)" }}>
         {options.map((opt) => {
           const active = value === opt
           return (
@@ -345,7 +346,7 @@ function TurnoSelector({ value, onChange }) {
                 fontSize: 12,
                 fontWeight: active ? 700 : 500,
                 background: active ? BRAND : "transparent",
-                color: active ? "#fff" : "rgba(255,255,255,0.40)",
+                color: active ? "#fff" : "var(--color-muted)",
                 transition: "all 0.18s",
               }}
             >
@@ -383,7 +384,7 @@ function BarBlock({ data }) {
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
         <Bar dataKey="value" fill={BRAND} radius={[6, 6, 0, 0]} maxBarSize={44}>
-          <LabelList dataKey="value" position="top" style={{ fill: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600 }} />
+          <LabelList dataKey="value" position="top" style={{ fill: "var(--color-muted)", fontSize: 11, fontWeight: 600 }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -422,7 +423,7 @@ function BarBlockH({ data }) {
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
         <Bar dataKey="value" fill={BRAND} radius={[0, 6, 6, 0]} maxBarSize={20}>
-          <LabelList dataKey="value" position="right" style={{ fill: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: 600 }} />
+          <LabelList dataKey="value" position="right" style={{ fill: "var(--color-muted)", fontSize: 11, fontWeight: 600 }} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -464,8 +465,8 @@ function PieBlock({ data }) {
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: 0, lineHeight: 1 }}>{total}</p>
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", margin: "3px 0 0" }}>total</p>
+          <p style={{ fontSize: 24, fontWeight: 800, color: "var(--color-text)", margin: 0, lineHeight: 1 }}>{total}</p>
+          <p style={{ fontSize: 10, color: "var(--color-muted)", margin: "3px 0 0" }}>total</p>
         </div>
       </div>
       {/* legend */}
@@ -475,7 +476,7 @@ function PieBlock({ data }) {
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{d.name}</span>
+              <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{d.name}</span>
               <span style={{ fontSize: 11, fontWeight: 700, color: CHART_COLORS[i % CHART_COLORS.length] }}>
                 {d.value} ({pct}%)
               </span>
@@ -537,12 +538,11 @@ export default function DashboardDesligamento() {
   `
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#080808", color: "#fff" }}>
+    <div className="flex min-h-screen bg-page text-page">
       <style>{css}</style>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
-           className="lg:ml-64">
+      <MainLayout style={{ display: "flex", flexDirection: "column" }}>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main
@@ -567,7 +567,7 @@ export default function DashboardDesligamento() {
                   Dashboard de Desligamentos
                 </h1>
               </div>
-              <p style={{ margin: "0 0 0 14px", fontSize: 13, color: "rgba(255,255,255,0.35)" }}>
+              <p style={{ margin: "0 0 0 14px", fontSize: 13, color: "var(--color-muted)" }}>
                 Dados consolidados de turnover — motivos, perfil e lideranças
               </p>
             </div>
@@ -583,8 +583,8 @@ export default function DashboardDesligamento() {
                   height: 42,
                   padding: "0 24px",
                   borderRadius: 12,
-                  background: loading ? "#333" : BRAND,
-                  color: "#fff",
+                  background: loading ? "var(--color-surface-2)" : BRAND,
+                  color: loading ? "var(--color-muted)" : "#fff",
                   fontWeight: 700,
                   fontSize: 13,
                   border: "none",
@@ -767,7 +767,7 @@ export default function DashboardDesligamento() {
           </section>
 
         </main>
-      </div>
+      </MainLayout>
     </div>
   )
 }

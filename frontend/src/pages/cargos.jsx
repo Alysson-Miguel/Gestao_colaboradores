@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useContext } from "react";
 import { Plus, Search, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MainLayout from "../components/MainLayout";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -9,6 +10,7 @@ import CargoModal from "../components/CargoModal";
 import CargoTable from "../components/CargoTable";
 import { CargosAPI } from "../services/cargos";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function CargosPage() {
   const [cargos,      setCargos]      = useState([]);
@@ -20,6 +22,9 @@ export default function CargosPage() {
 
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -54,7 +59,7 @@ export default function CargosPage() {
     <div style={{ display: "flex", minHeight: "100vh", background: bg, color: textMain }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -140,6 +145,8 @@ export default function CargosPage() {
             ) : (
               <CargoTable
                 cargos={filtered}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(c) => { setSelected(c); setModalOpen(true); }}
                 onDelete={async (c) => {
                   if (!window.confirm(`Excluir ${c.nomeCargo}?`)) return;
@@ -154,7 +161,7 @@ export default function CargosPage() {
             )}
           </section>
         </main>
-      </div>
+      </MainLayout>
 
       {modalOpen && (
         <CargoModal

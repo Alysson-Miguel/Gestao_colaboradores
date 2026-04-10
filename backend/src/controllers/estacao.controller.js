@@ -51,7 +51,7 @@ const buscarEstacaoPorId = async (req, res) => {
 ===================================================== */
 const criarEstacao = async (req, res) => {
   try {
-    const { nomeEstacao, idRegional, localizacao, capacidade, sheetsMetaProducaoId } = req.body;
+    const { nomeEstacao, idRegional, localizacao, capacidade, sheetsMetaProducaoId, sheetsPresencaId } = req.body;
 
     if (!nomeEstacao) {
       return res.status(400).json({
@@ -78,6 +78,7 @@ const criarEstacao = async (req, res) => {
         localizacao,
         capacidade,
         sheetsMetaProducaoId: sheetsMetaProducaoId || null,
+        sheetsPresencaId: sheetsPresencaId || null,
       },
     });
 
@@ -97,7 +98,7 @@ const criarEstacao = async (req, res) => {
 const atualizarEstacao = async (req, res) => {
   try {
     const { idEstacao } = req.params;
-    const { nomeEstacao, idRegional, localizacao, capacidade, ativo, sheetsMetaProducaoId } = req.body;
+    const { nomeEstacao, idRegional, localizacao, capacidade, ativo, sheetsMetaProducaoId, sheetsPresencaId } = req.body;
 
     const estacao = await prisma.estacao.update({
       where: {
@@ -115,6 +116,9 @@ const atualizarEstacao = async (req, res) => {
         ...(ativo !== undefined && { ativo: Boolean(ativo) }),
         ...(sheetsMetaProducaoId !== undefined && {
           sheetsMetaProducaoId: sheetsMetaProducaoId || null,
+        }),
+        ...(sheetsPresencaId !== undefined && {
+          sheetsPresencaId: sheetsPresencaId || null,
         }),
       },
     });

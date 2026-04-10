@@ -2,12 +2,13 @@ const { buscarDwLista } = require("../services/dwLista.service");
 
 const getDwLista = async (req, res) => {
   try {
-    const { data, idTurno, idEmpresa } = req.query;
+    const { data, idTurno, idEmpresa, idEstacao, estacaoId } = req.query;
 
     const lista = await buscarDwLista({
       data,
       idTurno,
-      idEmpresa
+      idEmpresa,
+      idEstacao: idEstacao || estacaoId  // aceita ambos
     });
 
     res.json({

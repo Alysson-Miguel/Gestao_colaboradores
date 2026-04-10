@@ -22,9 +22,8 @@ const getAllEmpresas = async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
 
-  const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
-    ? req.dbContext.estacaoId
-    : null;
+  const isGlobal = req.dbContext?.isGlobal ?? false;
+  const estacaoId = (!isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
   const colaboradoresWhere = {
     status: 'ATIVO',
@@ -44,6 +43,16 @@ const getAllEmpresas = async (req, res) => {
     where.ativo = ativo === 'true';
   }
 
+  if (estacaoId) {
+    const scopeFilter = [{ idEstacao: estacaoId }, { idEstacao: null }];
+    if (where.OR) {
+      where.AND = [{ OR: where.OR }, { OR: scopeFilter }];
+      delete where.OR;
+    } else {
+      where.OR = scopeFilter;
+    }
+  }
+
   const [empresas, total] = await Promise.all([
     prisma.empresa.findMany({
       where,
@@ -51,6 +60,7 @@ const getAllEmpresas = async (req, res) => {
       take,
       orderBy: { dataCriacao: 'desc' },
       include: {
+        estacao: { select: { idEstacao: true, nomeEstacao: true } },
         _count: {
           select: {
             colaboradores: { where: colaboradoresWhere },
@@ -115,11 +125,16 @@ const getEmpresaById = async (req, res) => {
 const createEmpresa = async (req, res) => {
   const { razaoSocial, cnpj, ativo } = req.body;
 
+  const idEstacao = req.body.idEstacao
+    ? Number(req.body.idEstacao)
+    : (req.dbContext?.estacaoId ?? null);
+
   const empresa = await prisma.empresa.create({
     data: {
       razaoSocial,
       cnpj,
       ativo: ativo !== undefined ? ativo : true,
+      ...(idEstacao ? { idEstacao } : {}),
     },
   });
 
@@ -134,15 +149,23 @@ const updateEmpresa = async (req, res) => {
   const { id } = req.params;
   const { razaoSocial, cnpj, ativo } = req.body;
 
-  const empresaExists = await prisma.empresa.findUnique({
+  const isAdmin = req.user?.role === 'ADMIN';
+  const userEstacaoId = req.user?.idEstacao ?? null;
+
+  const empresa = await prisma.empresa.findUnique({
     where: { idEmpresa: parseInt(id) },
+    select: { idEstacao: true },
   });
 
-  if (!empresaExists) {
-    return notFoundResponse(res, 'Empresa não encontrada');
+  if (!empresa) return notFoundResponse(res, 'Empresa não encontrada');
+
+  if (!isAdmin) {
+    if (!empresa.idEstacao || empresa.idEstacao !== userEstacaoId) {
+      return res.status(403).json({ success: false, message: 'Sem permissão para editar esta empresa.' });
+    }
   }
 
-  const empresa = await prisma.empresa.update({
+  const updated = await prisma.empresa.update({
     where: { idEmpresa: parseInt(id) },
     data: {
       ...(razaoSocial && { razaoSocial }),
@@ -151,7 +174,7 @@ const updateEmpresa = async (req, res) => {
     },
   });
 
-  return successResponse(res, empresa, 'Empresa atualizada com sucesso');
+  return successResponse(res, updated, 'Empresa atualizada com sucesso');
 };
 
 /**
@@ -161,12 +184,20 @@ const updateEmpresa = async (req, res) => {
 const deleteEmpresa = async (req, res) => {
   const { id } = req.params;
 
-  const empresaExists = await prisma.empresa.findUnique({
+  const isAdmin = req.user?.role === 'ADMIN';
+  const userEstacaoId = req.user?.idEstacao ?? null;
+
+  const empresa = await prisma.empresa.findUnique({
     where: { idEmpresa: parseInt(id) },
+    select: { idEstacao: true },
   });
 
-  if (!empresaExists) {
-    return notFoundResponse(res, 'Empresa não encontrada');
+  if (!empresa) return notFoundResponse(res, 'Empresa não encontrada');
+
+  if (!isAdmin) {
+    if (!empresa.idEstacao || empresa.idEstacao !== userEstacaoId) {
+      return res.status(403).json({ success: false, message: 'Sem permissão para excluir esta empresa.' });
+    }
   }
 
   const total = await prisma.colaborador.count({ where: { idEmpresa: parseInt(id) } });

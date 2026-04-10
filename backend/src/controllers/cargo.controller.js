@@ -19,9 +19,8 @@ const getAllCargos = async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
 
-  const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
-    ? req.dbContext.estacaoId
-    : null;
+  const isGlobal = req.dbContext?.isGlobal ?? false;
+  const estacaoId = (!isGlobal && req.dbContext?.estacaoId) ? req.dbContext.estacaoId : null;
 
   const colaboradoresWhere = {
     status: 'ATIVO',
@@ -41,6 +40,16 @@ const getAllCargos = async (req, res) => {
     where.ativo = ativo === 'true';
   }
 
+  if (estacaoId) {
+    const scopeFilter = [{ idEstacao: estacaoId }, { idEstacao: null }];
+    if (where.OR) {
+      where.AND = [{ OR: where.OR }, { OR: scopeFilter }];
+      delete where.OR;
+    } else {
+      where.OR = scopeFilter;
+    }
+  }
+
   const [cargos, total] = await Promise.all([
     prisma.cargo.findMany({
       where,
@@ -48,6 +57,7 @@ const getAllCargos = async (req, res) => {
       take,
       orderBy: { nomeCargo: 'asc' },
       include: {
+        estacao: { select: { idEstacao: true, nomeEstacao: true } },
         _count: {
           select: { colaboradores: { where: colaboradoresWhere } },
         },
@@ -95,12 +105,17 @@ const getCargoById = async (req, res) => {
 const createCargo = async (req, res) => {
   const { nomeCargo, nivel, descricao, ativo } = req.body;
 
+  const idEstacao = req.body.idEstacao
+    ? Number(req.body.idEstacao)
+    : (req.dbContext?.estacaoId ?? null);
+
   const cargo = await prisma.cargo.create({
     data: {
       nomeCargo,
       nivel,
       descricao,
       ativo: ativo !== undefined ? ativo : true,
+      ...(idEstacao ? { idEstacao } : {}),
     },
   });
 
@@ -112,7 +127,28 @@ const updateCargo = async (req, res) => {
   const { id } = req.params;
   const { nomeCargo, nivel, descricao, ativo } = req.body;
 
-  const cargo = await prisma.cargo.update({
+  const isAdmin = req.user?.role === 'ADMIN';
+  const userEstacaoId = req.user?.idEstacao ?? null;
+
+  // Busca o cargo para verificar a assinatura de estação
+  const cargo = await prisma.cargo.findUnique({
+    where: { idCargo: parseInt(id) },
+    select: { idEstacao: true },
+  });
+
+  if (!cargo) return notFoundResponse(res, 'Cargo não encontrado');
+
+  // Não-admin só pode editar cargos da própria estação
+  if (!isAdmin) {
+    if (!cargo.idEstacao || cargo.idEstacao !== userEstacaoId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Sem permissão para editar este cargo.',
+      });
+    }
+  }
+
+  const updated = await prisma.cargo.update({
     where: { idCargo: parseInt(id) },
     data: {
       ...(nomeCargo && { nomeCargo }),
@@ -122,12 +158,32 @@ const updateCargo = async (req, res) => {
     },
   });
 
-  return successResponse(res, cargo, 'Cargo atualizado com sucesso');
+  return successResponse(res, updated, 'Cargo atualizado com sucesso');
 };
 
 /* ================= DELETE ================= */
 const deleteCargo = async (req, res) => {
   const { id } = req.params;
+
+  const isAdmin = req.user?.role === 'ADMIN';
+  const userEstacaoId = req.user?.idEstacao ?? null;
+
+  const cargo = await prisma.cargo.findUnique({
+    where: { idCargo: parseInt(id) },
+    select: { idEstacao: true },
+  });
+
+  if (!cargo) return notFoundResponse(res, 'Cargo não encontrado');
+
+  // Não-admin só pode excluir cargos da própria estação
+  if (!isAdmin) {
+    if (!cargo.idEstacao || cargo.idEstacao !== userEstacaoId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Sem permissão para excluir este cargo.',
+      });
+    }
+  }
 
   const total = await prisma.colaborador.count({ where: { idCargo: parseInt(id) } });
   if (total > 0) {

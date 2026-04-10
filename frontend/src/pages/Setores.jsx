@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useContext } from "react";
 import { Plus, Search, Layers } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MainLayout from "../components/MainLayout";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -8,6 +9,7 @@ import SetorModal from "../components/SetorModal";
 import SetorTable from "../components/SetorTable";
 import { SetoresAPI } from "../services/setores";
 import { ThemeContext } from "../context/ThemeContext";
+import { AuthContext } from "../context/AuthContext";
 
 export default function SetoresPage() {
   const [setores,     setSetores]     = useState([]);
@@ -19,6 +21,8 @@ export default function SetoresPage() {
 
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
 
   const bg          = isDark ? "#0D0D0D" : "#F3F4F6";
   const textMain    = isDark ? "#FFFFFF"  : "#111827";
@@ -48,7 +52,7 @@ export default function SetoresPage() {
     <div style={{ display: "flex", minHeight: "100vh", background: bg, color: textMain }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="px-8 py-6 space-y-6 max-w-7xl mx-auto">
@@ -134,6 +138,7 @@ export default function SetoresPage() {
             ) : (
               <SetorTable
                 setores={setores}
+                isAdmin={isAdmin}
                 onEdit={(s) => { setSelected(s); setModalOpen(true); }}
                 onDelete={async (s) => {
                   if (!window.confirm(`Excluir ${s.nomeSetor}?`)) return;
@@ -148,7 +153,7 @@ export default function SetoresPage() {
             )}
           </section>
         </main>
-      </div>
+      </MainLayout>
 
       {modalOpen && (
         <SetorModal

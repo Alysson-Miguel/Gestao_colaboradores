@@ -275,7 +275,7 @@ const getColaboradorById = async (req, res) => {
       }),
 
       prisma.medidaDisciplinar.findMany({
-        where: { opsId },
+        where: { opsId, status: "ASSINADO" },
         select: {
           dataOcorrencia: true,
           tipoMedida: true,
@@ -1115,6 +1115,7 @@ const importColaboradores = async (req, res) => {
       isGlobal: req.dbContext?.isGlobal ?? false,
       estacaoId: req.dbContext?.estacaoId ?? null,
     };
+    const userRoleSnapshot = req.user?.role ?? null;
 
     res.json({
       success: true,
@@ -1194,12 +1195,18 @@ const importColaboradores = async (req, res) => {
           const idEscala = row["id_escala"] ? Number(row["id_escala"]) : null;
           const idEstacao = row["id_estacao"] ? Number(row["id_estacao"]) : null;
 
-          // Validação de estação: ignora linhas com estação diferente da estação atual
-          const estacaoContexto = dbContextSnapshot.estacaoId;
-          if (!dbContextSnapshot.isGlobal && estacaoContexto && idEstacao && idEstacao !== estacaoContexto) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: `Estação ${idEstacao} não corresponde à estação atual (${estacaoContexto})` });
-            continue;
+          // Validação de estação para ALTA_GESTAO (Admin não é bloqueado)
+          if (userRoleSnapshot === "ALTA_GESTAO") {
+            if (!idEstacao) {
+              skipped++;
+              skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Id_estação está vazio." });
+              continue;
+            }
+            if (dbContextSnapshot.estacaoId && idEstacao !== dbContextSnapshot.estacaoId) {
+              skipped++;
+              skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "A estação informada não condiz com a estação atual." });
+              continue;
+            }
           }
 
           if (!nomeCompleto || !matricula || !cpf || !idLider || !idSetor || !idCargo || !idEmpresa || !idTurno || !idEscala) {

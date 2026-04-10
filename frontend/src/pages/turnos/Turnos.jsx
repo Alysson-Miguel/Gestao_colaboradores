@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useContext } from "react";
 import { Plus, Search, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MainLayout from "../../components/MainLayout";
 
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
@@ -8,10 +9,14 @@ import TurnoModal from "../../components/TurnoModal";
 import TurnoTable from "../../components/TurnoTable";
 import { TurnosAPI } from "../../services/turnos";
 import { ThemeContext } from "../../context/ThemeContext";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function TurnosPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
+  const { permissions, user } = useContext(AuthContext);
+  const isAdmin = permissions?.isAdmin ?? false;
+  const userEstacaoId = user?.idEstacao ?? null;
   const [turnos, setTurnos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -56,7 +61,7 @@ export default function TurnosPage() {
     <div style={{ display: "flex", minHeight: "100vh", background: bg, color: textMain }}>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} navigate={navigate} />
 
-      <div className="flex-1 lg:ml-64">
+      <MainLayout>
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main style={{ padding: "24px 32px", maxWidth: 1200, margin: "0 auto", display: "flex", flexDirection: "column", gap: 24 }}>
@@ -131,6 +136,8 @@ export default function TurnosPage() {
             ) : (
               <TurnoTable
                 turnos={filtered}
+                isAdmin={isAdmin}
+                userEstacaoId={userEstacaoId}
                 onEdit={(t) => { setSelected(t); setModalOpen(true); }}
                 onDelete={async (t) => {
                   if (!window.confirm(`Excluir o turno "${t.nomeTurno}"?`)) return;
@@ -145,7 +152,7 @@ export default function TurnosPage() {
             )}
           </div>
         </main>
-      </div>
+      </MainLayout>
 
       {modalOpen && (
         <TurnoModal
