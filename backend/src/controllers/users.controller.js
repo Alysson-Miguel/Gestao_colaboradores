@@ -16,7 +16,15 @@ const {
  * ADMIN + LIDERANCA (consulta)
  */
 const list = async (req, res) => {
+  const where = {};
+
+  // ADMIN global vê todos; demais só veem usuários da sua estação
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+    where.idEstacao = req.dbContext.estacaoId;
+  }
+
   const users = await prisma.user.findMany({
+    where,
     select: {
       id: true,
       name: true,

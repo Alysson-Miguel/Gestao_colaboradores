@@ -1,15 +1,21 @@
 const express = require('express');
 const router = express.Router();
 
-// Controllers
-const { buscarDwPlanejadoAutomatico } = require('../controllers/dw.controller');
+const { buscarDwPlanejadoAutomatico, postDwPlanejadoManual, getDwPlanejadoManual } = require('../controllers/dw.controller');
 const { postDwReal, getDwReal } = require('../controllers/dwReal.controller');
 const { getDwResumo } = require('../controllers/dwResumo.controller');
 const { getDwLista } = require('../controllers/dwLista.controller');
+
 // =====================
-// DW Planejado (Sheets)
+// DW Planejado (Sheets - Estação 1)
 // =====================
 router.post('/planejado', buscarDwPlanejadoAutomatico);
+
+// =====================
+// DW Planejado Manual (Estações != 1)
+// =====================
+router.post('/planejado/manual', postDwPlanejadoManual);
+router.get('/planejado/manual', getDwPlanejadoManual);
 
 // =====================
 // DW Real (Banco)

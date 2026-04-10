@@ -1,27 +1,37 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../config/database');
 
 /**
  * 🔄 Criar ou atualizar DW Real
- * Chave única: data + idTurno + idEmpresa
+ * Chave única: data + idTurno + idEmpresa + idEstacao
+ * Nota: upsert não funciona com NULL em unique constraint no PostgreSQL,
+ * por isso usamos findFirst + update/create manualmente.
  */
-const salvarDwReal = async ({ data, idTurno, idEmpresa, quantidade, observacao }) => {
-  return prisma.dwReal.upsert({
+const salvarDwReal = async ({ data, idTurno, idEmpresa, idEstacao, quantidade, observacao }) => {
+  const dataDate = new Date(data);
+  const estacao = idEstacao ? Number(idEstacao) : null;
+
+  const existing = await prisma.dwReal.findFirst({
     where: {
-      data_idTurno_idEmpresa: {
-        data: new Date(data),
-        idTurno,
-        idEmpresa
-      }
-    },
-    update: {
-      quantidade,
-      observacao
-    },
-    create: {
-      data: new Date(data),
+      data: dataDate,
       idTurno,
       idEmpresa,
+      idEstacao: estacao
+    }
+  });
+
+  if (existing) {
+    return prisma.dwReal.update({
+      where: { id: existing.id },
+      data: { quantidade, observacao }
+    });
+  }
+
+  return prisma.dwReal.create({
+    data: {
+      data: dataDate,
+      idTurno,
+      idEmpresa,
+      idEstacao: estacao,
       quantidade,
       observacao
     }
@@ -29,14 +39,18 @@ const salvarDwReal = async ({ data, idTurno, idEmpresa, quantidade, observacao }
 };
 
 /**
- * 📊 Listar DW Real por data + turno
+ * 📊 Listar DW Real por data + turno (+ estacao opcional)
  */
-const listarDwRealPorTurno = async ({ data, idTurno }) => {
+const listarDwRealPorTurno = async ({ data, idTurno, idEstacao }) => {
+  const where = {
+    data: new Date(data),
+    idTurno
+  };
+
+  if (idEstacao) where.idEstacao = Number(idEstacao);
+
   return prisma.dwReal.findMany({
-    where: {
-      data: new Date(data),
-      idTurno
-    },
+    where,
     include: {
       empresa: true
     },

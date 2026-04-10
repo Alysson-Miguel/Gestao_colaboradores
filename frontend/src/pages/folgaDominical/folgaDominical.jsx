@@ -27,7 +27,7 @@ const BLUE    = "#3B82F6"
 const MESES = [
   { value: 1,  label: "Janeiro"   },
   { value: 2,  label: "Fevereiro" },
-  { value: 3,  label: "Mar�o"     },
+  { value: 3,  label: "Março"     },
   { value: 4,  label: "Abril"     },
   { value: 5,  label: "Maio"      },
   { value: 6,  label: "Junho"     },
@@ -159,7 +159,7 @@ function KpiCard({ label, value, icon: Icon, color = BRAND, sub, onClick, active
             ? <Sk h={28} w={60} />
             : <p style={{ margin: 0, fontSize: 26, fontWeight: 800, lineHeight: 1,
                 color: active ? color : "var(--color-text)" }}>
-                {value ?? "�"}
+                {value ?? "-"}
               </p>
           }
           {sub && <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--color-subtle)" }}>{sub}</p>}
@@ -191,14 +191,14 @@ function Badge({ value, map }) {
       background: `${color}18`, color, fontSize: 11, fontWeight: 700,
       border: `1px solid ${color}30`,
     }}>
-      {value || "�"}
+      {value || "-"}
     </span>
   )
 }
 
 /* --- DIAS SEM FOLGA BADGE ------------------------------------------ */
 function DiasBadge({ dias }) {
-  if (dias == null) return <span style={{ color: "var(--color-subtle)" }}>�</span>
+  if (dias == null) return <span style={{ color: "var(--color-subtle)" }}>—</span>
   const color = dias >= 30 ? RED : dias >= 20 ? YELLOW : GREEN
   return (
     <span style={{
@@ -369,7 +369,7 @@ export default function FolgaDominicalPage() {
       setResumo(res.data?.data || null);
     } catch (e) {
       setResumo(null);
-      setErro(e?.response?.data?.error || "Nenhum planejamento encontrado para este per�odo.");
+      setErro(e?.response?.data?.error || "Nenhum planejamento encontrado para este período.");
     } finally { setLoading(false); }
   }, [ano, mes]);
 
@@ -383,8 +383,8 @@ export default function FolgaDominicalPage() {
   /* -- actions ---------------------------------- */
   async function gerar() {
     if (!isAdmin && !isAltaGestao) return;
-    if (previewInvalido) { setErro("Existem colaboradores n�o alocados na simula��o. Ajuste antes de gerar."); return; }
-    if (!window.confirm("Deseja gerar o planejamento deste m�s?")) return;
+    if (previewInvalido) { setErro("Existem colaboradores não alocados na simulação. Ajuste antes de gerar."); return; }
+    if (!window.confirm("Deseja gerar o planejamento deste mês?")) return;
     setLoading(true); setErro("");
     try { await api.post("/folga-dominical", { ano, mes }); await load(); }
     catch (e) { setErro(e?.response?.data?.error || "Erro ao gerar planejamento."); }
@@ -393,7 +393,7 @@ export default function FolgaDominicalPage() {
 
   async function reprocessar() {
     if (!isAdmin && !isAltaGestao) return;
-    if (!window.confirm("Isso ir� remover o planejamento atual e apagar DSRs autom�ticos.\nDeseja continuar?")) return;
+    if (!window.confirm("Isso irá remover o planejamento atual e apagar DSRs automáticos.\nDeseja continuar?")) return;
     setLoading(true); setErro("");
     try {
       await api.delete(`/folga-dominical?ano=${ano}&mes=${mes}`);
@@ -409,7 +409,7 @@ export default function FolgaDominicalPage() {
       const res = await api.post("/folga-dominical/preview", { ano, mes });
       setPreviewData(res.data?.data || null);
     } catch (e) {
-      setPreviewErro(e?.response?.data?.error || "Erro ao gerar simula��o.");
+      setPreviewErro(e?.response?.data?.error || "Erro ao gerar simulação.");
       setPreviewData(null);
     } finally { setPreviewLoading(false); }
   }
@@ -472,11 +472,11 @@ export default function FolgaDominicalPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
                 <div style={{ width: 4, height: 28, borderRadius: 4, background: BRAND }} />
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
-                  Proje��o de Folgas Dominicais
+                  Projeção de Folgas Dominicais
                 </h1>
               </div>
               <p style={{ margin: "0 0 0 14px", fontSize: 13, color: "var(--color-muted)" }}>
-                Distribui��o autom�tica de DSR aos domingos � Escalas B, C e G
+                Distribuição automática de DSR aos domingos — Escalas B, C e G
               </p>
             </div>
 
@@ -499,10 +499,10 @@ export default function FolgaDominicalPage() {
                 </div>
               </div>
 
-              {/* M�s */}
+              {/* Mês */}
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                 <label style={{ fontSize: 10, color: "var(--color-muted)", fontWeight: 700,
-                  textTransform: "uppercase", letterSpacing: "0.12em" }}>M�s</label>
+                  textTransform: "uppercase", letterSpacing: "0.12em" }}>Mês</label>
                 <StyledSelect value={mes} onChange={(v) => setMes(Number(v))}>
                   {MESES.map((m) => (
                     <option key={m.value} value={m.value}>{m.label}</option>
@@ -543,7 +543,7 @@ export default function FolgaDominicalPage() {
                   onMouseLeave={(e) => (e.currentTarget.style.background = BLUE)}
                 >
                   <Play size={14} style={{ animation: previewLoading ? "spin 0.8s linear infinite" : "none" }} />
-                  {previewLoading ? "Simulando�" : "Simular"}
+                  {previewLoading ? "Simulando..." : "Simular"}
                 </button>
               )}
 
@@ -553,7 +553,7 @@ export default function FolgaDominicalPage() {
                   <button
                     onClick={gerar}
                     disabled={loading || previewLoading || previewInvalido || previewNaoExecutado}
-                    title={previewNaoExecutado ? "Execute a simula��o antes de gerar" : previewInvalido ? "Existem colaboradores n�o alocados" : "Gerar planejamento"}
+                    title={previewNaoExecutado ? "Execute a simulação antes de gerar" : previewInvalido ? "Existem colaboradores não alocados" : "Gerar planejamento"}
                     style={{
                       height: 40, padding: "0 20px", borderRadius: 12,
                       background: (previewInvalido || previewNaoExecutado) ? "var(--color-surface-3)" : BRAND,
@@ -608,7 +608,7 @@ export default function FolgaDominicalPage() {
           )}
 
           {/* --------------------------------------------------- */}
-          {/* -- SECTION 01: SIMULA��O -------------------------- */}
+          {/* -- SECTION 01: SIMULAÇÃO -------------------------- */}
           {/* --------------------------------------------------- */}
           {previewLoading && (
             <SurfaceCard>
@@ -628,16 +628,16 @@ export default function FolgaDominicalPage() {
 
           {!previewLoading && previewData && (
             <section style={{ display: "flex", flexDirection: "column", gap: 14 }} className="fd-fade">
-              <SectionLabel num="01" title="Simula��o" sub="Dados n�o persistidos � apenas visualiza��o" />
+              <SectionLabel num="01" title="Simulação" sub="Dados não persistidos — apenas visualização" />
 
               <SurfaceCard>
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-                  {/* header simula��o */}
+                  {/* header simulação */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
                     flexWrap: "wrap", gap: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Simula��o de Folgas</h2>
+                      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Simulação de Folgas</h2>
                       <span style={{
                         padding: "2px 10px", borderRadius: 99, fontSize: 10, fontWeight: 800,
                         background: `${BLUE}20`, color: BLUE, border: `1px solid ${BLUE}30`,
@@ -649,18 +649,18 @@ export default function FolgaDominicalPage() {
                     </span>
                   </div>
 
-                  {/* alerta de n�o alocados */}
+                  {/* alerta de não alocados */}
                   {previewInvalido && (
                     <AlertBanner type="warning">
-                      {previewData.naoAlocados.length} colaborador(es) n�o alocado(s).
+                      {previewData.naoAlocados.length} colaborador(es) não alocado(s).
                       Revise a capacidade antes de gerar o planejamento.
                     </AlertBanner>
                   )}
 
-                  {/* KPIs simula��o */}
+                  {/* KPIs simulação */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <KpiCard
-                      label="Eleg�veis"
+                      label="Elegíveis"
                       value={previewData.totalElegiveis ?? 0}
                       icon={Users}
                       color={BLUE}
@@ -672,7 +672,7 @@ export default function FolgaDominicalPage() {
                       color={GREEN}
                     />
                     <KpiCard
-                      label="N�o alocados"
+                      label="Não alocados"
                       value={previewData.naoAlocados?.length ?? 0}
                       icon={AlertTriangle}
                       color={(previewData.naoAlocados?.length ?? 0) > 0 ? RED : GREEN}
@@ -694,12 +694,12 @@ export default function FolgaDominicalPage() {
                     </div>
                   )}
 
-                  {/* N�o alocados */}
+                  {/* Não alocados */}
                   {previewData.naoAlocados?.length > 0 && (
                     <div>
                       <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700,
                         color: RED, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                        Colaboradores n�o alocados ({previewData.naoAlocados.length})
+                        Colaboradores não alocados ({previewData.naoAlocados.length})
                       </p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6,
                         maxHeight: 240, overflowY: "auto" }}>
@@ -711,7 +711,7 @@ export default function FolgaDominicalPage() {
                           }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{c.nome}</span>
                             <span style={{ fontSize: 11, color: "var(--color-muted)", textAlign: "right" }}>
-                              {c.turno} � Slot {c.slotBase}{c.motivo ? ` � ${c.motivo}` : ""}
+                              {c.turno} — Slot {c.slotBase}{c.motivo ? ` — ${c.motivo}` : ""}
                             </span>
                           </div>
                         ))}
@@ -768,7 +768,7 @@ export default function FolgaDominicalPage() {
                               <TH center>Escala</TH>
                               <TH center>Slot</TH>
                               <TH center>Domingo</TH>
-                              <TH center>�ltima Folga</TH>
+                              <TH center>Última Folga</TH>
                               <TH center>Dias sem folga</TH>
                             </tr>
                           </thead>
@@ -783,10 +783,10 @@ export default function FolgaDominicalPage() {
                                 <TD>{item.nome}</TD>
                                 <TD center><Badge value={item.turno} map={TURNO_COLORS} /></TD>
                                 <TD center><Badge value={item.escala} map={ESCALA_COLORS} /></TD>
-                                <TD center>{item.slot || "�"}</TD>
-                                <TD center>{item.domingo ? formatDateBR(item.domingo) : "�"}</TD>
+                                <TD center>{item.slot || "-"}</TD>
+                                <TD center>{item.domingo ? formatDateBR(item.domingo) : "-"}</TD>
                                 <TD center style={{ color: "var(--color-muted)" }}>
-                                  {item.ultimaFolgaAnterior ? formatDateBR(item.ultimaFolgaAnterior) : "�"}
+                                  {item.ultimaFolgaAnterior ? formatDateBR(item.ultimaFolgaAnterior) : "-"}
                                 </TD>
                                 <TD center><DiasBadge dias={item.diasDesdeUltimaFolga} /></TD>
                               </tr>
@@ -878,7 +878,7 @@ export default function FolgaDominicalPage() {
                     </StyledSelect>
 
                     <StyledSelect value={liderSelecionado} onChange={setLiderSelecionado}>
-                      <option value="">Todos os l�deres</option>
+                      <option value="">Todos os líderes</option>
                       {lideres.map((l) => (
                         <option key={l} value={l}>
                           {l}
@@ -935,10 +935,10 @@ export default function FolgaDominicalPage() {
                         <TH>Nome</TH>
                         <TH center>Turno</TH>
                         <TH center>Escala</TH>
-                        <TH>L�der</TH>
+                        <TH>Líder</TH>
                         <TH>Setor</TH>
                         <TH center>Domingo</TH>
-                        <TH center>�ltima Folga</TH>
+                        <TH center>Última Folga</TH>
                         <TH center>Dias sem DSR</TH>
                       </tr>
                     </thead>
@@ -970,13 +970,13 @@ export default function FolgaDominicalPage() {
                             </TD>
                             <TD center><Badge value={colab.turno} map={TURNO_COLORS} /></TD>
                             <TD center><Badge value={colab.escala} map={ESCALA_COLORS} /></TD>
-                            <TD>{colab.lider || "�"}</TD>
-                            <TD>{colab.setor || "�"}</TD>
+                            <TD>{colab.lider || "-"}</TD>
+                            <TD>{colab.setor || "-"}</TD>
                             <TD center style={{ color: "var(--color-text)", fontWeight: 600 }}>
-                              {colab.dataDomingo ? formatDateWithWeekday(colab.dataDomingo) : "�"}
+                              {colab.dataDomingo ? formatDateWithWeekday(colab.dataDomingo) : "-"}
                             </TD>
                             <TD center style={{ color: "var(--color-muted)", fontSize: 12 }}>
-                              {colab.ultimoDSR ? formatDateWithWeekday(colab.ultimoDSR) : "�"}
+                              {colab.ultimoDSR ? formatDateWithWeekday(colab.ultimoDSR) : "-"}
                             </TD>
                             <TD center><DiasBadge dias={colab.diasSemDSR} /></TD>
                           </tr>

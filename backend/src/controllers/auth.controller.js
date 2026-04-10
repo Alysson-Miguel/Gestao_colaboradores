@@ -58,7 +58,8 @@ const register = async (req, res) => {
   const token = generateToken({
     id: user.id,
     email: user.email,
-    role: user.role
+    role: user.role,
+    idEstacao: user.idEstacao ?? null,
   });
 
   return createdResponse(res, { user, token }, 'Usuário registrado com sucesso');
@@ -93,7 +94,8 @@ const login = async (req, res) => {
   const token = generateToken({
     id: user.id,
     email: user.email,
-    role: user.role
+    role: user.role,
+    idEstacao: user.idEstacao ?? null,
   });
 
   const { password: _, ...safeUser } = user;

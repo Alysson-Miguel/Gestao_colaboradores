@@ -100,6 +100,7 @@ const getFrequenciaById = async (req, res) => {
           matricula: true,
           setor: true,
           cargo: true,
+          idEstacao: true,
         },
       },
       tipoAusencia: true,
@@ -108,6 +109,13 @@ const getFrequenciaById = async (req, res) => {
 
   if (!frequencia)
     return notFoundResponse(res, "Registro de frequência não encontrado");
+
+  // Isolamento: não-global só acessa frequências da sua estação
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+    if (frequencia.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+      return errorResponse(res, "Acesso negado", 403);
+    }
+  }
 
   return successResponse(res, frequencia);
 };
@@ -243,6 +251,19 @@ const createFrequencia = async (req, res) => {
 const updateFrequencia = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Isolamento: verifica estação antes de atualizar
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      const freq = await prisma.frequencia.findUnique({
+        where: { idFrequencia: parseInt(id) },
+        select: { colaborador: { select: { idEstacao: true } } },
+      });
+      if (!freq) return notFoundResponse(res, "Frequência não encontrada");
+      if (freq.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+        return errorResponse(res, "Acesso negado", 403);
+      }
+    }
+
     const updateData = { ...req.body };
 
     /* ===============================
@@ -330,6 +351,18 @@ const updateFrequencia = async (req, res) => {
 ===================================================== */
 const deleteFrequencia = async (req, res) => {
   const { id } = req.params;
+
+  // Isolamento: verifica estação antes de deletar
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+    const freq = await prisma.frequencia.findUnique({
+      where: { idFrequencia: parseInt(id) },
+      select: { colaborador: { select: { idEstacao: true } } },
+    });
+    if (!freq) return notFoundResponse(res, "Frequência não encontrada");
+    if (freq.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+      return errorResponse(res, "Acesso negado", 403);
+    }
+  }
 
   await prisma.frequencia.delete({
     where: { idFrequencia: parseInt(id) },
