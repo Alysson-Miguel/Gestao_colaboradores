@@ -241,6 +241,7 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
       inc(acc.turno,     c.turno?.nomeTurno      || "N/I", "atestados");
       inc(acc.genero,    c.genero                || "N/I", "atestados");
       inc(acc.lider,     c.lider?.nomeCompleto   || "Sem líder", "atestados");
+      inc(acc.diaSemana, DIAS_SEMANA[new Date(a.dataInicio).getDay()]          , "atestados");
       inc(acc.escala,    c.escala?.nomeEscala    || "N/I", "atestados");
     }
 
