@@ -220,9 +220,17 @@ async function buscarMetasProducao(turno, dataISO, spreadsheetId = DEFAULT_SPREA
       console.warn("⚠️ Nenhuma linha encontrada para:", { turno, data: dataBusca, spreadsheetId });
     }
 
+    // Ajuste temporário: reduzir meta em 30%
+    const FATOR_META = 0.7;
+    const metasPorHoraAjustadas = {};
+    for (const [hora, meta] of Object.entries(metasPorHora)) {
+      metasPorHoraAjustadas[hora] = meta * FATOR_META;
+    }
+    const metaDiaAjustada = metaDia * FATOR_META;
+
     return {
       success: true,
-      data: { dataConsultada: dataBusca, turnoConsultado: turno, metaDia, metasPorHora },
+      data: { dataConsultada: dataBusca, turnoConsultado: turno, metaDia: metaDiaAjustada, metasPorHora: metasPorHoraAjustadas },
     };
   } catch (error) {
     console.error("❌ Erro ao buscar metas:", error.message);
