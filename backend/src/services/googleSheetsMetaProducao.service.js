@@ -222,7 +222,7 @@ async function buscarMetasProducao(turno, dataISO, spreadsheetId = DEFAULT_SPREA
 
     return {
       success: true,
-      data: { dataConsultada: dataBusca, turnoConsultado: turno, metaDia: metaDiaAjustada, metasPorHora: metasPorHoraAjustadas },
+      data: { dataConsultada: dataBusca, turnoConsultado: turno, metaDia, metasPorHora },
     };
   } catch (error) {
     console.error("❌ Erro ao buscar metas:", error.message);
