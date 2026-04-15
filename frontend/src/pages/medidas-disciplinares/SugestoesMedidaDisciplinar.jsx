@@ -356,7 +356,20 @@ export default function SugestoesMedidaDisciplinar() {
                 <tbody className="divide-y divide-default">
                   {sugestoesFiltradas.map((s) => (
                     <tr key={s.idSugestao} className="bg-page hover:bg-surface transition-colors">
-                      <td className="px-4 py-3 font-medium">{s.colaborador?.nomeCompleto ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium">{s.colaborador?.nomeCompleto ?? "—"}</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {s.colaborador?.turno?.nomeTurno && (
+                            <span className="text-xs text-muted">{s.colaborador.turno.nomeTurno}</span>
+                          )}
+                          {s.colaborador?.turno?.nomeTurno && s.colaborador?.lider?.nomeCompleto && (
+                            <span className="text-xs text-muted/40">·</span>
+                          )}
+                          {s.colaborador?.lider?.nomeCompleto && (
+                            <span className="text-xs text-muted">{s.colaborador.lider.nomeCompleto}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-muted">{s.colaborador?.opsId ?? "—"}</td>
                       <td className="px-4 py-3 text-muted">
                         {s.dataReferencia ? new Date(s.dataReferencia).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—"}

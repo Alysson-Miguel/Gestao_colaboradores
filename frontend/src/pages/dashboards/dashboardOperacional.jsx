@@ -155,6 +155,36 @@ export default function DashboardOperacional() {
      TURNO SELECIONADO
   ===================================================== */
   const turnoData = useMemo(() => {
+    if (turnoSelecionado === "TODOS") {
+      // Consolida os 3 turnos somando os valores
+      const todos = dados?.distribuicaoTurnoSetor || [];
+      return todos.reduce(
+        (acc, t) => {
+          acc.totalEscalados += t.totalEscalados || 0;
+          acc.presentes += t.presentes || 0;
+          acc.ausentes += t.ausentes || 0;
+          acc.diaristasPlanejados += t.diaristasPlanejados || 0;
+          acc.diaristasPresentes += t.diaristasPresentes || 0;
+          acc.aderenciaDW = 0; // calculado abaixo
+          // Mescla setores somando quantidades
+          (t.setores || []).forEach((s) => {
+            const existing = acc.setores.find((x) => x.setor === s.setor);
+            if (existing) existing.quantidade += s.quantidade;
+            else acc.setores.push({ ...s });
+          });
+          return acc;
+        },
+        {
+          totalEscalados: 0,
+          presentes: 0,
+          ausentes: 0,
+          diaristasPlanejados: 0,
+          diaristasPresentes: 0,
+          aderenciaDW: 0,
+          setores: [],
+        }
+      );
+    }
     return (
       dados?.distribuicaoTurnoSetor?.find((t) => t.turno === turnoSelecionado) || {
         totalEscalados: 0,
@@ -261,16 +291,29 @@ export default function DashboardOperacional() {
   );
 
   const statusItems = useMemo(
-    () =>
-      (dados?.statusColaboradoresPorTurno?.[turnoSelecionado] || []).map((s) => ({
+    () => {
+      if (turnoSelecionado === "TODOS") {
+        const merged = {};
+        ["T1", "T2", "T3"].forEach((t) => {
+          (dados?.statusColaboradoresPorTurno?.[t] || []).forEach((s) => {
+            merged[s.status] = (merged[s.status] || 0) + s.quantidade;
+          });
+        });
+        return Object.entries(merged).map(([label, value]) => ({ label, value }));
+      }
+      return (dados?.statusColaboradoresPorTurno?.[turnoSelecionado] || []).map((s) => ({
         label: s.status,
         value: s.quantidade,
-      })),
+      }));
+    },
     [dados, turnoSelecionado]
   );
 
   const ausentesTurno = useMemo(
-    () => dados?.ausenciasHoje?.filter((a) => a.turno === turnoSelecionado) || [],
+    () => {
+      if (turnoSelecionado === "TODOS") return dados?.ausenciasHoje || [];
+      return dados?.ausenciasHoje?.filter((a) => a.turno === turnoSelecionado) || [];
+    },
     [dados, turnoSelecionado]
   );
 
@@ -284,21 +327,51 @@ export default function DashboardOperacional() {
   );
 
   const empresasItems = useMemo(
-    () =>
-      (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
+    () => {
+      if (turnoSelecionado === "TODOS") {
+        const merged = {};
+        ["T1", "T2", "T3"].forEach((t) => {
+          (dados?.empresaPorTurno?.[t] || []).forEach((e) => {
+            if (!merged[e.empresa]) {
+              merged[e.empresa] = { empresa: e.empresa, total: 0, faltas: 0, atestados: 0, ausencias: 0 };
+            }
+            merged[e.empresa].total += e.total || 0;
+            merged[e.empresa].faltas += e.faltas || 0;
+            merged[e.empresa].atestados += e.atestados || 0;
+            merged[e.empresa].ausencias += e.ausencias || 0;
+          });
+        });
+        return Object.values(merged).map((e) => ({
+          ...e,
+          absenteismo: e.total > 0 ? Number(((e.ausencias / e.total) * 100).toFixed(2)) : 0,
+        }));
+      }
+      return (dados?.empresaPorTurno?.[turnoSelecionado] || []).map((e) => ({
         empresa: e.empresa,
         total: e.total,
         faltas: e.faltas,
         atestados: e.atestados,
         ausencias: e.ausencias,
         absenteismo: e.absenteismo,
-      })),
+      }));
+    },
     [dados, turnoSelecionado]
   );
 
 
   const vinculoData = useMemo(
-    () => dados?.distribuicaoVinculoPorTurno?.[turnoSelecionado] || [],
+    () => {
+      if (turnoSelecionado === "TODOS") {
+        const merged = {};
+        ["T1", "T2", "T3"].forEach((t) => {
+          (dados?.distribuicaoVinculoPorTurno?.[t] || []).forEach((v) => {
+            merged[v.vinculo || v.label] = (merged[v.vinculo || v.label] || 0) + (v.total || v.value || 0);
+          });
+        });
+        return Object.entries(merged).map(([label, value]) => ({ label, value, vinculo: label, total: value }));
+      }
+      return dados?.distribuicaoVinculoPorTurno?.[turnoSelecionado] || [];
+    },
     [dados, turnoSelecionado]
   );
 
@@ -404,7 +477,8 @@ export default function DashboardOperacional() {
             <TurnoSelector
               value={turnoSelecionado}
               onChange={setTurnoSelecionado}
-              options={["T1", "T2", "T3"]}
+              options={["TODOS", "T1", "T2", "T3"]}
+              labels={{ T1: "T1", T2: "T2", T3: "T3", TODOS: "Todos" }}
             />
           <button
             type="button"
@@ -433,7 +507,19 @@ export default function DashboardOperacional() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
             <DistribuicaoGeneroChart
               title="Distribuição por Gênero"
-              data={dados.generoPorTurno?.[turnoSelecionado] || []}
+              data={
+                turnoSelecionado === "TODOS"
+                  ? (() => {
+                      const merged = {};
+                      ["T1", "T2", "T3"].forEach((t) => {
+                        (dados.generoPorTurno?.[t] || []).forEach((g) => {
+                          merged[g.genero || g.label] = (merged[g.genero || g.label] || 0) + (g.total || g.value || 0);
+                        });
+                      });
+                      return Object.entries(merged).map(([label, value]) => ({ genero: label, label, total: value, value }));
+                    })()
+                  : dados.generoPorTurno?.[turnoSelecionado] || []
+              }
             />
             <DistribuicaoVinculoChart
               title="Total Colaboradores - SPX x BPO"
@@ -456,7 +542,7 @@ export default function DashboardOperacional() {
           />
 
           <AusentesHojeTable
-            title={`Ausentes no turno — ${turnoSelecionado}`}
+            title={turnoSelecionado === "TODOS" ? "Ausentes — Todos os Turnos" : `Ausentes no turno — ${turnoSelecionado}`}
             data={ausentesTurno}
             columns={[
               { key: "nome", label: "Colaborador" },
