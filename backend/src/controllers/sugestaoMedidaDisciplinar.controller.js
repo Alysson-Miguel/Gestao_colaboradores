@@ -161,7 +161,13 @@ const getAllSugestoes = async (req, res) => {
             nomeCompleto: true,
             matricula: true,
             idTurno: true,
-            idLider: true
+            idLider: true,
+            turno: {
+              select: { nomeTurno: true },
+            },
+            lider: {
+              select: { nomeCompleto: true },
+            },
           },
         },
 

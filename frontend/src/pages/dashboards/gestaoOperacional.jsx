@@ -406,13 +406,23 @@ export default function GestaoOperacional() {
 
               {/* Filtro de Data */}
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-muted" />
-                <input
-                  type="date"
-                  value={data}
-                  onChange={(e) => setData(e.target.value)}
-                  className="px-4 py-2 bg-surface border border-default rounded-lg text-page"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    id="data-picker"
+                    type="date"
+                    value={data}
+                    onChange={(e) => setData(e.target.value)}
+                    className="px-4 py-2 pr-10 bg-surface border border-default rounded-lg text-page"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("data-picker").showPicker()}
+                    className="absolute right-2 text-muted hover:text-page transition-colors"
+                    tabIndex={-1}
+                  >
+                    <Calendar className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
