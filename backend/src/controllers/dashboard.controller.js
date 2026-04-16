@@ -107,8 +107,11 @@ function getStatusDoDiaOperacional(f) {
   if (f?.tipoAusencia) {
     const codigo = String(f.tipoAusencia.codigo || "").toUpperCase();
 
-    if (codigo === "DSR" || codigo === "FO") {
-      return { label: "Folga", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+    if (codigo === "DSR") {
+      return { label: "DSR", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+    }
+    if (codigo === "FO") {
+      return { label: "Folga", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
     }
   }
 
@@ -159,6 +162,7 @@ function getStatusDoDiaOperacional(f) {
       case "AA":
         return { label: "Atestado Médico", contaComoEscalado: true, impactaAbsenteismo: true, origem: "tipoAusencia" };
       case "F":
+      case "FJ":
         return { label: "Falta", contaComoEscalado: true, impactaAbsenteismo: true, origem: "tipoAusencia" };
 
       // Qualquer código desconhecido — não conta como escalado para não inflar métricas
