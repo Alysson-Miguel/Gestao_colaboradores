@@ -48,6 +48,22 @@ async function gerarDSRBackfillColaborador({ opsId, nomeEscala, dataInicio, tx =
   if (!registros.length) return { criados: 0 };
 
   const resultado = await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
+
+  // Sobrescreve registros que já existiam com id_tipo_ausencia null no mesmo dia de DSR
+  await tx.frequencia.updateMany({
+    where: {
+      opsId,
+      dataReferencia: { in: registros.map((r) => r.dataReferencia) },
+      idTipoAusencia: null,
+    },
+    data: {
+      idTipoAusencia: tipoDSR.idTipoAusencia,
+      justificativa: "DSR_BACKFILL",
+      manual: false,
+      validado: true,
+    },
+  });
+
   return { criados: resultado.count || 0 };
 }
 
@@ -82,6 +98,21 @@ async function gerarDSRFuturoColaborador({ opsId, nomeEscala, tx = prisma, dias 
 
   if (registros.length) {
     await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
+
+    // Sobrescreve registros que já existiam com id_tipo_ausencia null no mesmo dia de DSR
+    await tx.frequencia.updateMany({
+      where: {
+        opsId,
+        dataReferencia: { in: registros.map((r) => r.dataReferencia) },
+        idTipoAusencia: null,
+      },
+      data: {
+        idTipoAusencia: tipoDSR.idTipoAusencia,
+        justificativa: "DSR_AUTO",
+        manual: false,
+        validado: true,
+      },
+    });
   }
 }
 

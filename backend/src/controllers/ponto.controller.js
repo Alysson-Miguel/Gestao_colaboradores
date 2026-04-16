@@ -871,6 +871,7 @@ const getControlePresenca = async (req, res) => {
         nome: c.nomeCompleto,
         turno: c.turno?.nomeTurno || null,
         escala: c.escala?.nomeEscala || null,
+        diasDsr: c.escala?.diasDsr || [],
         dias: diasMap,
       });
     }
@@ -1449,6 +1450,7 @@ const exportarPresencaSheets = async (req, res) => {
         nome: c.nomeCompleto,
         turno: c.turno?.nomeTurno,
         escala: c.escala?.nomeEscala,
+        diasDsr: c.escala?.diasDsr || [],
         dias: diasMap,
       };
     });

@@ -1390,11 +1390,18 @@ const getColaboradorHistorico = async (req, res) => {
 
 /* ================= BACKFILL DSR TODOS ================= */
 const backfillDSRTodos = async (req, res) => {
+  // Responde imediatamente e processa em background para não travar a conexão
+  res.json({ sucesso: true, mensagem: "Backfill DSR iniciado em background. Verifique os logs do servidor." });
+
   try {
     const colaboradores = await prisma.colaborador.findMany({
       where: { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
       select: { opsId: true, dataAdmissao: true, escala: { select: { nomeEscala: true } } },
     });
+
+    // Limita a 90 dias atrás para não sobrecarregar — corrige o período relevante
+    const dataInicio90d = new Date();
+    dataInicio90d.setDate(dataInicio90d.getDate() - 90);
 
     let totalCriados = 0;
     let processados = 0;
@@ -1405,28 +1412,30 @@ const backfillDSRTodos = async (req, res) => {
         const nomeEscala = c.escala?.nomeEscala;
         if (!nomeEscala) continue;
 
+        const dataInicio = c.dataAdmissao && new Date(c.dataAdmissao) > dataInicio90d
+          ? c.dataAdmissao
+          : dataInicio90d;
+
         const { criados } = await gerarDSRBackfillColaborador({
           opsId: c.opsId,
           nomeEscala,
-          dataInicio: c.dataAdmissao,
+          dataInicio,
         });
 
         totalCriados += criados;
         processados++;
+        if (processados % 20 === 0) {
+          console.log(`⏳ [BACKFILL DSR] ${processados}/${colaboradores.length} processados, ${totalCriados} registros até agora...`);
+        }
       } catch (e) {
         erros.push({ opsId: c.opsId, erro: e.message });
       }
     }
 
-    return successResponse(res, {
-      processados,
-      totalCriados,
-      erros: erros.length,
-      detalhesErros: erros.slice(0, 20),
-    });
+    console.log(`✅ [BACKFILL DSR] Concluído: ${processados} colaboradores, ${totalCriados} registros criados/corrigidos, ${erros.length} erros`);
+    if (erros.length) console.error("❌ Erros backfill DSR:", erros.slice(0, 10));
   } catch (err) {
     console.error("❌ BACKFILL DSR:", err);
-    return errorResponse(res, "Erro ao executar backfill de DSR", 500);
   }
 };
 

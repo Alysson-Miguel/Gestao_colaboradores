@@ -64,19 +64,10 @@ function isWeekend(dateISO) {
 }
 
 
-const DSR_BY_ESCALA = {
-  E: [0, 1], // domingo segunda
-  G: [2, 3], // terça quarta
-  C: [4, 5], // quinta sexta
-};
-
-function isDSR(dateISO, escala) {
-  if (!dateISO || !escala) return false;
-
-  const date = new Date(`${dateISO}T00:00:00`);
-  const day = date.getDay();
-
-  return DSR_BY_ESCALA[escala]?.includes(day);
+function isDSR(dateISO, diasDsr = []) {
+  if (!dateISO || !diasDsr.length) return false;
+  const dow = new Date(`${dateISO}T12:00:00Z`).getUTCDay();
+  return diasDsr.includes(dow);
 }
 
 /* ================= COMPONENT ================= */
@@ -99,7 +90,7 @@ export default function PresencaCell({
       return registro.status;
     }
 
-    if (isDSR(dia?.date, colaborador?.escala)) {
+    if (isDSR(dia?.date, colaborador?.diasDsr)) {
       return "DSR";
     }
 

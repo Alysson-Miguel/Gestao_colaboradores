@@ -342,6 +342,7 @@ const carregarDashboard = async (req, res) => {
       freqMap.get(f.opsId).push(f);
     });
 
+
     /* ===============================
        4️⃣ AGREGADORES
     =============================== */
@@ -417,6 +418,7 @@ const carregarDashboard = async (req, res) => {
           }
         }
       });
+
 
       /* ========= 5.2 SNAPSHOT (dia fim) ========= */
       const registroSnapshot =
