@@ -13,6 +13,7 @@
 
 const { prisma } = require("../config/database");
 const detectarViolacaoDisciplinar = require("./detectorMedidaDisciplinar");
+const { isDiaDSRSync } = require("../utils/dsr");
 
 const CARGOS_OPERACIONAIS = [
   "Auxiliar de Logística I",
@@ -36,18 +37,6 @@ function ymd(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-function isDiaDSR(data, nomeEscala) {
-  const dow = new Date(data).getDay();
-  const dsrMap = {
-    E: [0, 1],
-    G: [2, 3],
-    C: [4, 5],
-    A: [0, 3],
-    B: [1, 2],
-  };
-  const dias = dsrMap[String(nomeEscala || "").toUpperCase()];
-  return !!dias?.includes(dow);
-}
 
 /**
  * Processa um intervalo de datas e cria faltas/sugestões para colaboradores
@@ -204,8 +193,8 @@ async function detectarFaltasAutomatico(dataInicio, dataFim, estacaoId = null) {
       const key = `${colaborador.opsId}_${dataISO}`;
 
       /* ── DSR ── */
-      const escalaNome = colaborador.escala?.nomeEscala;
-      if (isDiaDSR(dia, escalaNome)) {
+      const diasDsr = colaborador.escala?.diasDsr || [];
+      if (isDiaDSRSync(dia, diasDsr)) {
         totalIgnorados++;
         continue;
       }

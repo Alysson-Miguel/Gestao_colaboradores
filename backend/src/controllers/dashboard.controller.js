@@ -73,10 +73,6 @@ const daysInclusive = (inicio, fim) => {
 
 function isCargoElegivel(cargo) {
   const nome = String(cargo || "").toUpperCase();
-  // Exclui PCD da contagem
-  if (nome.includes("PCD")) {
-    return false;
-  }
   return (
     nome.includes("AUXILIAR DE LOGÍSTICA I") ||
     nome.includes("AUXILIAR DE LOGÍSTICA II")

@@ -1,5 +1,6 @@
 const { PrismaClient, Prisma } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { gerarDSRBackfillColaborador, gerarDSRFuturoColaborador } = require("./dsrBackfill.service");
 
 const DSR_ID = 4;
 const JUSTIFICATIVA_AUTO = "DSR_FOLGA_DOMINICAL_AUTOMATICA";
@@ -280,6 +281,7 @@ async function carregarContextoPlanejamento({ ano, mes, estacaoId = null }) {
     select: {
       opsId: true,
       nomeCompleto: true,
+      dataAdmissao: true,
       turno: {
         select: {
           nomeTurno: true,
@@ -623,6 +625,18 @@ async function gerarFolgaDominical({ ano, mes, userId, estacaoId = null }) {
   console.log("TOTAL PLANEJAMENTOS:", planejamentos.length);
 
   await processarPlanejamentosEmLotes(planejamentos, userId);
+
+  // Garante que todos os DSRs semanais dos elegíveis estejam no banco (backfill histórico + futuro)
+  for (const colab of elegiveis) {
+    const nomeEscala = colab.escala?.nomeEscala;
+    if (!nomeEscala) continue;
+    try {
+      await gerarDSRBackfillColaborador({ opsId: colab.opsId, nomeEscala, dataInicio: colab.dataAdmissao });
+      await gerarDSRFuturoColaborador({ opsId: colab.opsId, nomeEscala, dias: 120 });
+    } catch (e) {
+      console.warn(`⚠️ DSR backfill falhou para ${colab.opsId}:`, e.message);
+    }
+  }
 
   const resumoCapacidade = {};
   for (const turno of ["T1", "T2", "T3"]) {

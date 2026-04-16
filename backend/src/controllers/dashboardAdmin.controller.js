@@ -52,10 +52,6 @@ function formatTempoEmpresa(dataAdmissao) {
 
 function isCargoElegivel(cargo) {
   const nome = String(cargo || "").toUpperCase();
-  // Exclui PCD da contagem
-  if (nome.includes("PCD")) {
-    return false;
-  }
   return (
     nome.includes("AUXILIAR DE LOGÍSTICA I") ||
     nome.includes("AUXILIAR DE LOGÍSTICA II")
@@ -132,7 +128,25 @@ function getStatusDoDia(f) {
       };
     }
 
-    // F / FJ
+    // BH → entra no HC apto, não impacta absenteísmo
+    if (codigo === "BH") {
+      return {
+        code: "BH",
+        contaComoEscalado: true,
+        impactaAbsenteismo: false,
+      };
+    }
+
+    // AFA / AF / LM / LP / T → fora do HC
+    if (["AFA", "AF", "LM", "LP", "T"].includes(codigo)) {
+      return {
+        code: codigo,
+        contaComoEscalado: false,
+        impactaAbsenteismo: false,
+      };
+    }
+
+    // F / FJ / AM e demais → ausência que impacta
     return {
       code: codigo,
       contaComoEscalado: true,
@@ -1578,14 +1592,13 @@ const carregarDashboardAdmin = async (req, res) => {
 
     const mesesSerie = gerarMesesRetroativos(fimFinal, 12);
 
-    // Todos os colaboradores elegíveis (cargo + sem PCD) — sem filtro de empresa
+    // Todos os colaboradores elegíveis (cargo Auxiliar de Logística I/II, incluindo PCD)
     const whereSerieBase = {
       ...estacaoFilter,
       ...(turnoSelecionado !== "ALL"
         ? { turno: { nomeTurno: { contains: turnoSelecionado, mode: "insensitive" } } }
         : {}),
       cargo: { nomeCargo: { contains: "AUXILIAR DE LOGÍSTICA", mode: "insensitive" } },
-      NOT: [{ cargo: { nomeCargo: { contains: "PCD", mode: "insensitive" } } }],
     };
 
     // Colaboradores ativos para HC mensal (em memória, já temos colaboradoresFiltrados + todos)

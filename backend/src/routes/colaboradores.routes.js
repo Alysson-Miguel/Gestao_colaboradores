@@ -6,6 +6,14 @@ const { authenticate, authorize } = require("../middlewares/auth.middleware");
 const { asyncHandler } = require("../middlewares/error.middleware");
 const { upload } = require("../middlewares/uploadCsv.middleware");
 
+/* ================= BACKFILL DSR ================= */
+router.post(
+  "/backfill-dsr",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(controller.backfillDSRTodos)
+);
+
 /* ================= IMPORT CSV ================= */
 router.post(
   "/import",

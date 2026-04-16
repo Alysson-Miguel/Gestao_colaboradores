@@ -1388,6 +1388,48 @@ const getColaboradorHistorico = async (req, res) => {
   return successResponse(res, { message: "Historico pendente" });
 };
 
+/* ================= BACKFILL DSR TODOS ================= */
+const backfillDSRTodos = async (req, res) => {
+  try {
+    const colaboradores = await prisma.colaborador.findMany({
+      where: { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
+      select: { opsId: true, dataAdmissao: true, escala: { select: { nomeEscala: true } } },
+    });
+
+    let totalCriados = 0;
+    let processados = 0;
+    const erros = [];
+
+    for (const c of colaboradores) {
+      try {
+        const nomeEscala = c.escala?.nomeEscala;
+        if (!nomeEscala) continue;
+
+        const { criados } = await gerarDSRBackfillColaborador({
+          opsId: c.opsId,
+          nomeEscala,
+          dataInicio: c.dataAdmissao,
+        });
+
+        totalCriados += criados;
+        processados++;
+      } catch (e) {
+        erros.push({ opsId: c.opsId, erro: e.message });
+      }
+    }
+
+    return successResponse(res, {
+      processados,
+      totalCriados,
+      erros: erros.length,
+      detalhesErros: erros.slice(0, 20),
+    });
+  } catch (err) {
+    console.error("❌ BACKFILL DSR:", err);
+    return errorResponse(res, "Erro ao executar backfill de DSR", 500);
+  }
+};
+
 module.exports = {
   getAllColaboradores,
   getColaboradorByCpf,
@@ -1403,4 +1445,5 @@ module.exports = {
   getStatusImport,
   listarLideres,
   listarEscalas,
+  backfillDSRTodos,
 };

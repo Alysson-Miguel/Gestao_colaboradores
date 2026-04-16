@@ -56,24 +56,17 @@ function calcIdade(nascimento, ref) {
 /** Cargo elegível (igual operacional/admin) */
 function isCargoElegivel(cargo) {
   const nome = String(cargo || "").toUpperCase();
-  if (nome.includes("PCD")) return false;
   return (
     nome.includes("AUXILIAR DE LOGÍSTICA I") ||
-    nome.includes("AUXILIAR DE LOGÍSTICA II") ||
-    nome.includes("AUXILIAR DE LOGÍSTICA")
+    nome.includes("AUXILIAR DE LOGÍSTICA II")
   );
 }
 
-/** DSR por escala A/B/C (igual teu operacional) */
-function isDiaDSR(dataOperacional, nomeEscala) {
-  const dow = new Date(dataOperacional).getDay();
-  const dsrMap = {
-    A: [0, 3], // domingo, quarta
-    B: [1, 2], // segunda, terça
-    C: [4, 5], // quinta, sexta
-  };
-  const dias = dsrMap[String(nomeEscala || "").toUpperCase()];
-  return !!dias?.includes(dow);
+const { isDiaDSRSync } = require("../utils/dsr");
+
+/** DSR usando diasDsr já carregado do banco via colaborador.escala.diasDsr */
+function isDiaDSR(dataOperacional, nomeEscala, diasDsr = []) {
+  return isDiaDSRSync(dataOperacional, diasDsr);
 }
 
 /** resolve snapshot (dia fim do range) */
@@ -84,14 +77,14 @@ function resolveSnapshotDate({ dataInicio, dataFim, dataOperacional }) {
 }
 
 /** dias úteis do período (exclui DSR) */
-function getDiasUteisPeriodo(inicio, fim, escala) {
+function getDiasUteisPeriodo(inicio, fim, diasDsr = []) {
   const dias = [];
   const d = new Date(inicio);
   const end = new Date(fim);
   end.setHours(23, 59, 59, 999);
 
   while (d <= end) {
-    if (!isDiaDSR(d, escala)) dias.push(toISODateStr(d));
+    if (!isDiaDSRSync(d, diasDsr)) dias.push(toISODateStr(d));
     d.setDate(d.getDate() + 1);
   }
   return dias;
@@ -150,6 +143,21 @@ function getStatusDoDiaOperacional(f) {
     // Sinergia enviada -> entra no HC apto, não impacta
     if (codigo === "S1" || desc.includes("SINERGIA")) {
       return { label: "Sinergia Enviada", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+    }
+
+    // BH → entra no HC apto, não impacta absenteísmo
+    if (codigo === "BH") {
+      return { label: "Banco de Horas", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+    }
+
+    // AFA / AF / LM / LP / T → fora do HC
+    if (["AFA", "AF", "LM", "LP", "T"].includes(codigo)) {
+      return { label: "Afastamento", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+    }
+
+    // FJ → ausência que impacta
+    if (codigo === "FJ") {
+      return { label: "Falta Justificada", contaComoEscalado: true, impactaAbsenteismo: true, origem: "tipoAusencia" };
     }
 
     // Qualquer outra ausência vira Falta (impacta)
@@ -403,7 +411,8 @@ kpis.ativos++;
 const registros = freqMap.get(c.opsId) || [];
 
 // ✅ DSR: não remove do universo (donuts), só bloqueia presença/tabela
-const isDsrHoje = !!(c.escala?.nomeEscala && isDiaDSR(fim, c.escala.nomeEscala));
+const diasDsrColab = c.escala?.diasDsr || [];
+const isDsrHoje = isDiaDSRSync(fim, diasDsrColab);
 
 const nomeLider = c.lider?.nomeCompleto || "Sem Líder";
 const nomeSetor = c.setor?.nomeSetor || "Sem Setor";
@@ -416,7 +425,7 @@ hcPorSetor[nomeSetor] = (hcPorSetor[nomeSetor] || 0) + 1;
 
   const esc = c.escala?.nomeEscala || "";
   if (!diasUteisCache.has(esc)) {
-    diasUteisCache.set(esc, getDiasUteisPeriodo(inicio, fim, esc));
+    diasUteisCache.set(esc, getDiasUteisPeriodo(inicio, fim, diasDsrColab));
   }
   const diasUteis = diasUteisCache.get(esc);
   const totalDiasUteis = diasUteis.length;
@@ -709,8 +718,6 @@ kpis.tempoMedioEmpresa = qtdTempoEmpresa
       cargo: {
         nomeCargo: { contains: "AUXILIAR DE LOGÍSTICA", mode: "insensitive" },
       },
-      // não conta PCD
-      NOT: [{ cargo: { nomeCargo: { contains: "PCD", mode: "insensitive" } } }],
       // Apenas BPO (sem SPX)
       empresa: {
         razaoSocial: { in: ["ADECCO", "ADILIS", "LUANDRE"], mode: "insensitive" },
