@@ -294,20 +294,16 @@ const carregarDashboard = async (req, res) => {
 
         prisma.frequencia.findMany({
           where: {
-            dataReferencia: {
-              gte: inicio,
-              lte: fim,
-            },
+            dataReferencia: { gte: inicio, lte: fim },
+            // Sem filtro de status — inclui desligados que estavam ativos no período
             colaborador: {
-              status: "ATIVO",
-              dataDesligamento: null,
               ...(!req.dbContext?.isGlobal && req.dbContext?.estacaoId
                 ? { idEstacao: req.dbContext.estacaoId }
                 : {}),
             },
           },
           include: {
-            colaborador: { include: { turno: true, setor: true } },
+            colaborador: { include: { turno: true, setor: true, cargo: true } },
             tipoAusencia: true,
             setor: true,
           },
@@ -388,37 +384,6 @@ const carregarDashboard = async (req, res) => {
       const empresa = normalize(c.empresa?.razaoSocial) || "Sem empresa";
 
       const registros = freqMap.get(c.opsId) || [];
-
-      /* ========= 5.1 TENDÊNCIA (por dia, com escalados/dias esperados) ========= */
-      registros.forEach((reg) => {
-        const dataRef = isoDate(reg.dataReferencia);
-        if (!dataRef) return;
-
-        const s = getStatusDoDiaOperacional(reg);
-
-        if (!tendenciaPorDia[dataRef]) {
-          tendenciaPorDia[dataRef] = {
-            data: dataRef,
-            presentes: 0,
-            ausentes: 0,
-            escalados: 0,
-          };
-        }
-
-        // só conta dias em que estava escalado (FO/DSR fora)
-        // e respeita filtro de turno para não misturar T1/T2/T3
-        if (s.contaComoEscalado) {
-          tendenciaPorDia[dataRef].escalados++;
-
-          if (s.label === "Presente") {
-            tendenciaPorDia[dataRef].presentes++;
-          } else if (s.impactaAbsenteismo) {
-            // Falta / Atestado Médico
-            tendenciaPorDia[dataRef].ausentes++;
-          }
-        }
-      });
-
 
       /* ========= 5.2 SNAPSHOT (dia fim) ========= */
       const registroSnapshot =
@@ -522,7 +487,8 @@ const carregarDashboard = async (req, res) => {
     let totalAusenciasDias = 0;
 
     frequenciasPeriodo.forEach((f) => {
-      const c = colaboradores.find(col => col.opsId === f.opsId);
+      // Usa f.colaborador diretamente — inclui desligados que estavam ativos no período
+      const c = f.colaborador;
       if (!c) return;
 
       if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
@@ -531,15 +497,23 @@ const carregarDashboard = async (req, res) => {
       if (turnoFiltro && turnoColab !== turnoFiltro) return;
 
       const s = getStatusDoDiaOperacional(f);
+      const dataRef = isoDate(f.dataReferencia);
 
-      // HC APTO por dia
+      // HC APTO + tendenciaPorDia (mesma fonte = card e curva sempre iguais)
       if (s.contaComoEscalado) {
         totalHcAptoDias++;
-      }
 
-      // AUSÊNCIAS por dia (F, FJ, AM)
-      if (s.impactaAbsenteismo) {
-        totalAusenciasDias++;
+        if (!tendenciaPorDia[dataRef]) {
+          tendenciaPorDia[dataRef] = { data: dataRef, presentes: 0, ausentes: 0, escalados: 0 };
+        }
+        tendenciaPorDia[dataRef].escalados++;
+
+        if (s.impactaAbsenteismo) {
+          totalAusenciasDias++;
+          tendenciaPorDia[dataRef].ausentes++;
+        } else if (s.label === "Presente") {
+          tendenciaPorDia[dataRef].presentes++;
+        }
       }
     });
 
