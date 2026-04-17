@@ -268,7 +268,7 @@ const carregarDashboard = async (req, res) => {
     /* ===============================
        2️⃣ QUERIES
     =============================== */
-    const [colaboradores, empresas, turnos, escalasAtivas, frequenciasPeriodo] =
+    const [colaboradores, empresas, turnos, escalasAtivas, frequenciasPeriodo, historicoMovs, cargos] =
       await Promise.all([
         prisma.colaborador.findMany({
           where: {
@@ -309,7 +309,63 @@ const carregarDashboard = async (req, res) => {
           },
           orderBy: { dataReferencia: "asc" },
         }),
+
+        // Histórico de mudanças de cargo — para checar elegibilidade na data do registro
+        prisma.historicoMovimentacao.findMany({
+          where: {
+            cargoAnterior: { not: null },
+            cargoNovo: { not: null },
+            dataEfetivacao: { lte: fim },
+          },
+          select: { opsId: true, cargoAnterior: true, cargoNovo: true, dataEfetivacao: true },
+          orderBy: { dataEfetivacao: "asc" },
+        }),
+
+        prisma.cargo.findMany({ select: { idCargo: true, nomeCargo: true } }),
       ]);
+
+    // Mapa idCargo → nomeCargo
+    const cargoNomeMap = new Map(cargos.map((c) => [c.idCargo, c.nomeCargo]));
+
+    // Mapa opsId → histórico de mudanças de cargo (ordenado por data asc)
+    const historicoCargoMap = {};
+    historicoMovs.forEach((m) => {
+      if (!historicoCargoMap[m.opsId]) historicoCargoMap[m.opsId] = [];
+      historicoCargoMap[m.opsId].push(m);
+    });
+
+    // Retorna o idCargo que o colaborador tinha em determinada data
+    function getCargoIdNoDia(opsId, data, cargoAtualId) {
+      const movs = historicoCargoMap[opsId];
+      if (!movs || !movs.length) return cargoAtualId;
+
+      const cargoChanges = movs.filter(
+        (m) => m.cargoAnterior !== null && m.cargoNovo !== null && m.cargoAnterior !== m.cargoNovo
+      );
+      if (!cargoChanges.length) return cargoAtualId;
+
+      const d = new Date(data);
+      let cargoId = null;
+
+      for (const mov of cargoChanges) {
+        if (new Date(mov.dataEfetivacao) <= d) {
+          cargoId = mov.cargoNovo;
+        } else {
+          break;
+        }
+      }
+
+      // Se todas as mudanças ocorreram APÓS a data, o cargo era o anterior à primeira mudança
+      if (cargoId === null) return cargoChanges[0].cargoAnterior;
+      return cargoId;
+    }
+
+    function isCargoElegivelNoDia(opsId, data, cargoAtualId) {
+      const cargoId = getCargoIdNoDia(opsId, data, cargoAtualId);
+      const nomeCargo = cargoNomeMap.get(cargoId) || "";
+      return isCargoElegivel(nomeCargo);
+    }
+
     /* ===============================
       DISTRIBUIÇÃO COLABORADORES — SPX vs BPO
     =============================== */
@@ -370,7 +426,8 @@ const carregarDashboard = async (req, res) => {
       const c = registroSnapshot.colaborador;
       if (!c) return;
 
-      if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
+      // Verifica cargo na data do registro — colaborador pode ter mudado de cargo depois
+      if (!isCargoElegivelNoDia(c.opsId, registroSnapshot.dataReferencia, c.cargo?.idCargo)) return;
 
       const turno = normalizeTurno(c.turno?.nomeTurno);
       if (turno === "Sem turno") return;
@@ -476,7 +533,8 @@ const carregarDashboard = async (req, res) => {
       const c = f.colaborador;
       if (!c) return;
 
-      if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
+      // Verifica cargo na data do registro — colaborador pode ter mudado de cargo depois
+      if (!isCargoElegivelNoDia(c.opsId, f.dataReferencia, c.cargo?.idCargo)) return;
 
       const turnoColab = normalizeTurno(c.turno?.nomeTurno);
       if (turnoFiltro && turnoColab !== turnoFiltro) return;
