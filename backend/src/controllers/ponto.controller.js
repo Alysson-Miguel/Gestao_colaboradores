@@ -12,6 +12,7 @@ const { finalizarAtestadosVencidos } = require("../utils/atestadoAutoFinalize");
 const { exportarControlePresenca } = require("../services/googleSheetsPresenca.service");
 const { error } = require("../utils/logger");
 const detectarViolacaoDisciplinar = require("../services/detectorMedidaDisciplinar");
+const { isDiaDSRSync } = require("../utils/dsr");
 
 let tipoDSRCache = null;
 /* =====================================================
@@ -61,23 +62,26 @@ function getStatusAdministrativo(c, dataCalendario) {
 
 function getEscalaNoDia(opsId, data, historicoMap, escalaAtual = null) {
   const registros = historicoMap[opsId];
-  
-  // Se não tem histórico, usa a escala atual
-  if (!registros || registros.length === 0) {
-    return escalaAtual;
-  }
-
+  if (!registros || registros.length === 0) return escalaAtual;
   const d = new Date(data);
-
   const registro = registros.find((r) => {
     const inicio = new Date(r.dataInicio);
     const fim = r.dataFim ? new Date(r.dataFim) : null;
-
     return d >= inicio && (!fim || d <= fim);
   });
-
-  // Se encontrou no histórico, usa; senão usa a escala atual
   return registro?.escala?.nomeEscala || escalaAtual;
+}
+
+function getDiasDsrNoDia(opsId, data, historicoMap, diasDsrAtual = []) {
+  const registros = historicoMap[opsId];
+  if (!registros || registros.length === 0) return diasDsrAtual;
+  const d = new Date(data);
+  const registro = registros.find((r) => {
+    const inicio = new Date(r.dataInicio);
+    const fim = r.dataFim ? new Date(r.dataFim) : null;
+    return d >= inicio && (!fim || d <= fim);
+  });
+  return registro?.escala?.diasDsr || diasDsrAtual;
 }
 
 async function getTipoDSR() {
@@ -115,19 +119,6 @@ function nowToMinutes(dateObj) {
 }
 
 
-function isDiaDSR(dataOperacional, nomeEscala) {
-  // 0 = domingo ... 6 = sábado — usa UTC para consistência com datas armazenadas como meia-noite UTC
-  const dow = new Date(dataOperacional).getUTCDay();
-
-  const dsrMap = {
-    E: [0, 1], // domingo, segunda
-    G: [2, 3], // terça, quarta
-    C: [4, 5], // quinta, sexta
-  };
-
-  const dias = dsrMap[String(nomeEscala || "").toUpperCase()];
-  return !!dias?.includes(dow);
-}
 
 
 
@@ -296,10 +287,9 @@ const registrarPontoCPF = async (req, res) => {
     ========================================== */
 
     if (!aberta) {
-      // Usa escala do histórico se disponível, senão cai para a escala atual do colaborador
-      const nomeEscalaDia = escalaDia?.escala?.nomeEscala || colaborador.escala?.nomeEscala;
+      const diasDsrDia = escalaDia?.escala?.diasDsr || colaborador.escala?.diasDsr || [];
 
-      if (isDiaDSR(dataReferenciaOperacional, nomeEscalaDia)) {
+      if (isDiaDSRSync(dataReferenciaOperacional, diasDsrDia)) {
         return errorResponse(
           res,
           "Hoje é DSR do colaborador",
@@ -781,8 +771,8 @@ const getControlePresenca = async (req, res) => {
            ATESTADO MÉDICO TEM PRIORIDADE MÁXIMA
            (exceto quando o dia é DSR)
         =============================== */
-        const escalaDiaAtestado = getEscalaNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.nomeEscala);
-        const diaDSR = isDiaDSR(dataCalendario, escalaDiaAtestado);
+        const diasDsrAtestado = getDiasDsrNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.diasDsr || []);
+        const diaDSR = isDiaDSRSync(dataCalendario, diasDsrAtestado);
 
         const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
           (a) =>
@@ -881,6 +871,7 @@ const getControlePresenca = async (req, res) => {
         nome: c.nomeCompleto,
         turno: c.turno?.nomeTurno || null,
         escala: c.escala?.nomeEscala || null,
+        diasDsr: c.escala?.diasDsr || [],
         dias: diasMap,
       });
     }
@@ -1383,7 +1374,8 @@ const exportarPresencaSheets = async (req, res) => {
 
         // DSR — verificar ANTES do atestado
         const escalaDia = getEscalaNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.nomeEscala);
-        const diaDSR = isDiaDSR(dataCalendario, escalaDia);
+        const diasDsrDiaCtrl = getDiasDsrNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.diasDsr || []);
+        const diaDSR = isDiaDSRSync(dataCalendario, diasDsrDiaCtrl);
 
         // Atestado médico tem prioridade máxima (exceto em dias de DSR)
         const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
@@ -1458,6 +1450,7 @@ const exportarPresencaSheets = async (req, res) => {
         nome: c.nomeCompleto,
         turno: c.turno?.nomeTurno,
         escala: c.escala?.nomeEscala,
+        diasDsr: c.escala?.diasDsr || [],
         dias: diasMap,
       };
     });

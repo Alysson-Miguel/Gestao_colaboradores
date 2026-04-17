@@ -97,6 +97,8 @@ export default function DashboardAdmin() {
 
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillMsg, setBackfillMsg] = useState(null);
 
   const navigate = useNavigate();
   const { logout, permissions } = useContext(AuthContext);
@@ -370,6 +372,42 @@ export default function DashboardAdmin() {
             }
             badges={[`Turno: ${turno === "ALL" ? "Todos" : turno}`]}
           />
+
+          {/* ── Backfill DSR ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              disabled={backfillLoading}
+              onClick={async () => {
+                setBackfillLoading(true);
+                setBackfillMsg(null);
+                try {
+                  await api.post("/colaboradores/backfill-dsr");
+                  setBackfillMsg({ ok: true, text: "Backfill DSR iniciado. Acompanhe os logs do servidor." });
+                } catch (e) {
+                  setBackfillMsg({ ok: false, text: "Erro ao executar backfill DSR." });
+                } finally {
+                  setBackfillLoading(false);
+                }
+              }}
+              style={{
+                padding: "6px 14px",
+                background: backfillLoading ? "#444" : "#FA4C00",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: backfillLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              {backfillLoading ? "Executando..." : "Corrigir DSR nulos"}
+            </button>
+            {backfillMsg && (
+              <span style={{ fontSize: 13, color: backfillMsg.ok ? "#22c55e" : "#ef4444" }}>
+                {backfillMsg.text}
+              </span>
+            )}
+          </div>
 
           <div className="
             flex

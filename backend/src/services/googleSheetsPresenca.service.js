@@ -438,9 +438,7 @@ const sincronizarControlePresenca = async (prisma) => {
 
         // DSR — verificar ANTES do atestado
         const dow = dataCalendario.getDay();
-        const dsrDias = { E: [0, 1], G: [2, 3], C: [4, 5] };
-        const escalaKey = String(c.escala?.nomeEscala || '').toUpperCase();
-        const isDSR = dsrDias[escalaKey]?.includes(dow);
+        const isDSR = (c.escala?.diasDsr || []).includes(dow);
 
         // Status administrativo
         const atestado = !isDSR && c.atestadosMedicos?.find(

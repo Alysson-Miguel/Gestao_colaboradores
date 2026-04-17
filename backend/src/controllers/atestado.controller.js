@@ -18,6 +18,7 @@ const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getR2Client } = require("../services/r2");
 
 const BUCKET = process.env.R2_BUCKET_NAME;
+const { isDiaDSR } = require("../utils/dsr");
 
 /* =====================================================
    DATAS — BRASIL (FIX DEFINITIVO)
@@ -32,16 +33,6 @@ function dateOnlyBrasil(dateStr) {
 }
 
 
-function isDiaDSR(data, nomeEscala) {
-  const dow = new Date(data).getDay();
-  const dsrMap = {
-    E: [0, 1],
-    G: [2, 3],
-    C: [4, 5],
-  };
-  const dias = dsrMap[String(nomeEscala || "").toUpperCase()];
-  return !!dias?.includes(dow);
-}
 
 function calcDias(dataInicio, dataFim) {
   const ini = dateOnlyBrasil(dataInicio);
@@ -287,7 +278,7 @@ const createAtestado = async (req, res) => {
         });
 
         const ehDSRNoBanco = freqExistente?.idTipoAusencia === 4;
-        const ehDSRPorEscala = isDiaDSR(dataReferencia, nomeEscala);
+        const ehDSRPorEscala = await isDiaDSR(dataReferencia, nomeEscala);
 
         if (ehDSRNoBanco || ehDSRPorEscala) {
           current.setDate(current.getDate() + 1);

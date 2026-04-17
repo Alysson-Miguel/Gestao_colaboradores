@@ -1,4 +1,5 @@
 const { prisma } = require("../config/database");
+const { getDiasDsr } = require("../utils/dsr");
 
 function agoraBrasil() {
   const now = new Date();
@@ -10,27 +11,6 @@ function startOfDay(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
-}
-
-/**
- * Busca os dias de DSR de uma escala pelo nome.
- * Prioriza o campo diasDsr do banco; faz fallback para o mapa legado (E/G/C)
- * caso o campo ainda esteja vazio (escalas antigas antes da migration).
- */
-async function getDiasDsr(nomeEscala, tx = prisma) {
-  if (!nomeEscala) return [];
-
-  const escala = await tx.escala.findFirst({
-    where: { nomeEscala: { equals: nomeEscala, mode: "insensitive" } },
-    select: { diasDsr: true },
-  });
-
-  // diasDsr preenchido no banco → usa
-  if (escala?.diasDsr?.length) return escala.diasDsr;
-
-  // fallback legado para escalas E/G/C sem diasDsr gravado ainda
-  const legado = { E: [0, 1], G: [2, 3], C: [4, 5] };
-  return legado[String(nomeEscala).toUpperCase()] ?? [];
 }
 
 async function gerarDSRBackfillColaborador({ opsId, nomeEscala, dataInicio, tx = prisma }) {
@@ -68,6 +48,22 @@ async function gerarDSRBackfillColaborador({ opsId, nomeEscala, dataInicio, tx =
   if (!registros.length) return { criados: 0 };
 
   const resultado = await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
+
+  // Sobrescreve registros que já existiam com id_tipo_ausencia null no mesmo dia de DSR
+  await tx.frequencia.updateMany({
+    where: {
+      opsId,
+      dataReferencia: { in: registros.map((r) => r.dataReferencia) },
+      idTipoAusencia: null,
+    },
+    data: {
+      idTipoAusencia: tipoDSR.idTipoAusencia,
+      justificativa: "DSR_BACKFILL",
+      manual: false,
+      validado: true,
+    },
+  });
+
   return { criados: resultado.count || 0 };
 }
 
@@ -102,6 +98,21 @@ async function gerarDSRFuturoColaborador({ opsId, nomeEscala, tx = prisma, dias 
 
   if (registros.length) {
     await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
+
+    // Sobrescreve registros que já existiam com id_tipo_ausencia null no mesmo dia de DSR
+    await tx.frequencia.updateMany({
+      where: {
+        opsId,
+        dataReferencia: { in: registros.map((r) => r.dataReferencia) },
+        idTipoAusencia: null,
+      },
+      data: {
+        idTipoAusencia: tipoDSR.idTipoAusencia,
+        justificativa: "DSR_AUTO",
+        manual: false,
+        validado: true,
+      },
+    });
   }
 }
 

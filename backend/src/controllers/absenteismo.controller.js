@@ -30,7 +30,7 @@ function getFaixaTempoCasa(adm, ref) {
 }
 
 /* Cargos operacionais contemplados no absenteísmo */
-const CARGOS_ABSENTEISMO = ["Auxiliar de Logística I", "Auxiliar de Logística II"];
+const CARGOS_ABSENTEISMO = ["Auxiliar de Logística I", "Auxiliar de Logística II", "Auxiliar de Logística I - PCD"];
 
 /**
  * extras: { setorNome, turnoNome }  — drill-down dinâmico
