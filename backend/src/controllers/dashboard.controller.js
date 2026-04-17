@@ -303,7 +303,7 @@ const carregarDashboard = async (req, res) => {
             },
           },
           include: {
-            colaborador: { include: { turno: true, setor: true, cargo: true } },
+            colaborador: { include: { turno: true, setor: true, cargo: true, empresa: true, lider: true } },
             tipoAusencia: true,
             setor: true,
           },
@@ -329,16 +329,6 @@ const carregarDashboard = async (req, res) => {
       }
     });
   
-    /* ===============================
-       3️⃣ MAPA DE FREQUÊNCIAS (por opsId)
-    =============================== */
-    const freqMap = new Map();
-    frequenciasPeriodo.forEach((f) => {
-      if (!freqMap.has(f.opsId)) freqMap.set(f.opsId, []);
-      freqMap.get(f.opsId).push(f);
-    });
-
-
     /* ===============================
        4️⃣ AGREGADORES
     =============================== */
@@ -373,7 +363,13 @@ const carregarDashboard = async (req, res) => {
     /* ===============================
        5️⃣ LOOP PRINCIPAL (ALINHADO AO ADMIN)
     =============================== */
-    colaboradores.forEach((c) => {
+    // Snapshot: itera sobre registros do dia — inclui desligados que tinham registro nesse dia
+    frequenciasPeriodo
+      .filter((f) => isoDate(f.dataReferencia) === dataSnapshotStr)
+      .forEach((registroSnapshot) => {
+      const c = registroSnapshot.colaborador;
+      if (!c) return;
+
       if (!isCargoElegivel(c.cargo?.nomeCargo)) return;
 
       const turno = normalizeTurno(c.turno?.nomeTurno);
@@ -382,17 +378,6 @@ const carregarDashboard = async (req, res) => {
 
       const genero = normalize(c.genero) || "N/I";
       const empresa = normalize(c.empresa?.razaoSocial) || "Sem empresa";
-
-      const registros = freqMap.get(c.opsId) || [];
-
-      /* ========= 5.2 SNAPSHOT (dia fim) ========= */
-      const registroSnapshot =
-        registros.find((r) => isoDate(r.dataReferencia) === dataSnapshotStr) ||
-        null;
-
-      // Igual ao Admin: se não tem frequência no dia, ele não entra no snapshot do dia
-      // (evita inventar escalado sem base)
-      if (!registroSnapshot) return;
 
       // Registro existe mas está vazio (sem tipo e sem hora) — trata como sem lançamento
       if (isRegistroVazio(registroSnapshot)) return;
