@@ -545,33 +545,46 @@ const enviarEmailEvidencia = async (req, res) => {
       Key: medida.documentoAssinadoUrl,
     });
 
-    const s3Response = await r2.send(command);
+    let pdfBuffer;
+    try {
+      const s3Response = await r2.send(command);
 
-    // Converter stream para buffer
-    const chunks = [];
-    for await (const chunk of s3Response.Body) {
-      chunks.push(chunk);
+      // Converter stream para buffer
+      const chunks = [];
+      for await (const chunk of s3Response.Body) {
+        chunks.push(chunk);
+      }
+      pdfBuffer = Buffer.concat(chunks);
+      console.log(`✅ PDF baixado do R2: ${medida.documentoAssinadoUrl} (${pdfBuffer.length} bytes)`);
+    } catch (r2Error) {
+      console.error("❌ Erro ao baixar PDF do R2:", r2Error);
+      return errorResponse(res, "Erro ao baixar documento do armazenamento", 500);
     }
-    const pdfBuffer = Buffer.concat(chunks);
 
-    // 4. Enviar e-mail (falha silenciosa não bloqueia resposta)
-    await sendMedidaDisciplinarEmail({
-      emailRh: emailRhArray, // array — Nodemailer aceita array no campo `to`
-      nomeColaborador: medida.colaborador.nomeCompleto,
-      matricula: medida.colaborador.matricula,
-      tipoMedida: medida.tipoMedida,
-      violacao: medida.violacao,
-      dataAplicacao: medida.dataAplicacao,
-      idMedida: medida.idMedida,
-      pdfBuffer,
-    });
+    // 4. Enviar e-mail
+    try {
+      await sendMedidaDisciplinarEmail({
+        emailRh: emailRhArray, // array — Nodemailer aceita array no campo `to`
+        nomeColaborador: medida.colaborador.nomeCompleto,
+        matricula: medida.colaborador.matricula,
+        tipoMedida: medida.tipoMedida,
+        violacao: medida.violacao,
+        dataAplicacao: medida.dataAplicacao,
+        idMedida: medida.idMedida,
+        pdfBuffer,
+      });
+      console.log(`✅ Email enviado com sucesso para: ${emailRhArray.join(", ")}`);
+    } catch (emailError) {
+      console.error("❌ Erro ao enviar email:", emailError);
+      return errorResponse(res, `Erro ao enviar e-mail: ${emailError.message}`, 500);
+    }
 
     return successResponse(res, { emailRh: emailRhArray }, "Evidência enviada por e-mail com sucesso");
 
   } catch (err) {
 
-    console.error("❌ ENVIAR EMAIL MD:", err);
-    return errorResponse(res, "Erro ao enviar evidência por e-mail", 500);
+    console.error("❌ ENVIAR EMAIL MD - Erro geral:", err);
+    return errorResponse(res, `Erro ao enviar evidência por e-mail: ${err.message}`, 500);
 
   }
 

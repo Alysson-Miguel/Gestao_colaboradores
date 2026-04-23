@@ -76,6 +76,21 @@ async function sendMedidaDisciplinarEmail({
   idMedida,
   pdfBuffer,
 }) {
+  // Validar credenciais do Gmail
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    throw new Error("Credenciais do Gmail não configuradas (GMAIL_USER ou GMAIL_APP_PASSWORD)");
+  }
+
+  // Validar destinatários
+  if (!emailRh || (Array.isArray(emailRh) && emailRh.length === 0)) {
+    throw new Error("Nenhum destinatário de e-mail fornecido");
+  }
+
+  // Validar PDF
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    throw new Error("PDF vazio ou inválido");
+  }
+
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -83,6 +98,15 @@ async function sendMedidaDisciplinarEmail({
       pass: process.env.GMAIL_APP_PASSWORD,
     },
   })
+
+  // Verificar conexão com o servidor SMTP
+  try {
+    await transporter.verify();
+    console.log("✅ Conexão SMTP verificada com sucesso");
+  } catch (verifyError) {
+    console.error("❌ Erro ao verificar conexão SMTP:", verifyError);
+    throw new Error(`Falha na autenticação do Gmail: ${verifyError.message}`);
+  }
 
   const dataFormatada = new Date(dataAplicacao).toLocaleDateString("pt-BR")
 
@@ -128,19 +152,26 @@ async function sendMedidaDisciplinarEmail({
     </div>
   `
 
-  await transporter.sendMail({
-    from: `"Gestão de Colaboradores" <${process.env.GMAIL_USER}>`,
-    to: emailRh,
-    subject: `[MD #${idMedida}] Evidência — ${tipoLabel} — ${nomeColaborador}`,
-    html,
-    attachments: [
-      {
-        filename: `medida-disciplinar-${idMedida}.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf",
-      },
-    ],
-  })
+  try {
+    const info = await transporter.sendMail({
+      from: `"Gestão de Colaboradores" <${process.env.GMAIL_USER}>`,
+      to: emailRh,
+      subject: `[MD #${idMedida}] Evidência — ${tipoLabel} — ${nomeColaborador}`,
+      html,
+      attachments: [
+        {
+          filename: `medida-disciplinar-${idMedida}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    })
+    console.log(`✅ Email enviado - MessageID: ${info.messageId}`);
+    return info;
+  } catch (sendError) {
+    console.error("❌ Erro ao enviar email via Nodemailer:", sendError);
+    throw new Error(`Falha no envio do e-mail: ${sendError.message}`);
+  }
 }
 
 module.exports = {

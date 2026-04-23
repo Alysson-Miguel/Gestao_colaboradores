@@ -60,6 +60,45 @@ router.get("/health", (req, res) => {
 });
 
 /* =========================
+   ENV CHECK (apenas para diagnóstico)
+========================= */
+router.get("/env-check", (req, res) => {
+  const envVars = {
+    // Variáveis críticas para email
+    GMAIL_USER: !!process.env.GMAIL_USER,
+    GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
+    
+    // Variáveis críticas para R2
+    R2_ACCESS_KEY_ID: !!process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: !!process.env.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME: !!process.env.R2_BUCKET_NAME,
+    R2_ENDPOINT: !!process.env.R2_ENDPOINT,
+    
+    // Outras variáveis importantes
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    JWT_SECRET: !!process.env.JWT_SECRET,
+    GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+    GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+  };
+
+  const allConfigured = Object.values(envVars).every(v => v === true);
+  const missingVars = Object.entries(envVars)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
+
+  res.json({
+    success: allConfigured,
+    message: allConfigured 
+      ? "Todas as variáveis de ambiente estão configuradas" 
+      : "Algumas variáveis de ambiente estão faltando",
+    environment: process.env.NODE_ENV || 'development',
+    configured: envVars,
+    missing: missingVars,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* =========================
    🔓 ROTAS PÚBLICAS
 ========================= */
 router.use("/auth", authRoutes);
