@@ -635,30 +635,48 @@ function TipoSplitCard({ totalFaltas, totalAtestados, loading }) {
 /* ─── TABLE ──────────────────────────────────────────────────────── */
 function AbsenceTable({ data, loading }) {
   const [search, setSearch] = useState("")
+  const [filterFolga, setFilterFolga] = useState("")
+
+  const folgaOptions = useMemo(() => {
+    const set = new Set()
+    data.forEach((c) => {
+      if (c.diaFolgaDsr) c.diaFolgaDsr.split(", ").forEach((d) => set.add(d.trim()))
+    })
+    const ORDER = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+    return [...set].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))
+  }, [data])
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return data
-    const q = search.toLowerCase()
-    return data.filter(
-      (c) =>
-        c.nome?.toLowerCase().includes(q) ||
-        c.setor?.toLowerCase().includes(q) ||
-        c.empresa?.toLowerCase().includes(q)
-    )
-  }, [data, search])
+    let result = data
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (c) =>
+          c.nome?.toLowerCase().includes(q) ||
+          c.setor?.toLowerCase().includes(q) ||
+          c.empresa?.toLowerCase().includes(q)
+      )
+    }
+    if (filterFolga) {
+      result = result.filter((c) => c.diaFolgaDsr?.includes(filterFolga))
+    }
+    return result
+  }, [data, search, filterFolga])
 
-  const cols = ["Nome", "Empresa", "Setor", "Turno", "Escala", "Tempo de Casa", "Ausências", "Faltas", "Atestados", "Recorrente"]
+  const cols = ["Nome", "Matrícula", "Empresa", "Setor", "Turno", "Escala", "Tempo de Casa", "Dia de folga DSR", "Ausências", "Faltas", "Atestados", "Recorrente"]
 
   function exportCSV() {
     const rows = [
       cols,
       ...filtered.map((c) => [
         c.nome || "",
+        c.matricula || "",
         c.empresa || "",
         c.setor || "",
         c.turno || "",
         c.escala || "",
         c.tempoCasa || "",
+        c.diaFolgaDsr || "",
         c.totalAusencias || 0,
         c.totalFaltas || 0,
         c.totalAtestados || 0,
@@ -702,6 +720,26 @@ function AbsenceTable({ data, loading }) {
             onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
           />
         </div>
+        <select
+          value={filterFolga}
+          onChange={(e) => setFilterFolga(e.target.value)}
+          style={{
+            background: "var(--color-surface)",
+            border: `1px solid ${filterFolga ? "rgba(250,76,0,0.45)" : "rgba(255,255,255,0.08)"}`,
+            color: filterFolga ? "var(--color-text)" : "var(--color-subtle)",
+            fontSize: 13,
+            borderRadius: 12,
+            padding: "9px 14px",
+            outline: "none",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <option value="">Folga DSR: Todas</option>
+          {folgaOptions.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
         <button
           onClick={exportCSV}
           disabled={loading || filtered.length === 0}
@@ -765,11 +803,13 @@ function AbsenceTable({ data, loading }) {
                     <td style={{ padding: "11px 16px", fontWeight: 500, color: "var(--color-text)", whiteSpace: "nowrap" }}>
                       {c.nome?.split(" ").slice(0, 2).join(" ")}
                     </td>
+                    <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.matricula || "—"}</td>
                     <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.empresa}</td>
                     <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.setor}</td>
                     <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.turno}</td>
                     <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.escala}</td>
                     <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.tempoCasa}</td>
+                    <td style={{ padding: "11px 16px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>{c.diaFolgaDsr || "—"}</td>
                     <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
                       <span style={{
                         display: "inline-flex", alignItems: "center", justifyContent: "center",
