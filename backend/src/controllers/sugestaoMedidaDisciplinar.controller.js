@@ -345,6 +345,27 @@ const aprovarSugestao = async (req, res) => {
     }
 
     /* ===========================
+       MONTAR MOTIVO AUTOMÁTICO
+    =========================== */
+
+    const dataRefFormatada = new Date(sugestao.dataReferencia).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+
+    const ocorrenciaLabel = frequenciaViolacao === "PRIMEIRA_OCORRENCIA"
+      ? "primeira ocorrência"
+      : "reincidência"
+
+    const tipoMedidaLabel = {
+      ADVERTENCIA: "advertência disciplinar",
+      SUSPENSAO: `suspensão disciplinar de ${diasSuspensao || 1} dia(s)`,
+      DEMISSAO: "demissão por justa causa",
+    }[tipoMedida] || "medida disciplinar"
+
+    const motivoAutomatico =
+      `${tipoMedidaLabel.charAt(0).toUpperCase() + tipoMedidaLabel.slice(1)} aplicada em razão de falta injustificada detectada automaticamente pelo sistema no dia ${dataRefFormatada}. ` +
+      `Trata-se de ${ocorrenciaLabel} registrada para esta violação. ` +
+      `V.Sa. deixou de comparecer ao posto de trabalho sem apresentar qualquer justificativa válida, agindo assim com desídia no desempenho de suas funções.`
+
+    /* ===========================
        CRIAR MEDIDA DISCIPLINAR
     =========================== */
 
@@ -364,6 +385,7 @@ const aprovarSugestao = async (req, res) => {
 
           diasSuspensao,
 
+<<<<<<< HEAD
           motivo: (() => {
             if (ehAnaliseRH) {
               return `Requer análise manual do RH — ${diasConsecutivos} dias consecutivos de falta (aprovado pelo usuário após revisão)`;
@@ -373,6 +395,9 @@ const aprovarSugestao = async (req, res) => {
             }
             return "Gerado automaticamente pelo sistema";
           })(),
+=======
+          motivo: motivoAutomatico,
+>>>>>>> 42a8820c36b788439886e79c3032e4fd7a51ba70
 
           dataOcorrencia,
 

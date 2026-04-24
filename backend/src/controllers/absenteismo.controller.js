@@ -372,11 +372,13 @@ const getColaboradoresAbsenteismo = async (req, res) => {
       if (!mapa[c.opsId]) {
         mapa[c.opsId] = {
           opsId: c.opsId,
+          matricula: c.matricula || "N/I",
           nome: c.nomeCompleto,
           empresa: c.empresa?.razaoSocial || "N/I",
           setor: c.setor?.nomeSetor || "N/I",
           turno: c.turno?.nomeTurno || "N/I",
           escala: c.escala?.nomeEscala || "N/I",
+          diasDsrEscala: c.escala?.diasDsr || [],
           tempoCasa: getFaixaTempoCasa(c.dataAdmissao, fimDate),
           diasFaltas: new Set(),
           totalAtestados: 0,
@@ -393,11 +395,13 @@ const getColaboradoresAbsenteismo = async (req, res) => {
       if (!mapa[a.opsId]) {
         mapa[a.opsId] = {
           opsId: a.opsId,
+          matricula: c.matricula || "N/I",
           nome: c.nomeCompleto,
           empresa: c.empresa?.razaoSocial || "N/I",
           setor: c.setor?.nomeSetor || "N/I",
           turno: c.turno?.nomeTurno || "N/I",
           escala: c.escala?.nomeEscala || "N/I",
+          diasDsrEscala: c.escala?.diasDsr || [],
           tempoCasa: getFaixaTempoCasa(c.dataAdmissao, fimDate),
           diasFaltas: new Set(),
           totalAtestados: 0,
@@ -412,14 +416,20 @@ const getColaboradoresAbsenteismo = async (req, res) => {
       .map((c) => {
         const totalFaltas    = c.diasFaltas.size;
         const totalAusencias = totalFaltas + c.totalAtestados;
+        const DIAS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        const diaFolgaDsr = c.diasDsrEscala.length > 0
+          ? c.diasDsrEscala.map((d) => DIAS_PT[d] ?? d).join(", ")
+          : null;
         return {
           opsId:          c.opsId,
+          matricula:      c.matricula,
           nome:           c.nome,
           empresa:        c.empresa,
           setor:          c.setor,
           turno:          c.turno,
           escala:         c.escala,
           tempoCasa:      c.tempoCasa,
+          diaFolgaDsr,
           totalFaltas,
           totalAtestados: c.totalAtestados,
           diasAfastados:  c.diasAfastados,
