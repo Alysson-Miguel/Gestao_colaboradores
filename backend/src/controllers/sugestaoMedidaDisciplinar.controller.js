@@ -345,27 +345,6 @@ const aprovarSugestao = async (req, res) => {
     }
 
     /* ===========================
-       MONTAR MOTIVO AUTOMÁTICO
-    =========================== */
-
-    const dataRefFormatada = new Date(sugestao.dataReferencia).toLocaleDateString("pt-BR", { timeZone: "UTC" })
-
-    const ocorrenciaLabel = frequenciaViolacao === "PRIMEIRA_OCORRENCIA"
-      ? "primeira ocorrência"
-      : "reincidência"
-
-    const tipoMedidaLabel = {
-      ADVERTENCIA: "advertência disciplinar",
-      SUSPENSAO: `suspensão disciplinar de ${diasSuspensao || 1} dia(s)`,
-      DEMISSAO: "demissão por justa causa",
-    }[tipoMedida] || "medida disciplinar"
-
-    const motivoAutomatico =
-      `${tipoMedidaLabel.charAt(0).toUpperCase() + tipoMedidaLabel.slice(1)} aplicada em razão de falta injustificada detectada automaticamente pelo sistema no dia ${dataRefFormatada}. ` +
-      `Trata-se de ${ocorrenciaLabel} registrada para esta violação. ` +
-      `V.Sa. deixou de comparecer ao posto de trabalho sem apresentar qualquer justificativa válida, agindo assim com desídia no desempenho de suas funções.`
-
-    /* ===========================
        CRIAR MEDIDA DISCIPLINAR
     =========================== */
 
@@ -469,6 +448,7 @@ const rejeitarSugestao = async (req, res) => {
   try {
 
     const { id } = req.params
+    const { motivo } = req.body
 
     const sugestao = await prisma.sugestaoMedidaDisciplinar.findUnique({
       where: { idSugestao: Number(id) },
@@ -487,8 +467,9 @@ const rejeitarSugestao = async (req, res) => {
       where: { idSugestao: sugestao.idSugestao },
 
       data: {
-        status: "REJEITADA",
-        aprovadoPor: req.user?.opsId || "SISTEMA",
+        status:        "REJEITADA",
+        aprovadoPor:   req.user?.opsId || "SISTEMA",
+        motivoRejeicao: motivo?.trim() || null,
       },
 
     })

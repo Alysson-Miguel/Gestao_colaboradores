@@ -17,9 +17,11 @@ const STATUS_LABEL = {
 };
 
 const CONSEQUENCIA_LABEL = {
-  ADVERTENCIA_ESCRITA: "Advertência Escrita",
-  SUSPENSAO: "Suspensão",
-  DEMISSAO: "Demissão",
+  ADVERTENCIA:                  "Advertência",
+  ADVERTENCIA_ESCRITA:          "Advertência Escrita",
+  SUSPENSAO:                    "Suspensão",
+  DESLIGAMENTO_ANALISE_JURIDICA: "Análise Jurídica",
+  JURIDICO:                     "Jurídico",
 };
 
 function StatusBadge({ status }) {
@@ -423,9 +425,18 @@ export default function SugestoesMedidaDisciplinar() {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-muted">
-                            {user?.role === "ADMIN" ? (s.aprovadoPorEmail ?? "—") : "—"}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            {user?.role === "ADMIN" && (
+                              <span className="text-xs text-muted">{s.aprovadoPorEmail ?? "—"}</span>
+                            )}
+                            {s.status === "REJEITADA" && s.motivoRejeicao && (
+                              <span className="text-xs text-muted italic" title={s.motivoRejeicao}>
+                                {s.motivoRejeicao.length > 40
+                                  ? `${s.motivoRejeicao.slice(0, 40)}…`
+                                  : s.motivoRejeicao}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

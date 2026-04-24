@@ -428,7 +428,8 @@ model SugestaoMedidaDisciplinar {
 
   status StatusSugestao @default(PENDENTE)
 
-  aprovadoPor String? @map("aprovado_por")
+  aprovadoPor    String? @map("aprovado_por")
+  motivoRejeicao String? @map("motivo_rejeicao")
 
   createdAt DateTime @default(now()) @map("created_at")
 
