@@ -385,7 +385,6 @@ const aprovarSugestao = async (req, res) => {
 
           diasSuspensao,
 
-<<<<<<< HEAD
           motivo: (() => {
             if (ehAnaliseRH) {
               return `Requer análise manual do RH — ${diasConsecutivos} dias consecutivos de falta (aprovado pelo usuário após revisão)`;
@@ -395,9 +394,6 @@ const aprovarSugestao = async (req, res) => {
             }
             return "Gerado automaticamente pelo sistema";
           })(),
-=======
-          motivo: motivoAutomatico,
->>>>>>> 42a8820c36b788439886e79c3032e4fd7a51ba70
 
           dataOcorrencia,
 
