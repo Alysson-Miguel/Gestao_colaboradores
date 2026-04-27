@@ -16,6 +16,7 @@ const EMPRESAS = [
   { idEmpresa: 12, nome: "SRM" },
   { idEmpresa: 13, nome: "Fenix" },
   { idEmpresa: 14, nome: "Horeca" },
+  { idEmpresa: 28, nome: "Diarias TECH" },
 ];
 
 export default function DwNovoPage() {
@@ -38,7 +39,7 @@ export default function DwNovoPage() {
     idTurno: editData?.turno || "",
     observacao: "",
     planejado: "",
-    quantidades: { 12: "", 13: "", 14: "" },
+    quantidades: { 12: "", 13: "", 14: "", 28: "" },
   });
 
   /* ==============================
@@ -59,7 +60,7 @@ export default function DwNovoPage() {
         ]);
 
         const registros = resReal.data.data || [];
-        const novasQuantidades = { 12: "", 13: "", 14: "" };
+        const novasQuantidades = { 12: "", 13: "", 14: "", 28: "" };
         let obs = "";
 
         registros.forEach((r) => {

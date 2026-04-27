@@ -15,6 +15,7 @@ const EMPRESAS_FIXAS = [
   { id: 12, nome: "SRM" },
   { id: 13, nome: "Fenix" },
   { id: 14, nome: "Horeca" },
+  { id: 28, nome: "Diarias TECH" },
 ];
 
 export default function DwListPage() {

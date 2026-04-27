@@ -11,6 +11,7 @@ const EMPRESAS_FIXAS = {
   12: "SRM",
   13: "Fenix",
   14: "Horeca",
+  28: "Diarias TECH",
 };
 
 const IDS_EMPRESAS_FIXAS = Object.keys(EMPRESAS_FIXAS).map(Number);
