@@ -1262,6 +1262,8 @@ const importColaboradores = async (req, res) => {
             dataNascimento: parseDate(row["data_nascimento"]),
             email: row["email"] || null,
             telefone: row["telefone"] ? String(row["telefone"]) : null,
+            contatoEmergenciaNome: row["contato_emergencia_nome"] ? String(row["contato_emergencia_nome"]).trim() : null,
+            contatoEmergenciaTelefone: row["contato_emergencia_telefone"] ? String(row["contato_emergencia_telefone"]).trim() : null,
             idSetor: idSetor,
             idCargo: idCargo,
             idEmpresa: idEmpresa,

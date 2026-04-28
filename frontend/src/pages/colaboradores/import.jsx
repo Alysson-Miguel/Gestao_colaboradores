@@ -462,7 +462,7 @@ export default function ImportarColaboradores() {
             <div className="space-y-2">
               <p className="text-xs text-muted font-medium uppercase tracking-wide">Campos opcionais</p>
               <div className="flex flex-wrap gap-2">
-                {["genero","data_nascimento","email","telefone","hora_inicio_jornada"].map((campo) => (
+                {["genero","data_nascimento","email","telefone","hora_inicio_jornada","contato_emergencia_nome","contato_emergencia_telefone"].map((campo) => (
                   <span
                     key={campo}
                     className="px-2 py-1 rounded-md bg-surface-2 border border-default text-muted text-xs font-mono"
