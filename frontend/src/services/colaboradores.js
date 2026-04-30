@@ -44,7 +44,7 @@ export const ColaboradoresAPI = {
     return res.data?.data || [];
   },
   listarCargos: async () => {
-    const res = await api.get("/cargos");
+    const res = await api.get("/cargos", { params: { limit: 200 } });
     return res.data?.data || [];
   },
   listarEscalas: async () => {

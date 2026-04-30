@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 
 /* =====================================================
    COMPONENT
@@ -12,20 +12,22 @@ export default function HierarquiaSection({
   /* ================= COBERTURA ================= */
   const coberturaTotal = useMemo(() => {
     return (
-      hierarquia?.reduce(
-        (acc, g) =>
-          acc +
-          g.supervisores.reduce(
-            (sAcc, s) =>
-              sAcc +
-              s.lideres.reduce(
-                (lAcc, l) => lAcc + l.colaboradores.length,
-                0
-              ),
-            0
-          ),
-        0
-      ) || 0
+      hierarquia?.reduce((acc, g) => {
+        const fromDireto = g.supervisores.reduce(
+          (sAcc, s) => sAcc + s.lideres.reduce((lAcc, l) => lAcc + l.colaboradores.length, 0),
+          0
+        );
+        const fromCoord = (g.coordenadores || []).reduce(
+          (cAcc, coord) =>
+            cAcc +
+            coord.supervisores.reduce(
+              (sAcc, s) => sAcc + s.lideres.reduce((lAcc, l) => lAcc + l.colaboradores.length, 0),
+              0
+            ),
+          0
+        );
+        return acc + fromDireto + fromCoord;
+      }, 0) || 0
     );
   }, [hierarquia]);
 
@@ -67,9 +69,8 @@ export default function HierarquiaSection({
       {/* MINI KPI CARDS */}
       <div className="
         grid
-        grid-cols-1
-        sm:grid-cols-2
-        lg:grid-cols-3
+        grid-cols-2
+        xl:grid-cols-4
         gap-4
         sm:gap-6"
       >
@@ -80,9 +81,15 @@ export default function HierarquiaSection({
           color="#FA4C00"
         />
         <MiniCard
+          label="Coordenadores"
+          value={resumo?.totalCoordenadores || 0}
+          subtitle="Vinculados a gerentes"
+          color="#a855f7"
+        />
+        <MiniCard
           label="Supervisores"
           value={resumo?.totalSupervisores || 0}
-          subtitle="Vinculados a gerentes"
+          subtitle="Vinculados a coordenadores"
           color="#3b82f6"
         />
         <MiniCard
@@ -155,6 +162,7 @@ function MiniCard({ label, value, subtitle, color }) {
 ===================================================== */
 function ArvoreHierarquica({ data }) {
   const [openGerente, setOpenGerente] = useState({});
+  const [openCoordenador, setOpenCoordenador] = useState({});
   const [openSupervisor, setOpenSupervisor] = useState({});
   const [openLider, setOpenLider] = useState({});
 
@@ -165,6 +173,70 @@ function ArvoreHierarquica({ data }) {
       </p>
     );
   }
+
+  const renderSupervisores = (supervisores, parentId) =>
+    supervisores.map((sup) => {
+      const supOpen = openSupervisor[sup.id];
+      return (
+        <div key={sup.id} className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#1A1A1A]">
+          <div
+            onClick={() =>
+              setOpenSupervisor((prev) => ({ ...prev, [sup.id]: !prev[sup.id] }))
+            }
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-[#141414]"
+          >
+            <span className="text-blue-400">{sup.nome}</span>
+            <MetricasLinha node={sup} />
+          </div>
+
+          {/* SUPERVISIONADOS DIRETOS */}
+          {supOpen && sup.supervisionadosDiretos?.length > 0 && (
+            <div className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#181818]">
+              <div className="p-4 bg-[#0B0B0B] space-y-2">
+                <p className="text-xs text-[#6B7280] mb-2">Supervisionados Diretos</p>
+                {sup.supervisionadosDiretos.map((c) => (
+                  <div key={c.opsId} className="flex justify-between text-sm text-muted">
+                    <span>{c.nome}</span>
+                    <span className="text-[#6B7280]">{c.setor}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* LÍDERES */}
+          {supOpen &&
+            sup.lideres.map((lider) => {
+              const liderOpen = openLider[lider.id];
+              return (
+                <div key={lider.id} className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#181818]">
+                  <div
+                    onClick={() =>
+                      setOpenLider((prev) => ({ ...prev, [lider.id]: !prev[lider.id] }))
+                    }
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-[#131313]"
+                  >
+                    <span className="text-green-400">{lider.nome}</span>
+                    <MetricasLinha node={lider} />
+                  </div>
+
+                  {/* OPERADORES */}
+                  {liderOpen && (
+                    <div className="pl-4 sm:pl-6 lg:pl-8 p-4 space-y-2 bg-[#0B0B0B]">
+                      {lider.colaboradores.map((c) => (
+                        <div key={c.opsId} className="flex justify-between text-sm text-muted">
+                          <span>{c.nome}</span>
+                          <span className="text-[#6B7280]">{c.setor}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      );
+    });
 
   return (
     <div className="space-y-4">
@@ -203,98 +275,39 @@ function ArvoreHierarquica({ data }) {
               <MetricasLinha node={gerente} />
             </div>
 
-            {/* SUPERVISORES */}
+            {/* COORDENADORES */}
             {gerenteOpen &&
-              gerente.supervisores.map((sup) => {
-                const supOpen = openSupervisor[sup.id];
+              (gerente.coordenadores || []).map((coord) => {
+                const coordOpen = openCoordenador[coord.id];
 
                 return (
-                  <div key={sup.id} className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#1A1A1A]">
+                  <div key={coord.id} className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#1A1A1A]">
                     <div
                       onClick={() =>
-                        setOpenSupervisor((prev) => ({
+                        setOpenCoordenador((prev) => ({
                           ...prev,
-                          [sup.id]: !prev[sup.id],
+                          [coord.id]: !prev[coord.id],
                         }))
                       }
                       className="flex items-center justify-between p-4 cursor-pointer hover:bg-[#141414]"
                     >
-                      <span className="text-blue-400">
-                        {sup.nome}
-                      </span>
-
-                      <MetricasLinha node={sup} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-400">{coord.nome}</span>
+                        <span className="text-xs text-[#6B7280] transition-transform">
+                          {coordOpen ? "▲" : "▼"}
+                        </span>
+                      </div>
+                      <MetricasLinha node={coord} />
                     </div>
 
-                    {/* LÍDERES */}
-                    {supOpen &&
-                      sup.lideres.map((lider) => {
-                        const liderOpen = openLider[lider.id];
-
-                        return (
-                          <div
-                            key={lider.id}
-                            className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#181818]"
-                          >
-                            <div
-                              onClick={() =>
-                                setOpenLider((prev) => ({
-                                  ...prev,
-                                  [lider.id]: !prev[lider.id],
-                                }))
-                              }
-                              className="flex items-center justify-between p-4 cursor-pointer hover:bg-[#131313]"
-                            >
-                              <span className="text-green-400">
-                                {lider.nome}
-                              </span>
-
-                              <MetricasLinha node={lider} />
-                            </div>
-                    {/* SUPERVISIONADOS DIRETOS */}
-                        {supOpen && sup.supervisionadosDiretos?.length > 0 && (
-                        <div className="pl-4 sm:pl-6 lg:pl-8 border-t border-[#181818]">
-                            <div className="p-4 bg-[#0B0B0B] space-y-2">
-                            <p className="text-xs text-[#6B7280] mb-2">
-                                Supervisionados Diretos
-                            </p>
-
-                            {sup.supervisionadosDiretos.map((c) => (
-                                <div
-                                key={c.opsId}
-                                className="flex justify-between text-sm text-muted"
-                                >
-                                <span>{c.nome}</span>
-                                <span className="text-[#6B7280]">
-                                    {c.setor}
-                                </span>
-                                </div>
-                            ))}
-                            </div>
-                        </div>
-                        )}
-                    {/* OPERADORES */}
-                            {liderOpen && (
-                              <div className="pl-4 sm:pl-6 lg:pl-8 p-4 space-y-2 bg-[#0B0B0B]">
-                                {lider.colaboradores.map((c) => (
-                                  <div
-                                    key={c.opsId}
-                                    className="flex justify-between text-sm text-muted"
-                                  >
-                                    <span>{c.nome}</span>
-                                    <span className="text-[#6B7280]">
-                                      {c.setor}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                    {/* SUPERVISORES SOB COORDENADOR */}
+                    {coordOpen && renderSupervisores(coord.supervisores, coord.id)}
                   </div>
                 );
               })}
+
+            {/* SUPERVISORES DIRETOS DO GERENTE (sem coordenador) */}
+            {gerenteOpen && renderSupervisores(gerente.supervisores, gerente.id)}
           </div>
         );
       })}
@@ -343,13 +356,22 @@ function MetricItem({ label, value, color = "text-muted" }) {
 ===================================================== */
 function PorNivelHierarquia({ data }) {
   const gerentes = data;
-  const supervisores = useMemo(
-    () => data.flatMap(g => g.supervisores),
+
+  const coordenadores = useMemo(
+    () => data.flatMap((g) => g.coordenadores || []),
     [data]
   );
 
+  const supervisores = useMemo(
+    () => [
+      ...data.flatMap((g) => g.supervisores),
+      ...coordenadores.flatMap((coord) => coord.supervisores),
+    ],
+    [data, coordenadores]
+  );
+
   const lideres = useMemo(
-    () => supervisores.flatMap(s => s.lideres),
+    () => supervisores.flatMap((s) => s.lideres),
     [supervisores]
   );
 
@@ -358,14 +380,19 @@ function PorNivelHierarquia({ data }) {
       grid
       grid-cols-1
       md:grid-cols-2
-      2xl:grid-cols-3
+      2xl:grid-cols-4
       gap-6"
     >
-
       <NivelCard
-        title="GERENTE × SUPERVISOR"
+        title="GERENTE × COORDENADOR"
         items={gerentes}
         color="text-orange-400"
+      />
+
+      <NivelCard
+        title="COORDENADOR × SUPERVISOR"
+        items={coordenadores}
+        color="text-purple-400"
       />
 
       <NivelCard

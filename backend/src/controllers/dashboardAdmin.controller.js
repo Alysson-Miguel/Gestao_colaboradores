@@ -1041,6 +1041,33 @@ function buildEmpresasResumo({
         gerentesMap.set(c.opsId, {
           id: c.opsId,
           nome: c.nomeCompleto,
+          coordenadores: new Map(),
+          supervisores: new Map(), // supervisores diretos (sem coordenador)
+          totalColaboradores: 0,
+          faltas: 0,
+          atestados: 0,
+          absDias: 0,
+          diasEscalados: 0,
+        });
+      }
+    });
+
+    // =============================
+    // 2️⃣ COORDENADORES
+    // =============================
+    colaboradores.forEach((c) => {
+      if (!c.idLider) return;
+
+      const gerenteNode = gerentesMap.get(c.idLider);
+      if (!gerenteNode) return;
+
+      const cargo = norm(c.cargo?.nomeCargo);
+      if (!cargo.includes("coordenador")) return;
+
+      if (!gerenteNode.coordenadores.has(c.opsId)) {
+        gerenteNode.coordenadores.set(c.opsId, {
+          id: c.opsId,
+          nome: c.nomeCompleto,
           supervisores: new Map(),
           totalColaboradores: 0,
           faltas: 0,
@@ -1052,53 +1079,67 @@ function buildEmpresasResumo({
     });
 
     // =============================
-    // 2️⃣ SUPERVISORES (FILTRAR POR CARGO)
+    // 3️⃣ SUPERVISORES
     // =============================
     colaboradores.forEach((c) => {
       if (!c.idLider) return;
 
-      const gerenteNode = gerentesMap.get(c.idLider);
-      if (!gerenteNode) return;
-
       const cargo = norm(c.cargo?.nomeCargo);
-      const isSupervisor = cargo.includes("supervisor");
+      if (!cargo.includes("supervisor")) return;
 
-      if (!isSupervisor) return; // 🔥 CORREÇÃO PRINCIPAL
+      // Tenta vincular ao coordenador primeiro
+      let adicionado = false;
+      gerentesMap.forEach((gerenteNode) => {
+        const coordNode = gerenteNode.coordenadores.get(c.idLider);
+        if (coordNode && !coordNode.supervisores.has(c.opsId)) {
+          coordNode.supervisores.set(c.opsId, {
+            id: c.opsId,
+            nome: c.nomeCompleto,
+            lideres: new Map(),
+            supervisionadosDiretos: [],
+            totalColaboradores: 0,
+            faltas: 0,
+            atestados: 0,
+            absDias: 0,
+            diasEscalados: 0,
+          });
+          adicionado = true;
+        }
+      });
 
-      if (!gerenteNode.supervisores.has(c.opsId)) {
-        gerenteNode.supervisores.set(c.opsId, {
-          id: c.opsId,
-          nome: c.nomeCompleto,
-          lideres: new Map(),
-          supervisionadosDiretos: [], // 🔥 importante já deixar aqui
-          totalColaboradores: 0,
-          faltas: 0,
-          atestados: 0,
-          absDias: 0,
-          diasEscalados: 0,
-        });
+      // Fallback: supervisor vinculado diretamente ao gerente
+      if (!adicionado) {
+        const gerenteNode = gerentesMap.get(c.idLider);
+        if (gerenteNode && !gerenteNode.supervisores.has(c.opsId)) {
+          gerenteNode.supervisores.set(c.opsId, {
+            id: c.opsId,
+            nome: c.nomeCompleto,
+            lideres: new Map(),
+            supervisionadosDiretos: [],
+            totalColaboradores: 0,
+            faltas: 0,
+            atestados: 0,
+            absDias: 0,
+            diasEscalados: 0,
+          });
+        }
       }
     });
 
     // =============================
-    // 3️⃣ LÍDERES (BASEADO EM CARGO E SUPERVISOR REAL)
+    // 4️⃣ LÍDERES
     // =============================
     colaboradores.forEach((c) => {
       if (!c.idLider) return;
 
       const cargo = norm(c.cargo?.nomeCargo);
-      const isLider = cargo.includes("lider");
+      if (!cargo.includes("lider")) return;
 
-      if (!isLider) return;
-
-      // 🔎 Encontrar supervisor correto
       gerentesMap.forEach((gerenteNode) => {
-        const supervisorNode = gerenteNode.supervisores.get(c.idLider);
-
-        if (!supervisorNode) return;
-
-        if (!supervisorNode.lideres.has(c.opsId)) {
-          supervisorNode.lideres.set(c.opsId, {
+        // Supervisores diretos do gerente
+        const supDireto = gerenteNode.supervisores.get(c.idLider);
+        if (supDireto && !supDireto.lideres.has(c.opsId)) {
+          supDireto.lideres.set(c.opsId, {
             id: c.opsId,
             nome: c.nomeCompleto,
             colaboradores: [],
@@ -1109,6 +1150,23 @@ function buildEmpresasResumo({
             diasEscalados: 0,
           });
         }
+
+        // Supervisores sob coordenadores
+        gerenteNode.coordenadores.forEach((coordNode) => {
+          const supNode = coordNode.supervisores.get(c.idLider);
+          if (supNode && !supNode.lideres.has(c.opsId)) {
+            supNode.lideres.set(c.opsId, {
+              id: c.opsId,
+              nome: c.nomeCompleto,
+              colaboradores: [],
+              totalColaboradores: 0,
+              faltas: 0,
+              atestados: 0,
+              absDias: 0,
+              diasEscalados: 0,
+            });
+          }
+        });
       });
     });
 
@@ -1121,6 +1179,7 @@ function buildEmpresasResumo({
 
             const isEstrutura =
               cargo.includes("gerente") ||
+              cargo.includes("coordenador") ||
               cargo.includes("supervisor") ||
               cargo.includes("lider");
 
@@ -1130,7 +1189,7 @@ function buildEmpresasResumo({
           });
 
     // =============================
-    // 4️⃣ OPERADORES + MÉTRICAS (CORRIGIDO)
+    // 5️⃣ OPERADORES + MÉTRICAS
     // =============================
 
     colaboradoresOperacionais.forEach((c) => {
@@ -1141,9 +1200,9 @@ function buildEmpresasResumo({
 
       const isSupervisor = cargo.includes("supervisor");
       const isLider = cargo.includes("lider");
+      const isCoordenador = cargo.includes("coordenador");
 
-      // Só operadores
-      if (isSupervisor || isLider) return;
+      if (isSupervisor || isLider || isCoordenador) return;
 
       const freqs = freqMap[c.opsId] || [];
 
@@ -1163,26 +1222,30 @@ function buildEmpresasResumo({
 
       const atestado = atestadoCountMap.get(c.opsId) || 0;
 
-      // 🔎 1️⃣ Encontrar supervisor correto
       let supervisorNode = null;
+      let coordenadorNode = null;
       let gerenteNode = null;
       let liderNode = null;
 
       gerentesMap.forEach((g) => {
-        const sup = g.supervisores.get(c.idLider);
-
-        if (sup) {
-          supervisorNode = sup;
-          gerenteNode = g;
-        }
+        // Supervisor direto do gerente
+        const supDireto = g.supervisores.get(c.idLider);
+        if (supDireto) { supervisorNode = supDireto; gerenteNode = g; }
 
         g.supervisores.forEach((s) => {
           const l = s.lideres.get(c.idLider);
-          if (l) {
-            liderNode = l;
-            supervisorNode = s;
-            gerenteNode = g;
-          }
+          if (l) { liderNode = l; supervisorNode = s; gerenteNode = g; }
+        });
+
+        // Via coordenador
+        g.coordenadores.forEach((coord) => {
+          const sup = coord.supervisores.get(c.idLider);
+          if (sup) { supervisorNode = sup; coordenadorNode = coord; gerenteNode = g; }
+
+          coord.supervisores.forEach((s) => {
+            const l = s.lideres.get(c.idLider);
+            if (l) { liderNode = l; supervisorNode = s; coordenadorNode = coord; gerenteNode = g; }
+          });
         });
       });
 
@@ -1219,17 +1282,25 @@ function buildEmpresasResumo({
       supervisorNode.absDias += absDias;
       supervisorNode.diasEscalados += diasEscalados;
 
+      // Métricas coordenador (quando presente)
+      if (coordenadorNode) {
+        coordenadorNode.totalColaboradores++;
+        coordenadorNode.faltas += faltas;
+        coordenadorNode.atestados += atestado;
+        coordenadorNode.absDias += absDias;
+        coordenadorNode.diasEscalados += diasEscalados;
+      }
+
       // Métricas gerente
       gerenteNode.totalColaboradores++;
       gerenteNode.faltas += faltas;
       gerenteNode.atestados += atestado;
       gerenteNode.absDias += absDias;
       gerenteNode.diasEscalados += diasEscalados;
-      
     });
-    
+
     // =============================
-    // 5️⃣ FINALIZAR ABSENTEÍSMO % (CORRIGIDO)
+    // 6️⃣ FINALIZAR ABSENTEÍSMO %
     // =============================
     const finalizarMetricas = (node) => {
       return {
@@ -1241,30 +1312,33 @@ function buildEmpresasResumo({
       };
     };
 
+    const serializarSupervisores = (supervisoresMap) =>
+      Array.from(supervisoresMap.values())
+        .map((s) => {
+          const supervisorFinal = finalizarMetricas(s);
+          const lideresFiltrados = Array.from(s.lideres.values())
+            .map((l) => finalizarMetricas(l));
+          return { ...supervisorFinal, lideres: lideresFiltrados };
+        })
+        .filter((s) => s.totalColaboradores > 0 || s.lideres.length > 0);
+
     return Array.from(gerentesMap.values()).map((g) => {
       const gerenteFinal = finalizarMetricas(g);
 
-      const supervisoresFiltrados = Array.from(g.supervisores.values())
-        .map((s) => {
-          const supervisorFinal = finalizarMetricas(s);
-
-          const lideresFiltrados = Array.from(s.lideres.values())
-            .map((l) => finalizarMetricas(l))
-            .filter((l) => l.totalColaboradores > 0);
-
+      const coordenadoresFiltrados = Array.from(g.coordenadores.values())
+        .map((coord) => {
+          const coordFinal = finalizarMetricas(coord);
           return {
-            ...supervisorFinal,
-            lideres: lideresFiltrados,
+            ...coordFinal,
+            supervisores: serializarSupervisores(coord.supervisores),
           };
         })
-        .filter(
-          (s) =>
-            s.totalColaboradores > 0 || s.lideres.length > 0
-        );
+        .filter((coord) => coord.totalColaboradores > 0 || coord.supervisores.length > 0);
 
       return {
         ...gerenteFinal,
-        supervisores: supervisoresFiltrados,
+        coordenadores: coordenadoresFiltrados,
+        supervisores: serializarSupervisores(g.supervisores),
       };
     });
   }
@@ -1272,15 +1346,28 @@ function buildEmpresasResumo({
   function buildResumoHierarquia(hierarquia) {
     return {
       totalGerentes: hierarquia.length,
+      totalCoordenadores: hierarquia.reduce(
+        (acc, g) => acc + (g.coordenadores?.length || 0),
+        0
+      ),
       totalSupervisores: hierarquia.reduce(
-        (acc, g) => acc + g.supervisores.length,
+        (acc, g) =>
+          acc +
+          g.supervisores.length +
+          (g.coordenadores || []).reduce(
+            (cAcc, coord) => cAcc + coord.supervisores.length,
+            0
+          ),
         0
       ),
       totalLideres: hierarquia.reduce(
         (acc, g) =>
           acc +
-          g.supervisores.reduce(
-            (sAcc, s) => sAcc + s.lideres.length,
+          g.supervisores.reduce((sAcc, s) => sAcc + s.lideres.length, 0) +
+          (g.coordenadores || []).reduce(
+            (cAcc, coord) =>
+              cAcc +
+              coord.supervisores.reduce((sAcc, s) => sAcc + s.lideres.length, 0),
             0
           ),
         0
