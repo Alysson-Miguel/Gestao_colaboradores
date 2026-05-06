@@ -18,13 +18,13 @@ export default function TurnoModal({ turno, onClose, onSave }) {
   const { estacaoId: estacaoSelecionada } = useEstacao();
 
   const isAdmin = user?.role === "ADMIN";
-  const precisaEscolherEstacao = isAdmin && !estacaoSelecionada && !turno;
 
   const [form, setForm] = useState({
     nomeTurno: turno?.nomeTurno || "",
     horarioInicio: toTimeString(turno?.horarioInicio),
     horarioFim: toTimeString(turno?.horarioFim),
     ativo: turno?.ativo ?? true,
+    isOperacional: turno?.isOperacional ?? true,
     idEstacao: turno?.idEstacao || estacaoSelecionada || "",
   });
   const [saving, setSaving] = useState(false);
@@ -36,15 +36,15 @@ export default function TurnoModal({ turno, onClose, onSave }) {
   }, []);
 
   useEffect(() => {
-    if (precisaEscolherEstacao) {
+    if (isAdmin) {
       EstacoesAPI.listar().then(setEstacoes).catch(() => {});
     }
-  }, [precisaEscolherEstacao]);
+  }, [isAdmin]);
 
   const handle = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
   const isValid = form.nomeTurno.trim() && form.horarioInicio && form.horarioFim
-    && (!precisaEscolherEstacao || form.idEstacao);
+    && (!isAdmin || form.idEstacao);
 
   const handleSave = async () => {
     if (!isValid) return;
@@ -104,19 +104,32 @@ export default function TurnoModal({ turno, onClose, onSave }) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs text-muted mb-1">Status</label>
-            <select
-              value={form.ativo ? "true" : "false"}
-              onChange={(e) => handle("ativo", e.target.value === "true")}
-              className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-default text-page text-sm"
-            >
-              <option value="true">Ativo</option>
-              <option value="false">Inativo</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-muted mb-1">Status</label>
+              <select
+                value={form.ativo ? "true" : "false"}
+                onChange={(e) => handle("ativo", e.target.value === "true")}
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-default text-page text-sm"
+              >
+                <option value="true">Ativo</option>
+                <option value="false">Inativo</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1">Tipo</label>
+              <select
+                value={form.isOperacional ? "true" : "false"}
+                onChange={(e) => handle("isOperacional", e.target.value === "true")}
+                className="w-full px-4 py-2.5 rounded-xl bg-surface-2 border border-default text-page text-sm"
+              >
+                <option value="true">Operacional</option>
+                <option value="false">Não Operacional</option>
+              </select>
+            </div>
           </div>
 
-          {precisaEscolherEstacao && (
+          {isAdmin && (
             <div>
               <label className="block text-xs text-muted mb-1">
                 Estação <span className="text-red-400">*</span>

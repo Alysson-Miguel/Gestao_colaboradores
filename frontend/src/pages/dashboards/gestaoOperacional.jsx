@@ -2,6 +2,7 @@
 import { useEstacao } from "../../context/EstacaoContext";
 import { Calendar, Package, Send } from "lucide-react";
 import api from "../../services/api";
+import { useTurnosOperacionais } from "../../hooks/useTurnosOperacionais";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import ProducaoChart from "../../components/gestaoOperacional/ProducaoChart";
@@ -15,6 +16,7 @@ export default function GestaoOperacional() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [turno, setTurno] = useState("T1");
+  const { turnos: turnosOperacionais } = useTurnosOperacionais();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [erro, setErro] = useState(null);
@@ -24,6 +26,12 @@ export default function GestaoOperacional() {
   const [ocultarHeader, setOcultarHeader] = useState(false);
   const mainContentRef = useRef(null);
   const { estacaoId } = useEstacao();
+
+  useEffect(() => {
+    if (turnosOperacionais.length > 0 && !turnosOperacionais.find((t) => t.nomeTurno === turno)) {
+      setTurno(turnosOperacionais[0].nomeTurno);
+    }
+  }, [turnosOperacionais]);
 
   // Contador regressivo em segundos até liberar o botão Seatalk
   const [segundosParaSeatalk, setSegundosParaSeatalk] = useState(0);
@@ -398,9 +406,9 @@ export default function GestaoOperacional() {
                   onChange={(e) => setTurno(e.target.value)}
                   className="px-4 py-2 bg-surface border border-default rounded-lg text-page"
                 >
-                  <option value="T1">T1</option>
-                  <option value="T2">T2</option>
-                  <option value="T3">T3</option>
+                  {turnosOperacionais.map((t) => (
+                    <option key={t.idTurno} value={t.nomeTurno}>{t.nomeTurno}</option>
+                  ))}
                 </select>
               </div>
 

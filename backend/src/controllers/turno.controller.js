@@ -9,6 +9,9 @@ const getAllTurnos = async (req, res) => {
   if (estacaoId) {
     where.OR = [{ idEstacao: estacaoId }, { idEstacao: null }];
   }
+  if (req.query.apenasOperacionais === 'true') {
+    where.isOperacional = true;
+  }
 
   const colaboradoresWhere = {
     status: 'ATIVO',
@@ -43,11 +46,14 @@ const createTurno = async (req, res) => {
     ? Number(req.body.idEstacao)
     : (req.dbContext?.estacaoId ?? null);
 
+  const isOperacional = req.body.isOperacional !== undefined ? Boolean(req.body.isOperacional) : true;
+
   const turno = await prisma.turno.create({
     data: {
       nomeTurno,
       horarioInicio: new Date(`1970-01-01T${horarioInicio}:00.000Z`),
       horarioFim: new Date(`1970-01-01T${horarioFim}:00.000Z`),
+      isOperacional,
       ...(idEstacao ? { idEstacao } : {}),
     },
   });
@@ -76,6 +82,7 @@ const updateTurno = async (req, res) => {
   if (req.body.horarioInicio) updateData.horarioInicio = new Date(`1970-01-01T${req.body.horarioInicio}:00.000Z`);
   if (req.body.horarioFim) updateData.horarioFim = new Date(`1970-01-01T${req.body.horarioFim}:00.000Z`);
   if (req.body.ativo !== undefined) updateData.ativo = req.body.ativo;
+  if (req.body.isOperacional !== undefined) updateData.isOperacional = Boolean(req.body.isOperacional);
 
   const updated = await prisma.turno.update({ where: { idTurno: parseInt(req.params.id) }, data: updateData });
   return successResponse(res, updated);

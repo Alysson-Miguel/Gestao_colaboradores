@@ -10,7 +10,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
-import TurnoSelector from "../../components/dashboard/TurnoSelector";
+import TurnoSelectorOperacional from "../../components/dashboard/TurnoSelectorOperacional";
 import KpiCardsRow from "../../components/dashboard/KpiCardsRow";
 import EmpresasSection from "../../components/dashboard/EmpresasSection";
 import DistribuicaoGeneroChart from "../../components/dashboard/DistribuicaoGeneroChart";
@@ -474,11 +474,11 @@ export default function DashboardOperacional() {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <TurnoSelector
+            <TurnoSelectorOperacional
               value={turnoSelecionado}
               onChange={setTurnoSelecionado}
-              options={["TODOS", "T1", "T2", "T3"]}
-              labels={{ T1: "T1", T2: "T2", T3: "T3", TODOS: "Todos" }}
+              todosKey="TODOS"
+              todosLabel="Todos"
             />
           <button
             type="button"

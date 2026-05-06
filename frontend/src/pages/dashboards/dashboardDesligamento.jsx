@@ -19,6 +19,7 @@ import api from "../../services/api"
 import Sidebar from "../../components/Sidebar"
 import Header from "../../components/Header"
 import { useEstacao } from "../../context/EstacaoContext"
+import TurnoSelectorOperacional from "../../components/dashboard/TurnoSelectorOperacional"
 
 /* ─── TOKENS ─────────────────────────────────────────────────────── */
 const BRAND = "#FA4C00"
@@ -315,49 +316,6 @@ function DateInput({ label, value, onChange }) {
   )
 }
 
-/* ─── TURNO SELECTOR ─────────────────────────────────────────────── */
-function TurnoSelector({ value, onChange }) {
-  const options = ["ALL", "T1", "T2", "T3"]
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <label
-        style={{
-          fontSize: 10,
-          color: "var(--color-muted)",
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-        }}
-      >
-        Turno
-      </label>
-      <div style={{ display: "flex", gap: 4, background: "var(--color-surface-2)", borderRadius: 12, padding: 4, border: "1px solid var(--color-border)" }}>
-        {options.map((opt) => {
-          const active = value === opt
-          return (
-            <button
-              key={opt}
-              onClick={() => onChange(opt)}
-              style={{
-                padding: "5px 14px",
-                borderRadius: 9,
-                border: "none",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: active ? 700 : 500,
-                background: active ? BRAND : "transparent",
-                color: active ? "#fff" : "var(--color-muted)",
-                transition: "all 0.18s",
-              }}
-            >
-              {opt === "ALL" ? "Todos" : opt}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 /* ─── CHARTS ─────────────────────────────────────────────────────── */
 function BarBlock({ data }) {
@@ -575,7 +533,12 @@ export default function DashboardDesligamento() {
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
               <DateInput label="Início" value={inicio} onChange={setInicio} />
               <DateInput label="Fim"    value={fim}    onChange={setFim}    />
-              <TurnoSelector value={turno} onChange={setTurno} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 10, color: "var(--color-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                  Turno
+                </label>
+                <TurnoSelectorOperacional value={turno} onChange={setTurno} />
+              </div>
               <button
                 onClick={fetchData}
                 disabled={loading}

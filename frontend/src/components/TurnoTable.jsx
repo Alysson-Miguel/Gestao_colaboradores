@@ -63,10 +63,11 @@ export default function TurnoTable({ turnos, onEdit, onDelete, isAdmin = false, 
 function TurnoCard({ turno: t, T, onEdit, onDelete, isAdmin, userEstacaoId }) {
   const [hov, setHov] = useState(false);
   const inicial = t.nomeTurno?.[0]?.toUpperCase() || "?";
-  const ativo   = t.ativo !== false;
-  const inicio  = formatTime(t.horarioInicio);
-  const fim     = formatTime(t.horarioFim);
-  const ativos  = t._count?.colaboradores ?? 0;
+  const ativo         = t.ativo !== false;
+  const isOperacional = t.isOperacional !== false;
+  const inicio        = formatTime(t.horarioInicio);
+  const fim           = formatTime(t.horarioFim);
+  const ativos        = t._count?.colaboradores ?? 0;
 
   const podeEditar = isAdmin || (t.idEstacao != null && t.idEstacao === userEstacaoId);
 
@@ -103,14 +104,24 @@ function TurnoCard({ turno: t, T, onEdit, onDelete, isAdmin, userEstacaoId }) {
             )}
           </div>
         </div>
-        <span style={{
-          padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
-          background: ativo ? T.statusActiveBg : T.statusInactiveBg,
-          border: `1px solid ${ativo ? T.statusActiveBorder : T.statusInactiveBorder}`,
-          color: ativo ? T.statusActiveText : T.statusInactiveText,
-        }}>
-          • {ativo ? "Ativo" : "Inativo"}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <span style={{
+            padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+            background: ativo ? T.statusActiveBg : T.statusInactiveBg,
+            border: `1px solid ${ativo ? T.statusActiveBorder : T.statusInactiveBorder}`,
+            color: ativo ? T.statusActiveText : T.statusInactiveText,
+          }}>
+            • {ativo ? "Ativo" : "Inativo"}
+          </span>
+          <span style={{
+            padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
+            background: isOperacional ? "rgba(99,102,241,0.15)" : "rgba(161,161,170,0.12)",
+            border: `1px solid ${isOperacional ? "rgba(99,102,241,0.4)" : "rgba(161,161,170,0.3)"}`,
+            color: isOperacional ? "#818CF8" : T.textSubtle,
+          }}>
+            {isOperacional ? "Operacional" : "Não Operacional"}
+          </span>
+        </div>
       </div>
 
       {/* horários + count */}

@@ -6,6 +6,11 @@ export const TurnosAPI = {
     return res.data?.data || [];
   },
 
+  listarOperacionais: async () => {
+    const res = await api.get("/turnos", { params: { apenasOperacionais: true } });
+    return res.data?.data || [];
+  },
+
   criar: async (data) => {
     const res = await api.post("/turnos", data);
     return res.data?.data;

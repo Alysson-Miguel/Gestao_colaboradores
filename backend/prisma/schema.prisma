@@ -225,13 +225,14 @@ model Escala {
 }
 
 model Turno {
-  idTurno       Int           @id @default(autoincrement()) @map("id_turno")
-  nomeTurno     String        @map("nome_turno") @db.VarChar(50)
-  horarioInicio DateTime      @map("horario_inicio") @db.Time(6)
-  horarioFim    DateTime      @map("horario_fim") @db.Time(6)
-  ativo         Boolean       @default(true)
-  dataCriacao   DateTime      @default(now()) @map("data_criacao")
-  idEstacao     Int?          @map("id_estacao")
+  idTurno        Int           @id @default(autoincrement()) @map("id_turno")
+  nomeTurno      String        @map("nome_turno") @db.VarChar(50)
+  horarioInicio  DateTime      @map("horario_inicio") @db.Time(6)
+  horarioFim     DateTime      @map("horario_fim") @db.Time(6)
+  ativo          Boolean       @default(true)
+  isOperacional  Boolean       @default(true) @map("is_operacional")
+  dataCriacao    DateTime      @default(now()) @map("data_criacao")
+  idEstacao      Int?          @map("id_estacao")
   estacao       Estacao?      @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_turno_estacao")
   colaboradores Colaborador[]
   dwPlanejados  DwPlanejado[]

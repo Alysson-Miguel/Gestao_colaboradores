@@ -27,7 +27,7 @@ import Header from "../../components/Header";
 import LoadingScreen from "../../components/LoadingScreen";
 
 import DashboardHeader from "../../components/dashboard/DashboardHeader";
-import TurnoSelector from "../../components/dashboard/TurnoSelector";
+import TurnoSelectorOperacional from "../../components/dashboard/TurnoSelectorOperacional";
 import DateFilter from "../../components/dashboard/DateFilter";
 import KpiCardsRow from "../../components/dashboard/KpiCardsRow";
 import DistribuicaoGeneroChart from "../../components/dashboard/DistribuicaoGeneroChart";
@@ -417,10 +417,9 @@ export default function DashboardAdmin() {
             lg:justify-between
             gap-6
           ">
-            <TurnoSelector
+            <TurnoSelectorOperacional
               value={turno}
               onChange={setTurno}
-              options={["ALL", "T1", "T2", "T3"]}
             />
 
             <DateFilter value={dateRange} onApply={setDateRange} />
