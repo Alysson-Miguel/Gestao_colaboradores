@@ -10,6 +10,7 @@ import EmployeeTable from "../components/EmployeeTable";
 import Pagination from "../components/Pagination";
 import LoadingScreen from "../components/LoadingScreen";
 import { ColaboradoresAPI } from "../services/colaboradores";
+import { TurnosAPI } from "../services/turnos";
 
 export default function ColaboradoresPage() {
   const [employees, setEmployees] = useState([]);
@@ -24,6 +25,7 @@ export default function ColaboradoresPage() {
   const [lideres, setLideres] = useState([]);
   const [cargos, setCargos] = useState([]);
   const [escalas, setEscalas] = useState([]);
+  const [turnos, setTurnos] = useState([]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -78,6 +80,13 @@ export default function ColaboradoresPage() {
     carregarEscalas();
   }, []);
 
+  /* ================= CARREGAR TURNOS ================= */
+  useEffect(() => {
+    TurnosAPI.listar()
+      .then((data) => setTurnos(data.filter((t) => t.ativo)))
+      .catch(() => {});
+  }, []);
+
   /* ================= LOAD ================= */
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,13 +133,6 @@ export default function ColaboradoresPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  const turnos = [
-    { label: "Turnos", value: "TODOS" },
-    { label: "T1", value: "T1" },
-    { label: "T2", value: "T2" },
-    { label: "T3", value: "T3" },
-  ];
 
   /* ================= HANDLERS ================= */
   const handlePageChange = (newPage) => {
@@ -214,9 +216,10 @@ export default function ColaboradoresPage() {
                 onChange={(e) => handleTurnoChange(e.target.value)}
                 className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page"
               >
+                <option value="TODOS">Turnos</option>
                 {turnos.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                  <option key={t.idTurno} value={t.nomeTurno}>
+                    {t.nomeTurno}
                   </option>
                 ))}
               </select>
