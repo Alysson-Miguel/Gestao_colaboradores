@@ -1,4 +1,4 @@
-export function buildOperationalReportData({ dados, turno, periodo }) {
+export function buildOperationalReportData({ dados, turno, periodo, belts = null }) {
   if (!dados || !dados.distribuicaoTurnoSetor) {
     console.error("Payload recebido no report:", dados)
     throw new Error("buildOperationalReportData: payload inválido")
@@ -165,5 +165,7 @@ export function buildOperationalReportData({ dados, turno, periodo }) {
       faltas,
       aderenciaTotal,
     },
+
+    belts,
   }
 }

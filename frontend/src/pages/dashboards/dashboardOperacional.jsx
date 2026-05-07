@@ -21,6 +21,7 @@ import TendenciaAbsenteismoChart from "../../components/dashboard/TendenciaAbsen
 import DistribuicaoVinculoChart from "../../components/dashboard/DistribuicaoVinculoChart";
 import { exportOperationalReport } from "../../reports/exportOperationalReport";
 import { Download } from "lucide-react";
+import EsteirasSection from "../../components/dashboard/EsteirasSection";
 
 
 import { AuthContext } from "../../context/AuthContext";
@@ -93,24 +94,28 @@ export default function DashboardOperacional() {
       };
 
       if (appliedRange?.from) {
-        params.dataInicio = appliedRange.from
-          .toISOString()
-          .slice(0, 10);
-
-        params.dataFim = (appliedRange.to || appliedRange.from)
-          .toISOString()
-          .slice(0, 10);
+        params.dataInicio = appliedRange.from.toISOString().slice(0, 10);
+        params.dataFim = (appliedRange.to || appliedRange.from).toISOString().slice(0, 10);
       }
 
       if (estacaoId) params.estacaoId = estacaoId;
 
-      const res = await api.get("/dashboard", { params });
+      const dateParam = appliedRange?.from?.toISOString().slice(0, 10);
+
+      const [res, esteirasRes] = await Promise.all([
+        api.get("/dashboard", { params }),
+        Number(estacaoId) === 1 && dateParam
+          ? api.get("/esteiras/planejado", { params: { date: dateParam } }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
 
       navigate("/report", {
         state: {
-          dashboardData: res.data.data, // 🔥 payload completo
+          dashboardData: res.data.data,
           turno: turnoSelecionado,
           periodo: appliedRange,
+          estacaoId,
+          belts: esteirasRes?.data?.data?.belts ?? null,
         },
       });
     } catch (err) {
@@ -540,6 +545,12 @@ export default function DashboardOperacional() {
             title="Curva de Absenteísmo (%)"
             data={tendenciaData}
           />
+
+          {Number(estacaoId) === 1 && (
+            <EsteirasSection
+              date={appliedRange.from?.toISOString().slice(0, 10)}
+            />
+          )}
 
           <AusentesHojeTable
             title={turnoSelecionado === "TODOS" ? "Ausentes — Todos os Turnos" : `Ausentes no turno — ${turnoSelecionado}`}

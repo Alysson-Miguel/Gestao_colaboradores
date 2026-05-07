@@ -30,6 +30,7 @@ export default function OperationalReport({ report }) {
     setores = [],
     ausenciasHoje = [],
     insights,
+    belts = null,
   } = report
   const reportRef = useRef(null)
   const navigate = useNavigate()
@@ -234,6 +235,36 @@ export default function OperationalReport({ report }) {
             textColor={kpis.shareDiaristas <= 10 ? "#34C759" : "#d6000e"}
           />
         </div>
+        {/* ================= ESTEIRAS PLANEJADAS ================= */}
+        {belts && belts.length > 0 && (
+          <Card>
+            <h2 className="font-medium mb-4">Configuração das Esteiras – Planejado</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {belts.map((belt) => {
+                const DOT = {
+                  esteira_a: "bg-red-500",
+                  esteira_b: "bg-yellow-400",
+                  esteira_c: "bg-blue-500",
+                  linear:    "bg-purple-500",
+                  termo:     "bg-green-500",
+                }
+                return (
+                  <div key={belt.key} className="bg-[#2a2a2a] rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${DOT[belt.key] || "bg-gray-400"}`} />
+                      <span className="text-xs text-[#BFBFC3]">
+                        {belt.key === "termo" ? "Esteira Termoplástica" : belt.label}
+                      </span>
+                    </div>
+                    <p className="text-2xl font-bold">{belt.plannedOperators}</p>
+                    <p className="text-xs text-[#BFBFC3] mt-0.5">operadores planejados</p>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+
         {/* ================= QUANTIDADE POR EMPRESA ================= */}
         <Card>
           <h2 className="font-medium mb-4">Quantidade por Empresa</h2>

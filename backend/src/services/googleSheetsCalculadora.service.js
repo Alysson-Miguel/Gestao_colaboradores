@@ -129,4 +129,87 @@ async function buscarDwPlanejadoCalculadoraBatch(requests) {
   return resultado;
 }
 
-module.exports = { buscarDwPlanejadoCalculadora, buscarDwPlanejadoCalculadoraBatch };
+/* ─────────────────────────────────────────────────────────
+   ESTEIRAS PLANEJADAS
+   Lê os headers da linha 2 dinamicamente para não depender
+   de posições fixas de coluna.
+───────────────────────────────────────────────────────── */
+const ESTEIRAS_CONFIG = [
+  { key: "esteira_a", sheetName: "Esteira A",  label: "Esteira A",            displayLabel: "🔴 Esteira A" },
+  { key: "esteira_b", sheetName: "Esteira B",  label: "Esteira B",            displayLabel: "🟡 Esteira B" },
+  { key: "esteira_c", sheetName: "Esteira C",  label: "Esteira C",            displayLabel: "🔵 Esteira C" },
+  { key: "linear",    sheetName: "Linear",     label: "Linear",               displayLabel: "🟣 Linear" },
+  { key: "termo",     sheetName: "Termo",      label: "Termo",                displayLabel: "🟢 Esteira Termoplástica" },
+];
+
+/**
+ * Busca os operadores planejados por esteira para uma data.
+ * @param {string} dataISO - "YYYY-MM-DD"
+ * @returns {Promise<{ date: string, belts: Array }>}
+ */
+async function buscarEsteirasPlanejadas(dataISO) {
+  const sheets = getClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET}!A:Z`,
+    valueRenderOption: "FORMATTED_VALUE",
+  });
+
+  const allRows = res.data.values || [];
+
+  // Encontra dinamicamente a linha de headers (primeira que contém "Esteira")
+  // A planilha tem duas linhas de cabeçalho: nomes das esteiras + turno labels (T1/T2/T3)
+  let headerRowIndex = -1;
+  const colMap = {};
+
+  for (let i = 0; i < Math.min(6, allRows.length); i++) {
+    const row = allRows[i] || [];
+    // Verifica somente a partir da coluna G (índice 6) conforme spec (dados em G:U)
+    const temEsteira = row.slice(6).some((cell) => cell && String(cell).trim().startsWith("Esteira"));
+    if (temEsteira) {
+      headerRowIndex = i;
+      // Guarda apenas a PRIMEIRA ocorrência de cada nome a partir de G (grupo T1)
+      // Normaliza espaços internos (ex: "Esteira  A" → "Esteira A")
+      row.forEach((cell, idx) => {
+        if (idx < 6) return;
+        const nome = String(cell || "").trim().replace(/\s+/g, " ");
+        if (nome && !colMap[nome]) colMap[nome] = idx;
+      });
+      break;
+    }
+  }
+
+  // Linhas de dados começam após headerRow + turno-labels row
+  const dataStartIndex = headerRowIndex >= 0 ? headerRowIndex + 2 : 3;
+
+  // Localizar linha da data — coluna B (índice 1), formato dd/mm/yyyy
+  const [ano, mes, dia] = dataISO.split("-");
+  const dataBusca = `${dia}/${mes}/${ano}`;
+
+  let dataRow = null;
+  for (let i = dataStartIndex; i < allRows.length; i++) {
+    const row = allRows[i];
+    if (!row || !row[1]) continue;
+    if (row[1].toString().trim() === dataBusca) {
+      dataRow = row;
+      break;
+    }
+  }
+
+  const belts = ESTEIRAS_CONFIG.map(({ key, sheetName, label, displayLabel }) => {
+    const colIdx = colMap[sheetName];
+    const plannedOperators =
+      dataRow !== null && colIdx !== undefined
+        ? parseInt(dataRow[colIdx]) || 0
+        : 0;
+    return { key, label, displayLabel, plannedOperators };
+  });
+
+  return { date: dataISO, belts };
+}
+
+module.exports = {
+  buscarDwPlanejadoCalculadora,
+  buscarDwPlanejadoCalculadoraBatch,
+  buscarEsteirasPlanejadas,
+};

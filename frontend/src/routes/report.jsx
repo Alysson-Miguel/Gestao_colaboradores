@@ -10,9 +10,10 @@ export default function ReportRoute() {
   }
 
   const report = buildOperationalReportData({
-    dados: state.dashboardData, // ✅ AQUI
+    dados: state.dashboardData,
     turno: state.turno,
     periodo: state.periodo,
+    belts: state.belts ?? null,
   })
 
   return <OperationalReport report={report} />

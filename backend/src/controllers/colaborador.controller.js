@@ -717,6 +717,7 @@ const updateColaborador = async (req, res) => {
       matricula,
       status,
       idEscala,
+      idTurno,
       dataAdmissao,
       horarioInicioJornada,
       contatoEmergenciaNome,
@@ -769,13 +770,6 @@ const updateColaborador = async (req, res) => {
       data.dataAdmissao = dataAdmissao ? new Date(`${dataAdmissao}T00:00:00`) : undefined;
     }
 
-    if (horarioInicioJornada !== undefined && horarioInicioJornada !== "") {
-      if (!HORARIOS_PERMITIDOS.includes(horarioInicioJornada)) {
-        return errorResponse(res, `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`, 400);
-      }
-      data.horarioInicioJornada = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
-    }
-
     if (dataAdmissao !== undefined && dataAdmissao) {
       const dt = new Date(`${dataAdmissao}T00:00:00`);
       if (!isNaN(dt.getTime())) data.dataAdmissao = dt;
@@ -785,6 +779,14 @@ const updateColaborador = async (req, res) => {
       const parsed = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
       if (!isNaN(parsed.getTime())) {
         data.horarioInicioJornada = parsed;
+      }
+    }
+
+    if (idTurno !== undefined) {
+      if (idTurno) {
+        data.turno = { connect: { idTurno: Number(idTurno) } };
+      } else {
+        data.turno = { disconnect: true };
       }
     }
 
@@ -843,6 +845,8 @@ const updateColaborador = async (req, res) => {
     }
 
     console.log("📦 DATA FINAL:", data);
+
+    let nomeEscalaParaDSR = null;
 
     const colaborador = await prisma.$transaction(async (tx) => {
       const hoje = startOfDayBR();
@@ -938,16 +942,15 @@ const updateColaborador = async (req, res) => {
         }
       }
 
-      const tipoDSR = await tx.tipoAusencia.findFirst({
-        where: { codigo: "DSR" },
-        select: { idTipoAusencia: true },
-      });
-
       const escalaMudou =
         novaEscalaId !== null &&
         Number(novaEscalaId) !== Number(atual?.idEscala);
 
       if (escalaMudou) {
+        const tipoDSR = await tx.tipoAusencia.findFirst({
+          where: { codigo: "DSR" },
+          select: { idTipoAusencia: true },
+        });
 
         /* =========================
            FECHAR HISTÓRICO ATUAL
@@ -995,32 +998,28 @@ const updateColaborador = async (req, res) => {
           select: { nomeEscala: true },
         });
 
-        /* =========================
-           GERAR DSR FUTURO
-        ========================= */
-        await gerarDSRFuturoColaborador({
-          opsId,
-          nomeEscala: novaEscala?.nomeEscala,
-          tx,
-        });
-
-        /* =========================
-           BACKFILL (HOJE → PASSADO)
-        ========================= */
-        await gerarDSRBackfillColaborador({
-          opsId,
-          nomeEscala: novaEscala?.nomeEscala,
-          dataInicio: atualizado.dataAdmissao,
-          tx,
-        });
+        nomeEscalaParaDSR = novaEscala?.nomeEscala ?? null;
       }
 
-      return atualizado;
-    });
+      return { atualizado, dataAdmissao: atualizado.dataAdmissao };
+    }, { timeout: 30000 });
+
+    /* =========================
+       GERAR DSR FORA DA TRANSAÇÃO
+       (evita timeout da tx para backfills longos)
+    ========================= */
+    if (nomeEscalaParaDSR) {
+      await gerarDSRFuturoColaborador({ opsId, nomeEscala: nomeEscalaParaDSR });
+      await gerarDSRBackfillColaborador({
+        opsId,
+        nomeEscala: nomeEscalaParaDSR,
+        dataInicio: colaborador.dataAdmissao,
+      });
+    }
 
     return successResponse(
       res,
-      colaborador,
+      colaborador.atualizado,
       "Colaborador atualizado com sucesso"
     );
   } catch (err) {
