@@ -16,8 +16,6 @@ const {
 } = require("../utils/response");
 const { gerarDSRBackfillColaborador, gerarDSRFuturoColaborador, gerarOnboardingColaborador } = require("../services/dsrBackfill.service");
 
-/* ================= CONSTANTES ================= */
-const HORARIOS_PERMITIDOS = ["05:25", "13:20", "21:00"];
 
 /* ================= HELPERS DE DATA (BR) ================= */
 function startOfDayBR(date) {
@@ -522,12 +520,8 @@ const createColaborador = async (req, res) => {
     let horario = null;
 
     if (horarioInicioJornada) {
-      if (!HORARIOS_PERMITIDOS.includes(horarioInicioJornada)) {
-        return errorResponse(
-          res,
-          `Horário inválido. Permitidos: ${HORARIOS_PERMITIDOS.join(", ")}`,
-          400
-        );
+      if (!/^\d{2}:\d{2}$/.test(horarioInicioJornada)) {
+        return errorResponse(res, "Horário inválido. Use o formato HH:MM", 400);
       }
 
       horario = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
