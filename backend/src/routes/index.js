@@ -8,6 +8,12 @@ const router = express.Router();
 const { authenticate, authorize } = require("../middlewares/auth.middleware");
 const { injectDbContext } = require("../middlewares/dbContext.middleware");
 const blockOperacao = require("../middlewares/blockOperacao");
+const {
+  authLimiter,
+  dashboardLimiter,
+  reportLimiter,
+  writeLimiter,
+} = require("../middlewares/rateLimiter.middleware");
 
 // rotas
 const authRoutes = require("./auth.routes");
@@ -102,7 +108,7 @@ router.get("/env-check", (req, res) => {
 /* =========================
    🔓 ROTAS PÚBLICAS
 ========================= */
-router.use("/auth", authRoutes);
+router.use("/auth", authLimiter, authRoutes);
 
 // 🔓 VERSÃO DO SISTEMA — sem autenticação
 router.get("/version", (req, res) => {
@@ -123,6 +129,7 @@ router.post(
 ========================= */
 router.use(authenticate);
 router.use(injectDbContext);
+router.use(writeLimiter);
 router.use(blockOperacao);
 
 /* =========================
@@ -184,10 +191,11 @@ router.use("/colaboradores", colaboradorRoutes);
 router.use("/tipos-ausencia", tipoausenciaRoutes);
 router.use("/frequencias", frequenciaRoutes);
 router.use("/ausencias", ausenciaRoutes);
+router.use("/dashboard", dashboardLimiter);
 router.use("/dashboard", dashboardRoutes);
 
 // agora sim, resto do ponto
-router.use("/ponto", pontoRoutes);
+router.use("/ponto", reportLimiter, pontoRoutes);
 
 router.use("/atestados-medicos", atestadoMedicoRoutes);
 router.use("/medidas-disciplinares/sugestoes", sugestaoRoutes);
@@ -200,7 +208,7 @@ router.use("/treinamentos", treinamentoRoutes);
 router.use("/dw", dwRoutes);
 router.use("/users", usersRoutes);
 router.use("/safety-walk", safetyWalkRoutes);
-router.use("/reports", reportRoutes);
+router.use("/reports", reportLimiter, reportRoutes);
 router.use("/dashboard/atestados", dashboardAtestados);
 router.use("/ddsma", ddsmaRoutes);
 router.use("/opa", opaRoutes);
@@ -208,8 +216,8 @@ router.use("/folga-dominical", folgaDominical);
 router.use("/dashboard/gestao-operacional", gestaoOperacionalRoutes);
 router.use("/dashboard/produtividade-colaborador", produtividadeColaboradorRoutes);
 router.use("/dashboard/desligamento", desligamentoRoutes)
-router.use("/dashboard/faltas",       dashboardFaltasRoutes)
-router.use("/dashboard/absenteismo",  absenteismoRoutes)
+router.use("/dashboard/faltas",       reportLimiter, dashboardFaltasRoutes)
+router.use("/dashboard/absenteismo",  reportLimiter, absenteismoRoutes)
 router.use("/esteiras",               esteirasRoutes)
 
 module.exports = router;

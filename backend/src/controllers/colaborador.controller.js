@@ -593,6 +593,9 @@ const createColaborador = async (req, res) => {
        TRANSACTION
     =============================== */
 
+    let nomeEscalaCreate = null;
+    let novoOpsId = null;
+
     const colaborador = await prisma.$transaction(async (tx) => {
 
       /* =========================
@@ -623,8 +626,6 @@ const createColaborador = async (req, res) => {
         select: { nomeEscala: true },
       });
 
-      const nomeEscala = escalaCriada?.nomeEscala;
-
       /* =========================
          ONBOARDING (2 DIAS)
       ========================= */
@@ -634,27 +635,27 @@ const createColaborador = async (req, res) => {
         tx,
       });
 
-      /* =========================
-         BACKFILL (PASSADO)
-      ========================= */
-      await gerarDSRBackfillColaborador({
-        opsId: novo.opsId,
-        nomeEscala,
-        dataInicio: dataAdmissaoDate || hoje,
-        tx,
-      });
-
-      /* =========================
-         FUTURO (ESSENCIAL)
-      ========================= */
-      await gerarDSRFuturoColaborador({
-        opsId: novo.opsId,
-        nomeEscala,
-        tx,
-      });
+      nomeEscalaCreate = escalaCriada?.nomeEscala ?? null;
+      novoOpsId = novo.opsId;
 
       return novo;
-    });
+    }, { timeout: 30000 });
+
+    /* =========================
+       GERAR DSR FORA DA TRANSAÇÃO
+       (evita timeout da tx para backfills longos)
+    ========================= */
+    if (nomeEscalaCreate && novoOpsId) {
+      await gerarDSRBackfillColaborador({
+        opsId: novoOpsId,
+        nomeEscala: nomeEscalaCreate,
+        dataInicio: dataAdmissaoDate,
+      });
+      await gerarDSRFuturoColaborador({
+        opsId: novoOpsId,
+        nomeEscala: nomeEscalaCreate,
+      });
+    }
 
     return createdResponse(
       res,
@@ -666,7 +667,15 @@ const createColaborador = async (req, res) => {
     console.error("❌ ERRO CREATE:", err);
 
     if (err?.code === "P2002") {
-      return errorResponse(res, `OPS inválido: o código "${req.body?.opsId}" já está em uso`, 409);
+      const campo = err?.meta?.target;
+      const mensagens = {
+        matricula: `Matrícula "${req.body?.matricula}" já está em uso por outro colaborador`,
+        email: `E-mail "${req.body?.email}" já está em uso por outro colaborador`,
+        ops_id: `OPS ID "${req.body?.opsId}" já está em uso`,
+      };
+      const campoChave = Array.isArray(campo) ? campo[0] : campo;
+      const msg = mensagens[campoChave] ?? `Dado duplicado (${campoChave ?? "campo único"}): verifique matrícula, e-mail ou OPS ID`;
+      return errorResponse(res, msg, 409);
     }
 
     return errorResponse(

@@ -10,6 +10,7 @@ const morgan = require('morgan');
 const config = require('./config/config');
 const routes = require('./routes');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
+const { globalLimiter } = require('./middlewares/rateLimiter.middleware');
 const logger = require('./utils/logger');
 const cron = require("node-cron");
 
@@ -126,6 +127,7 @@ app.get('/', (req, res) => {
 });
 
 // Monta as rotas da API
+app.use('/api', globalLimiter);
 app.use('/api', routes);
 
 // =====================================================
