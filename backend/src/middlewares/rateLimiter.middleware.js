@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = require("express-rate-limit");
 
 /* ─────────────────────────────────────────────────────────
    STORE
@@ -17,9 +18,9 @@ const handler429 = (req, res) => {
   });
 };
 
-// Key: user ID when authenticated, fallback to IP
-const keyByUser = (req) => req.user?.id ?? req.ip;
-const keyByIP   = (req) => req.ip;
+// Key: user ID when authenticated, fallback to IP (IPv6-safe)
+const keyByIP   = (req) => ipKeyGenerator(req);
+const keyByUser = (req) => req.user?.id ?? ipKeyGenerator(req);
 
 /* ─── GLOBAL ────────────────────────────────────────────
    300 req / min por IP — protege flood antes de autenticar

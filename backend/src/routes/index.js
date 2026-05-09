@@ -47,7 +47,7 @@ const ddsmaRoutes = require("./ddsma.routes");
 const opaRoutes = require("./opa.routes");
 const folgaDominical = require("./folgaDominical.routes");
 const gestaoOperacionalRoutes = require("./gestaoOperacional.routes");
-const produtividadeColaboradorRoutes = require("./produtividadeColaborador.routes");
+const processamentoGeralRoutes = require("./processamentoGeral.routes");
 const sugestaoRoutes = require("./sugestaoMedidaDisciplinar.routes");
 const desligamentoRoutes = require("./desligamentoDashboard.routes");
 const dashboardFaltasRoutes = require("./faltas.routes")
@@ -214,7 +214,7 @@ router.use("/ddsma", ddsmaRoutes);
 router.use("/opa", opaRoutes);
 router.use("/folga-dominical", folgaDominical);
 router.use("/dashboard/gestao-operacional", gestaoOperacionalRoutes);
-router.use("/dashboard/produtividade-colaborador", produtividadeColaboradorRoutes);
+router.use("/dashboard/processamento-geral", processamentoGeralRoutes);
 router.use("/dashboard/desligamento", desligamentoRoutes)
 router.use("/dashboard/faltas",       reportLimiter, dashboardFaltasRoutes)
 router.use("/dashboard/absenteismo",  reportLimiter, absenteismoRoutes)

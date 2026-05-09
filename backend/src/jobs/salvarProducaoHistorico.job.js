@@ -1,30 +1,44 @@
 const cron = require('node-cron');
-const { salvarProducaoHistorico, verificarRegistroExistente } = require('../services/producaoHistorico.service');
+const { salvarProducaoHistorico, salvarHoraUnica, verificarRegistroExistente } = require('../services/producaoHistorico.service');
 
-/**
- * Função auxiliar para obter a data de ontem no formato YYYY-MM-DD
- * Usado para salvar dados do turno T3 que termina às 7h do dia seguinte
- */
+function agoraBrasil() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+}
+
+function getDataHoje() {
+  return agoraBrasil().toISOString().slice(0, 10);
+}
+
 function getDataOntem() {
-  const agora = new Date();
-  const spString = agora.toLocaleString("en-US", {
-    timeZone: "America/Sao_Paulo",
-  });
-  const dataBrasil = new Date(spString);
-  dataBrasil.setDate(dataBrasil.getDate() - 1);
-  return dataBrasil.toISOString().slice(0, 10);
+  const d = agoraBrasil();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /**
- * Função auxiliar para obter a data de hoje no formato YYYY-MM-DD
+ * Determina qual hora/turno/data salvar com base no horário atual (HH:05).
+ * Retorna a hora anterior e o contexto correto para T3 (que cruza meia-noite).
  */
-function getDataHoje() {
-  const agora = new Date();
-  const spString = agora.toLocaleString("en-US", {
-    timeZone: "America/Sao_Paulo",
-  });
-  const dataBrasil = new Date(spString);
-  return dataBrasil.toISOString().slice(0, 10);
+function getInfoHoraAnterior() {
+  const agora = agoraBrasil();
+  const horaAtual = agora.getHours();
+  const horaAnterior = (horaAtual - 1 + 24) % 24;
+
+  let turno;
+  if (horaAnterior >= 6 && horaAnterior <= 13) turno = "T1";
+  else if (horaAnterior >= 14 && horaAnterior <= 21) turno = "T2";
+  else turno = "T3";
+
+  // T3 horas 0-5 → referência é ontem (quando T3 começou às 22h)
+  // T3 horas 22-23 → referência é hoje
+  let dataRef;
+  if (turno === "T3" && horaAnterior <= 5) {
+    dataRef = getDataOntem();
+  } else {
+    dataRef = getDataHoje();
+  }
+
+  return { hora: horaAnterior, turno, dataRef };
 }
 
 /**
@@ -100,10 +114,26 @@ function iniciarJobsProducao() {
     timezone: "America/Sao_Paulo"
   });
 
+  // Job 4: Redundância horária — salva a hora anterior todo HH:05
+  // Ex: 20:05 salva dados das 19:00; 15:05 salva dados das 14:00
+  cron.schedule('5 * * * *', async () => {
+    const { hora, turno, dataRef } = getInfoHoraAnterior();
+    console.log(`\n⏰ [JOB HORA] ${agoraBrasil().toLocaleString('pt-BR')} → salvando h${hora} | ${turno} | ${dataRef}`);
+
+    const resultado = await salvarHoraUnica(turno, dataRef, hora);
+
+    if (resultado.success) {
+      console.log(`✅ [JOB HORA] ${resultado.message}`);
+    } else {
+      console.error(`❌ [JOB HORA] Falha: ${resultado.message}`);
+    }
+  }, { timezone: "America/Sao_Paulo" });
+
   console.log('✅ [JOBS] Jobs agendados com sucesso:');
-  console.log('   📌 T1: Todos os dias às 15:00');
-  console.log('   📌 T2: Todos os dias às 23:00');
-  console.log('   📌 T3: Todos os dias às 05:00');
+  console.log('   📌 T1: Todos os dias às 15:00 (fechamento turno)');
+  console.log('   📌 T2: Todos os dias às 23:00 (fechamento turno)');
+  console.log('   📌 T3: Todos os dias às 05:00 (fechamento turno)');
+  console.log('   📌 Redundância: todo HH:05 salva a hora anterior');
   console.log('   🌎 Timezone: America/Sao_Paulo\n');
 }
 
