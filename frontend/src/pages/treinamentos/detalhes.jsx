@@ -225,7 +225,7 @@ export default function DetalhesTreinamento() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted">Data</span>
-                <p>{new Date(treinamento.dataTreinamento).toLocaleDateString("pt-BR")}</p>
+                <p>{treinamento.dataTreinamento?.slice(0,10).split("-").reverse().join("/")}</p>
               </div>
               <div>
                 <span className="text-muted">SOC</span>

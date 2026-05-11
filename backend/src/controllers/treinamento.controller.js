@@ -9,6 +9,12 @@ const BUCKET = process.env.R2_BUCKET_NAME;
 /* =====================================================
    CRIAR TREINAMENTO
 ===================================================== */
+function normalizeDateOnly(dateStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
 exports.createTreinamento = async (req, res) => {
   try {
 
@@ -54,7 +60,7 @@ exports.createTreinamento = async (req, res) => {
 
       data: {
 
-        dataTreinamento: new Date(dataTreinamento),
+        dataTreinamento: normalizeDateOnly(dataTreinamento),
 
         processo,
         tema,
