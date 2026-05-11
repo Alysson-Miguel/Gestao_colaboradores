@@ -25,8 +25,10 @@ const register = async (req, res) => {
     return errorResponse(res, 'Selecione uma estação', 400);
   }
 
-  if (!email.toLowerCase().endsWith('@shopee.com')) {
-    return errorResponse(res, 'O e-mail deve ser do domínio @shopee.com', 400);
+  const emailLower = email.toLowerCase();
+  const dominiosPermitidos = ['@shopee.com', '@shopeemobile-external.com'];
+  if (!dominiosPermitidos.some(d => emailLower.endsWith(d))) {
+    return errorResponse(res, 'O e-mail deve ser do domínio @shopee.com ou @shopeemobile-external.com', 400);
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });

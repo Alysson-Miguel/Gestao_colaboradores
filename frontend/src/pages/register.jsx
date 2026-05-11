@@ -68,8 +68,10 @@ export default function Register() {
       return;
     }
 
-    if (!email.toLowerCase().endsWith("@shopee.com")) {
-      setError("O e-mail deve ser do domínio @shopee.com");
+    const emailLower = email.toLowerCase();
+    const dominiosPermitidos = ["@shopee.com", "@shopeemobile-external.com"];
+    if (!dominiosPermitidos.some(d => emailLower.endsWith(d))) {
+      setError("O e-mail deve ser do domínio @shopee.com ou @shopeemobile-external.com");
       return;
     }
 
