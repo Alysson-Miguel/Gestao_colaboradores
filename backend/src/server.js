@@ -9,7 +9,6 @@ const { testConnection } = require('./config/database');
 const logger = require('./utils/logger');
 const { iniciarSyncPresencaSheets } = require('./jobs/syncPresencaSheets.job');
 const { iniciarJobsProducao } = require('./jobs/salvarProducaoHistorico.job');
-const { iniciarJobsProducaoColaborador } = require('./jobs/salvarProducaoColaboradorHistorico.job');
 const { iniciarJobDSRFuturo } = require('./jobs/gerarDSRFuturo.job');
 
 
@@ -40,9 +39,6 @@ const startServer = async () => {
       // Inicia jobs de salvamento automático de produção
       iniciarJobsProducao();
       
-      // Inicia jobs de histórico de produtividade por colaborador
-      iniciarJobsProducaoColaborador();
-
       // Inicia job de geração automática de DSR futuro
       iniciarJobDSRFuturo();
     });

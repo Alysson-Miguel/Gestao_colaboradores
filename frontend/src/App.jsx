@@ -16,7 +16,6 @@ import DashboardAdmin from "./pages/dashboards/dashboardAdmin";
 import DashboardColaborador from "./pages/dashboards/dashboardColaborador";
 import DashboardAtestados from "./pages/dashboards/dashboardAtestados";
 import GestaoOperacional from "./pages/dashboards/gestaoOperacional";
-import ProdutividadeColaborador from "./pages/dashboards/produtividadeColaborador";
 import DashboardDesligamento from "./pages/dashboards/dashboardDesligamento";
 import DashboardFaltas from "./pages/dashboards/DashboardFaltas"
 import DashboardAbsenteismo from "./pages/dashboards/DashboardAbsenteismo";
@@ -153,15 +152,7 @@ export default function App() {
         }
       />
 
-      <Route
-        path="/dashboard/produtividade-colaborador"
-        element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA", "OPERACAO"]} onlyEstacoes={[1]}>
-            <ProdutividadeColaborador />
-          </ProtectedRoute>
-        }
-      />
-      <Route
+<Route
         path="/dashboard/desligamento"
         element={
         <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO"]}>

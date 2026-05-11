@@ -4,17 +4,16 @@ const { google } = require("googleapis");
    CONFIG
 ===================================================== */
 
-// ID padrão (fallback para ADMIN sem estação configurada)
 const DEFAULT_SPREADSHEET_ID = "17Dpmr1Kn6ybvK3rah2JvoCBsAeOvotvM6k_7uaATPz0";
+const DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID = "1QKrqffSjAXrOWtMeTwDYhhfbyU0BakjvSODg3C6bxCI";
+
 const META_SHEET = "Meta";
-const ATUALIZACAO_SHEET = "Atualização_colaborador";
-const LOGIC_SHEET = "Logic";
+const PRODUCAO_ONTIME_SHEET = "ProdutividadeSPX";
 
 /* =====================================================
    CACHE POR SPREADSHEET ID
 ===================================================== */
 
-// Estrutura: { [spreadsheetId]: { meta, atualizacao, logic, timestamps } }
 const cacheMap = new Map();
 const CACHE_TTL = 1 * 60 * 1000; // 1 min
 
@@ -22,8 +21,7 @@ function getCache(spreadsheetId) {
   if (!cacheMap.has(spreadsheetId)) {
     cacheMap.set(spreadsheetId, {
       meta: null, metaTs: null,
-      atualizacao: null, atualizacaoTs: null,
-      logic: null, logicTs: null,
+      ontime: null, ontimeTs: null,
     });
   }
   return cacheMap.get(spreadsheetId);
@@ -69,10 +67,20 @@ const formatarData = (dataISO) => {
 };
 
 const normalizar = (v) =>
-  String(v ?? "").replace(/\u00A0/g, " ").trim();
+  String(v ?? "").replace(/ /g, " ").trim();
+
+// Converte "DD/MM/YYYY HH:MM:SS" (horário de SP) para objeto Date
+function parseDateBR(str) {
+  if (!str || !str.includes("/")) return null;
+  const [datePart, timePart] = str.split(" ");
+  if (!datePart) return null;
+  const [dia, mes, ano] = datePart.split("/");
+  const time = timePart || "00:00:00";
+  return new Date(`${ano}-${mes}-${dia}T${time}-03:00`);
+}
 
 /* =====================================================
-   CARREGAR ABAS
+   CARREGAR ABA META
 ===================================================== */
 
 async function carregarPlanilha(spreadsheetId) {
@@ -93,11 +101,14 @@ async function carregarPlanilha(spreadsheetId) {
       valueRenderOption: "FORMATTED_VALUE",
     });
   } catch (err) {
-    // Aba não existe ou planilha não configurada
-    const msg = err?.message || '';
-    if (msg.includes('Unable to parse range') || msg.includes('404') || msg.includes('not found')) {
+    const msg = err?.message || "";
+    if (
+      msg.includes("Unable to parse range") ||
+      msg.includes("404") ||
+      msg.includes("not found")
+    ) {
       const e = new Error(`Planilha não configurada para esta estação`);
-      e.code = 'SHEETS_NOT_CONFIGURED';
+      e.code = "SHEETS_NOT_CONFIGURED";
       throw e;
     }
     throw err;
@@ -106,7 +117,7 @@ async function carregarPlanilha(spreadsheetId) {
   const rows = response.data.values;
   if (!rows || rows.length === 0) {
     const e = new Error(`Planilha não configurada para esta estação`);
-    e.code = 'SHEETS_NOT_CONFIGURED';
+    e.code = "SHEETS_NOT_CONFIGURED";
     throw e;
   }
 
@@ -116,54 +127,49 @@ async function carregarPlanilha(spreadsheetId) {
   return rows;
 }
 
-async function carregarAtualizacaoColaborador(spreadsheetId) {
+/* =====================================================
+   CARREGAR ABA PRODUTIVIDADE ONTIME (ProdutividadeSPX)
+===================================================== */
+
+async function carregarProdutividadeOnTime(spreadsheetId) {
   const cache = getCache(spreadsheetId);
-  if (isCacheValid(cache.atualizacaoTs)) {
-    console.log("📦 Atualização_colaborador retornada do cache");
-    return cache.atualizacao;
+  if (isCacheValid(cache.ontimeTs)) {
+    console.log("📦 ProdutividadeSPX retornada do cache");
+    return cache.ontime;
   }
 
-  console.log(`🌎 Buscando Atualização_colaborador no Google Sheets [${spreadsheetId}]...`);
+  console.log(`🌎 Buscando ProdutividadeSPX no Google Sheets [${spreadsheetId}]...`);
   const sheets = getGoogleSheetsClient();
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${ATUALIZACAO_SHEET}!A:ZZ`,
-    valueRenderOption: "FORMATTED_VALUE",
-  });
 
-  const rows = response.data.values;
-  if (!rows || rows.length === 0) throw new Error("Aba Atualização_colaborador vazia");
-
-  cache.atualizacao = rows;
-  cache.atualizacaoTs = Date.now();
-  console.log("✅ Atualização_colaborador armazenada em cache");
-  return rows;
-}
-
-async function carregarLogic(spreadsheetId) {
-  const cache = getCache(spreadsheetId);
-  if (isCacheValid(cache.logicTs)) {
-    console.log("📦 Logic retornada do cache");
-    return cache.logic;
+  let response;
+  try {
+    response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${PRODUCAO_ONTIME_SHEET}!A:ZZ`,
+      valueRenderOption: "FORMATTED_VALUE",
+    });
+  } catch (err) {
+    const msg = err?.message || "";
+    if (
+      msg.includes("Unable to parse range") ||
+      msg.includes("404") ||
+      msg.includes("not found")
+    ) {
+      const e = new Error(`Planilha OnTime não configurada`);
+      e.code = "SHEETS_NOT_CONFIGURED";
+      throw e;
+    }
+    throw err;
   }
 
-  console.log(`🌎 Buscando Logic no Google Sheets [${spreadsheetId}]...`);
-  const sheets = getGoogleSheetsClient();
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${LOGIC_SHEET}!A:B`,
-    valueRenderOption: "FORMATTED_VALUE",
-  });
-
   const rows = response.data.values;
-  if (!rows || rows.length === 0) throw new Error("Aba Logic vazia");
+  if (!rows || rows.length === 0) return [];
 
-  cache.logic = rows;
-  cache.logicTs = Date.now();
-  console.log("✅ Logic armazenada em cache");
+  cache.ontime = rows;
+  cache.ontimeTs = Date.now();
+  console.log("✅ ProdutividadeSPX armazenada em cache");
   return rows;
 }
-
 
 /* =====================================================
    BUSCAR METAS POR TURNO E DATA
@@ -172,7 +178,7 @@ async function carregarLogic(spreadsheetId) {
 async function buscarMetasProducao(turno, dataISO, spreadsheetId = DEFAULT_SPREADSHEET_ID) {
   try {
     console.log("🔍 Iniciando busca de metas:", { turno, dataISO, spreadsheetId });
-    
+
     const rows = await carregarPlanilha(spreadsheetId);
     const dataBusca = formatarData(dataISO);
 
@@ -187,26 +193,27 @@ async function buscarMetasProducao(turno, dataISO, spreadsheetId = DEFAULT_SPREA
       const dataRow = normalizar(row[0]);
       const horaRaw = normalizar(row[1]);
       const hora = parseInt(horaRaw);
-      
-      const metaOriginal = String(row[3] || '0').trim();
+
+      const metaOriginal = String(row[3] || "0").trim();
       let metaStr = metaOriginal;
-      
-      if (metaOriginal.includes('.') && metaOriginal.includes(',')) {
-        metaStr = metaOriginal.replace(/\./g, '').replace(',', '.');
-      } else if (metaOriginal.includes(',') && !metaOriginal.includes('.')) {
-        const partes = metaOriginal.split(',');
-        metaStr = partes[1]?.length === 3
-          ? metaOriginal.replace(',', '')
-          : metaOriginal.replace(',', '.');
+
+      if (metaOriginal.includes(".") && metaOriginal.includes(",")) {
+        metaStr = metaOriginal.replace(/\./g, "").replace(",", ".");
+      } else if (metaOriginal.includes(",") && !metaOriginal.includes(".")) {
+        const partes = metaOriginal.split(",");
+        metaStr =
+          partes[1]?.length === 3
+            ? metaOriginal.replace(",", "")
+            : metaOriginal.replace(",", ".");
       }
-      
+
       const meta = parseFloat(metaStr) || 0;
-      
+
       let turnoRow = row[4] ? normalizar(row[4]) : null;
       if (!turnoRow) {
-        if (hora >= 6 && hora <= 13) turnoRow = 'T1';
-        else if (hora >= 14 && hora <= 21) turnoRow = 'T2';
-        else turnoRow = 'T3';
+        if (hora >= 6 && hora <= 13) turnoRow = "T1";
+        else if (hora >= 14 && hora <= 21) turnoRow = "T2";
+        else turnoRow = "T3";
       }
 
       if (dataRow === dataBusca && turnoRow === turno && !isNaN(hora)) {
@@ -231,37 +238,78 @@ async function buscarMetasProducao(turno, dataISO, spreadsheetId = DEFAULT_SPREA
 }
 
 /* =====================================================
-   BUSCAR QUANTIDADE REALIZADA POR HORA
+   BUSCAR QUANTIDADE REALIZADA POR HORA (ProdutividadeSPX)
+
+   Lê a aba ProdutividadeSPX dinamicamente:
+   - Linha 0 = cabeçalho (Operador, ID Ops, HH:MM..., Total, Atualizado em)
+   - Linhas 1+ = um operador por linha
+   - Soma todos os operadores por coluna de hora
+   - dataISO ignorado pois a aba sempre reflete o período atual
 ===================================================== */
 
-async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_SPREADSHEET_ID) {
+async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID) {
   try {
-    const rows = await carregarAtualizacaoColaborador(spreadsheetId);
-    const dataBusca = formatarData(dataISO);
+    const rows = await carregarProdutividadeOnTime(spreadsheetId);
+    if (!rows || rows.length < 2) return { success: false, data: {} };
 
-    if (!rows || rows.length < 5) return { success: false, data: {} };
+    const headerRow = rows[0];
 
-    const linhaSomaTotalPorHora = rows[1];
-    const linhaDatas = rows[3];
-    const linhaHoras = rows[4];
+    // Mapeia índice de coluna → número da hora (ex: "16:00" → 16)
+    const colToHora = {};
+    let colAtualizadoEm = -1;
 
+    for (let i = 0; i < headerRow.length; i++) {
+      const cell = normalizar(headerRow[i]);
+      const matchHora = cell.match(/^(\d{1,2}):\d{2}$/);
+      if (matchHora) {
+        colToHora[i] = parseInt(matchHora[1], 10);
+      } else if (cell.toLowerCase().includes("atualizado")) {
+        colAtualizadoEm = i;
+      }
+    }
+
+    // Data esperada no formato DD/MM/YYYY para filtrar pelo campo "Atualizado em"
+    const dataBusca = dataISO ? formatarData(dataISO) : null;
+
+    // Soma operadores por hora, filtrando pela data de atualização
     const quantidadePorHora = {};
-    
-    for (let colIndex = 1; colIndex < linhaSomaTotalPorHora.length; colIndex++) {
-      const dataColuna = normalizar(linhaDatas[colIndex]);
-      const horaColuna = normalizar(linhaHoras[colIndex]);
-      const valorColuna = linhaSomaTotalPorHora[colIndex];
+    let operadoresFiltrados = 0;
+    let maxTimestamp = null; // timestamp mais recente do campo "Atualizado em"
 
-      if (dataColuna !== dataBusca) continue;
+    for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
+      const row = rows[rowIdx];
+      if (!row || row.length === 0) continue;
 
-      const horaMatch = horaColuna.match(/^(\d{1,2})/);
-      if (!horaMatch) continue;
+      const nomeOp = normalizar(row[0]);
+      if (!nomeOp || nomeOp.toLowerCase() === "operador") continue;
 
-      const hora = parseInt(horaMatch[1]);
-      if (hora < 0 || hora > 23) continue;
+      // Filtra pelo campo "Atualizado em" — só inclui operadores atualizados na data buscada
+      let atualizadoEm = "";
+      if (colAtualizadoEm >= 0) {
+        atualizadoEm = normalizar(row[colAtualizadoEm] ?? "");
+      }
 
-      if (valorColuna && valorColuna !== "") {
-        const valorStr = String(valorColuna).trim().replace(/\./g, '').replace(',', '.');
+      if (dataBusca && colAtualizadoEm >= 0) {
+        const dataAtualizacao = atualizadoEm.split(" ")[0]; // extrai "DD/MM/YYYY"
+        if (dataAtualizacao !== dataBusca) continue;
+      }
+
+      // Rastreia o timestamp mais recente entre os operadores filtrados
+      if (atualizadoEm) {
+        const tsDate = parseDateBR(atualizadoEm);
+        if (tsDate && (!maxTimestamp || tsDate > maxTimestamp)) {
+          maxTimestamp = tsDate;
+        }
+      }
+
+      operadoresFiltrados++;
+
+      for (const [colStr, hora] of Object.entries(colToHora)) {
+        const col = parseInt(colStr);
+        const valorCell = row[col];
+        if (!valorCell || valorCell === "" || valorCell === "0") continue;
+
+        const valorStr = String(valorCell).trim().replace(/\./g, "").replace(",", ".");
         const quantidade = parseFloat(valorStr) || 0;
         if (quantidade > 0) {
           quantidadePorHora[hora] = (quantidadePorHora[hora] || 0) + quantidade;
@@ -269,213 +317,19 @@ async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_SPREAD
       }
     }
 
-    return { success: true, data: quantidadePorHora };
+    const ultimaAtualizacaoSheets = maxTimestamp ? maxTimestamp.toISOString() : null;
+    console.log(`✅ Quantidade realizada OnTime: ${Object.keys(quantidadePorHora).length} horas | ${operadoresFiltrados} operadores | última atualização: ${ultimaAtualizacaoSheets ?? "—"}`);
+    return { success: true, data: quantidadePorHora, ultimaAtualizacaoSheets };
   } catch (error) {
-    console.error("❌ Erro ao buscar quantidade realizada:", error.message);
+    console.error("❌ Erro ao buscar quantidade realizada OnTime:", error.message);
     return { success: false, data: {} };
-  }
-}
-
-/* =====================================================
-   BUSCAR RANKING DE COLABORADORES
-===================================================== */
-
-async function buscarRankingColaboradores(dataISO, turno, limite = 15, spreadsheetId = DEFAULT_SPREADSHEET_ID) {
-  try {
-    const rows = await carregarAtualizacaoColaborador(spreadsheetId);
-    const logicRows = await carregarLogic(spreadsheetId);
-    const dataBusca = formatarData(dataISO);
-
-    let dataBuscaExtra = null;
-    if (turno === 'T3') {
-      const dataObj = new Date(dataISO);
-      dataObj.setDate(dataObj.getDate() + 1);
-      dataBuscaExtra = formatarData(dataObj.toISOString().slice(0, 10));
-    }
-
-    if (!rows || rows.length < 5) return { success: false, data: [] };
-
-    const colaboradoresPorTurno = new Map();
-    for (let i = 1; i < logicRows.length; i++) {
-      const row = logicRows[i];
-      if (!row || row.length < 2) continue;
-      const nome = normalizar(row[0]);
-      const turnoColaborador = normalizar(row[1]);
-      if (nome && turnoColaborador) {
-        colaboradoresPorTurno.set(nome.toLowerCase(), turnoColaborador);
-      }
-    }
-
-    const linhaDatas = rows[3];
-    const linhaHoras = rows[4];
-    
-    const colunasData = [];
-    for (let colIndex = 1; colIndex < linhaDatas.length; colIndex++) {
-      const dataColuna = normalizar(linhaDatas[colIndex]);
-      const horaColuna = normalizar(linhaHoras[colIndex]);
-      const hora = parseInt(horaColuna.split(':')[0]);
-
-      if (dataColuna === dataBusca) {
-        if (turno === 'T3') { if (hora >= 22) colunasData.push(colIndex); }
-        else colunasData.push(colIndex);
-      } else if (dataBuscaExtra && dataColuna === dataBuscaExtra) {
-        if (hora < 6) colunasData.push(colIndex);
-      }
-    }
-
-    if (colunasData.length === 0) return { success: false, data: [] };
-
-    const colaboradores = [];
-    for (let rowIndex = 5; rowIndex < rows.length; rowIndex++) {
-      const row = rows[rowIndex];
-      if (!row || row.length === 0) continue;
-      
-      const nomeColaborador = normalizar(row[0]);
-      if (!nomeColaborador || 
-          nomeColaborador.toLowerCase().includes('total') ||
-          nomeColaborador.toLowerCase().includes('user email') ||
-          nomeColaborador === 'User Email') continue;
-
-      const turnoColaborador = colaboradoresPorTurno.get(nomeColaborador.toLowerCase());
-      if (!turnoColaborador || turnoColaborador !== turno) continue;
-
-      let totalProducao = 0;
-      for (const colIndex of colunasData) {
-        const valorColuna = row[colIndex];
-        if (valorColuna && valorColuna !== "") {
-          const valorStr = String(valorColuna).trim().replace(/\./g, '').replace(',', '.');
-          totalProducao += parseFloat(valorStr) || 0;
-        }
-      }
-
-      if (totalProducao > 0) colaboradores.push({ nome: nomeColaborador, total: totalProducao });
-    }
-
-    colaboradores.sort((a, b) => b.total - a.total);
-    return { success: true, data: colaboradores.slice(0, limite) };
-  } catch (error) {
-    console.error("❌ Erro ao buscar ranking de colaboradores:", error.message);
-    return { success: false, data: [] };
-  }
-}
-
-/* =====================================================
-   BUSCAR PRODUTIVIDADE DETALHADA POR COLABORADOR
-===================================================== */
-
-async function buscarProdutividadeDetalhada(dataISO, turno, spreadsheetId = DEFAULT_SPREADSHEET_ID) {
-  try {
-    const rows = await carregarAtualizacaoColaborador(spreadsheetId);
-    const logicRows = await carregarLogic(spreadsheetId);
-    const dataBusca = formatarData(dataISO);
-
-    let dataBuscaExtra = null;
-    if (turno === 'T3') {
-      const dataObj = new Date(dataISO);
-      dataObj.setDate(dataObj.getDate() + 1);
-      dataBuscaExtra = formatarData(dataObj.toISOString().slice(0, 10));
-    }
-
-    if (!rows || rows.length < 5) return { success: false, data: [] };
-
-    const extrairOpsId = (str) => {
-      const match = String(str).match(/\[([^\]]+)\]/);
-      return match ? match[1].toLowerCase() : null;
-    };
-
-    const extrairNomeLimpo = (str) =>
-      String(str).replace(/^\[[^\]]+\]/, '').trim();
-
-    const colaboradoresPorTurno = new Map();
-    for (let i = 1; i < logicRows.length; i++) {
-      const row = logicRows[i];
-      if (!row || row.length < 2) continue;
-      const celula = normalizar(row[0]);
-      const turnoColaborador = normalizar(row[1]);
-      if (!celula || !turnoColaborador) continue;
-      const opsId = extrairOpsId(celula);
-      if (opsId) colaboradoresPorTurno.set(opsId, turnoColaborador);
-    }
-
-    const linhaDatas = rows[3];
-    const linhaHoras = rows[4];
-
-    const colunasData = [];
-    for (let colIndex = 1; colIndex < linhaDatas.length; colIndex++) {
-      const dataColuna = normalizar(linhaDatas[colIndex]);
-      const horaColuna = normalizar(linhaHoras[colIndex]);
-      const hora = parseInt(horaColuna.split(':')[0]);
-
-      if (dataColuna === dataBusca) {
-        if (turno === 'T3') { if (hora >= 22) colunasData.push(colIndex); }
-        else colunasData.push(colIndex);
-      } else if (dataBuscaExtra && dataColuna === dataBuscaExtra) {
-        if (hora < 6) colunasData.push(colIndex);
-      }
-    }
-
-    if (colunasData.length === 0) return { success: true, data: [] };
-
-    const colaboradores = [];
-    for (let rowIndex = 5; rowIndex < rows.length; rowIndex++) {
-      const row = rows[rowIndex];
-      if (!row || row.length === 0) continue;
-      
-      const nomeColaborador = normalizar(row[0]);
-      if (!nomeColaborador || 
-          nomeColaborador.toLowerCase().includes('total') ||
-          nomeColaborador.toLowerCase().includes('user email') ||
-          nomeColaborador === 'User Email') continue;
-
-      const opsIdLinha = extrairOpsId(nomeColaborador);
-      const nomeLimpoLinha = extrairNomeLimpo(nomeColaborador);
-      if (!opsIdLinha) continue;
-
-      const turnoColaborador = colaboradoresPorTurno.get(opsIdLinha);
-      if (!turnoColaborador || turnoColaborador !== turno) continue;
-
-      const dadosPorHora = {};
-      let totalProducao = 0;
-      
-      for (const colIndex of colunasData) {
-        const horaStr = normalizar(linhaHoras[colIndex]);
-        const valorColuna = row[colIndex];
-        
-        if (horaStr) {
-          const hora = parseInt(horaStr.split(':')[0]);
-          if (!isNaN(hora)) {
-            let quantidade = 0;
-            if (valorColuna && valorColuna !== "") {
-              const valorStr = String(valorColuna).trim().replace(/\./g, '').replace(',', '.');
-              quantidade = Math.round(parseFloat(valorStr) || 0);
-            }
-            dadosPorHora[hora] = (dadosPorHora[hora] || 0) + quantidade;
-            totalProducao += quantidade;
-          }
-        }
-      }
-
-      colaboradores.push({
-        nome: nomeLimpoLinha || nomeColaborador,
-        opsId: opsIdLinha,
-        dadosPorHora,
-        total: totalProducao
-      });
-    }
-
-    console.log(`✅ Produtividade detalhada: ${colaboradores.length} colaboradores do ${turno}`);
-    return { success: true, data: colaboradores };
-  } catch (error) {
-    console.error("❌ Erro ao buscar produtividade detalhada:", error.message);
-    return { success: false, data: [] };
   }
 }
 
 module.exports = {
   buscarMetasProducao,
   buscarQuantidadeRealizada,
-  buscarRankingColaboradores,
-  buscarProdutividadeDetalhada,
   limparCache,
   DEFAULT_SPREADSHEET_ID,
+  DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID,
 };

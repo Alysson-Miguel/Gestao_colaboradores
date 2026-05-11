@@ -1,9 +1,9 @@
 const { prisma } = require("../config/database");
-const { 
-  buscarMetasProducao, 
+const {
+  buscarMetasProducao,
   buscarQuantidadeRealizada,
-  buscarRankingColaboradores,
   DEFAULT_SPREADSHEET_ID,
+  DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID,
 } = require("../services/googleSheetsMetaProducao.service");
 
 function agoraBrasil() {
@@ -38,9 +38,10 @@ const carregarGestaoOperacional = async (req, res) => {
       });
     }
 
-    // Resolver spreadsheetId da estação do usuário
+    // Resolver spreadsheetIds da estação do usuário
     const estacaoIdCtx = req.dbContext?.estacaoId ?? null;
     let spreadsheetId = DEFAULT_SPREADSHEET_ID;
+    let producaoSpreadsheetId = DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID;
 
     console.log(`🔍 estacaoIdCtx: ${estacaoIdCtx} | req.user.idEstacao: ${req.user?.idEstacao}`);
 
@@ -51,10 +52,9 @@ const carregarGestaoOperacional = async (req, res) => {
       });
       if (estacao?.sheetsMetaProducaoId) {
         spreadsheetId = estacao.sheetsMetaProducaoId;
-        console.log(`📊 Usando sheets da estação ${estacaoIdCtx}: ${spreadsheetId}`);
-      } else {
-        console.warn(`⚠️ Estação ${estacaoIdCtx} sem sheetsMetaProducaoId configurado. Usando padrão.`);
       }
+      // sheetsProducaoOnTimeId disponível após rodar: npx prisma migrate dev && npx prisma generate
+      console.log(`📊 Meta: ${spreadsheetId} | Produção: ${producaoSpreadsheetId}`);
     }
 
     let dataReferencia = data ? new Date(`${data}T00:00:00.000Z`) : agora;
@@ -99,33 +99,35 @@ const carregarGestaoOperacional = async (req, res) => {
       console.log(`   Hora ${hora}: ${meta}`);
     }
 
-    // Buscar quantidade realizada da aba Atualização_colaborador
+    // Buscar quantidade realizada da planilha OnTime
     let quantidadePorHora = {};
-    if (turno === 'T3') {
-      console.log(`\n🔍 [T3] Buscando planilha:`);
-      console.log(`   Horas 22-23 → data = '${dataStr}'`);
-      console.log(`   Horas 00-05 → data = '${dataStrT3Seguinte}'`);
+    let ultimaAtualizacaoSheets = null;
 
-      const quantidadeOntem = await buscarQuantidadeRealizada(dataStr, spreadsheetId);
+    if (turno === 'T3') {
+      const [quantidadeOntem, quantidadeHoje] = await Promise.all([
+        buscarQuantidadeRealizada(dataStr, producaoSpreadsheetId),
+        buscarQuantidadeRealizada(dataStrT3Seguinte, producaoSpreadsheetId),
+      ]);
+
       if (quantidadeOntem.success) {
         if (quantidadeOntem.data[22]) quantidadePorHora[22] = quantidadeOntem.data[22];
         if (quantidadeOntem.data[23]) quantidadePorHora[23] = quantidadeOntem.data[23];
+        if (quantidadeOntem.ultimaAtualizacaoSheets) ultimaAtualizacaoSheets = quantidadeOntem.ultimaAtualizacaoSheets;
       }
-      
-      const quantidadeHoje = await buscarQuantidadeRealizada(dataStrT3Seguinte, spreadsheetId);
       if (quantidadeHoje.success) {
         for (let h = 0; h <= 5; h++) {
           if (quantidadeHoje.data[h]) quantidadePorHora[h] = quantidadeHoje.data[h];
         }
+        if (quantidadeHoje.ultimaAtualizacaoSheets) {
+          if (!ultimaAtualizacaoSheets || quantidadeHoje.ultimaAtualizacaoSheets > ultimaAtualizacaoSheets) {
+            ultimaAtualizacaoSheets = quantidadeHoje.ultimaAtualizacaoSheets;
+          }
+        }
       }
-      
-      console.log(`   ✅ Planilha horas 22-23 (${dataStr}): h22=${quantidadePorHora[22] ?? 0}, h23=${quantidadePorHora[23] ?? 0}`);
-      console.log(`   ✅ Planilha horas 00-05 (${dataStrT3Seguinte}):`, 
-        [0,1,2,3,4,5].map(h => `h${h}=${quantidadePorHora[h] ?? 0}`).join(', '));
     } else {
-      const quantidadeResult = await buscarQuantidadeRealizada(dataStr, spreadsheetId);
+      const quantidadeResult = await buscarQuantidadeRealizada(dataStr, producaoSpreadsheetId);
       quantidadePorHora = quantidadeResult.success ? quantidadeResult.data : {};
-      console.log("✅ Quantidade realizada carregada:", Object.keys(quantidadePorHora).length, "horas");
+      ultimaAtualizacaoSheets = quantidadeResult.ultimaAtualizacaoSheets ?? null;
     }
 
     // Buscar dados de produção por hora do banco
@@ -202,13 +204,6 @@ const carregarGestaoOperacional = async (req, res) => {
       console.error("⚠️ Erro ao buscar produção do banco:", error.message);
       producaoPorHora = [];
     }
-
-    // Buscar ranking de produtividade de colaboradores (Top 15)
-    console.log("🔍 Buscando ranking de produtividade de colaboradores...");
-    const rankingResult = await buscarRankingColaboradores(dataStr, turno, 15, spreadsheetId);
-    const rankingProdutividade = rankingResult.success ? rankingResult.data : [];
-    
-    console.log("✅ Ranking carregado:", rankingProdutividade.length, "colaboradores");
 
     // Buscar total de presentes (colaboradores presentes) do turno específico
     console.log("🔍 Buscando total de colaboradores presentes do turno", turno, "...");
@@ -496,7 +491,7 @@ const carregarGestaoOperacional = async (req, res) => {
       data: {
         dataReferencia: dataStr,
         turno,
-        ultimaAtualizacao: new Date().toISOString(), // Timestamp da resposta
+        ultimaAtualizacao: ultimaAtualizacaoSheets ?? new Date().toISOString(),
         kpis: {
           metaDia: Math.round(metaDia),
           metaHoraProjetada: Math.round(metaHoraProjetada),
@@ -511,10 +506,6 @@ const carregarGestaoOperacional = async (req, res) => {
         },
         producaoPorHora: producaoComMeta,
         capacidadePorHora,
-        rankingProdutividade: rankingProdutividade.map(r => ({
-          nome: r.nome,
-          total: Number(r.total)
-        }))
       }
     });
   } catch (error) {

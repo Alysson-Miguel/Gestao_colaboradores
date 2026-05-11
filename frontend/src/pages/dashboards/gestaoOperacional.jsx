@@ -21,8 +21,7 @@ export default function GestaoOperacional() {
   const [dashboardData, setDashboardData] = useState(null);
   const [erro, setErro] = useState(null);
   const [enviandoScreenshot, setEnviandoScreenshot] = useState(false);
-  const [ocultarRanking, setOcultarRanking] = useState(false);
-  const [desabilitarAnimacoes, setDesabilitarAnimacoes] = useState(false);
+const [desabilitarAnimacoes, setDesabilitarAnimacoes] = useState(false);
   const [ocultarHeader, setOcultarHeader] = useState(false);
   const mainContentRef = useRef(null);
   const { estacaoId } = useEstacao();
@@ -62,11 +61,10 @@ export default function GestaoOperacional() {
     console.log("🔄 useEffect disparado - Filtros atualizados:", { data, turno });
     carregarDados();
     
-    // Atualização automática a cada 1 minuto
+    // Atualização automática a cada 35 segundos (alinhado com a planilha OnTime)
     const intervalo = setInterval(() => {
-      console.log("⏰ Atualização automática disparada");
       carregarDados();
-    }, 60000); // 60 segundos
+    }, 35000);
     
     // Limpar intervalo ao desmontar ou quando filtros mudarem
     return () => clearInterval(intervalo);
@@ -116,24 +114,6 @@ export default function GestaoOperacional() {
     }
   };
 
-  const limparCacheEAtualizar = async () => {
-    try {
-      setLoading(true);
-      console.log("🗑️ Limpando cache...");
-      
-      // Limpar cache no backend
-      await api.post("/cache/limpar");
-      
-      console.log("✅ Cache limpo, recarregando dados...");
-      
-      // Recarregar dados
-      await carregarDados();
-    } catch (error) {
-      console.error("❌ Erro ao limpar cache:", error);
-      // Mesmo com erro, tenta recarregar
-      await carregarDados();
-    }
-  };
 
   const enviarScreenshotParaSeatalk = async () => {
     if (segundosParaSeatalk > 0) {
@@ -146,13 +126,11 @@ export default function GestaoOperacional() {
       console.log("🚀 Iniciando processo de screenshot...");
       toast.loading("Preparando screenshot...", { id: "screenshot" });
       
-      // Ocultar o ranking Top 15
-      setOcultarRanking(true);
       // Ocultar o header com filtros
       setOcultarHeader(true);
       // Desabilitar animações do gráfico
       setDesabilitarAnimacoes(true);
-      console.log("👁️ Header e ranking ocultados, animações desabilitadas");
+      console.log("👁️ Header ocultado, animações desabilitadas");
       
       // Aguardar 12 segundos para garantir que todos os gráficos estejam renderizados
       console.log("⏳ Aguardando 12 segundos para renderização completa...");
@@ -273,23 +251,68 @@ export default function GestaoOperacional() {
       
       toast.error(errorMessage, { id: "screenshot", duration: 5000 });
     } finally {
-      // Mostrar o ranking novamente
       console.log("🔄 Restaurando elementos");
-      setOcultarRanking(false);
       setOcultarHeader(false);
       setDesabilitarAnimacoes(false);
       setEnviandoScreenshot(false);
     }
   };
 
-  if (loading) {
+  // Skeleton apenas na carga inicial (sem dados ainda)
+  if (loading && !dashboardData) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-page text-muted">
-        <div className="relative">
-          {/* Círculo animado */}
-          <div className="w-16 h-16 border-4 border-default border-t-[#E8491D] rounded-full animate-spin"></div>
-        </div>
-        <p className="mt-4 text-lg">Carregando dados...</p>
+      <div className="flex min-h-screen bg-page text-page overflow-x-hidden">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <MainLayout>
+          <Header onMenuClick={() => setSidebarOpen(true)} />
+          <main className="p-6 xl:p-10 2xl:px-20 space-y-6 max-w-[1600px] mx-auto">
+            {/* Header skeleton */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-36 bg-surface-2 animate-pulse rounded-lg" />
+                <div className="h-5 w-24 bg-surface-2 animate-pulse rounded" />
+              </div>
+              <div className="flex gap-2">
+                {["T1","T2","T3"].map(t => (
+                  <div key={t} className="h-9 w-12 bg-surface-2 animate-pulse rounded-lg" />
+                ))}
+                <div className="h-9 w-32 bg-surface-2 animate-pulse rounded-lg" />
+              </div>
+            </div>
+
+            {/* KPI cards skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[1,2,3].map(i => (
+                <div key={i} className="bg-surface border border-default rounded-lg p-5 space-y-3">
+                  <div className="h-3 w-28 bg-surface-2 animate-pulse rounded" />
+                  <div className="h-8 w-40 bg-surface-2 animate-pulse rounded" />
+                </div>
+              ))}
+            </div>
+
+            {/* Banner skeleton */}
+            <div className="h-24 bg-surface-2 animate-pulse rounded-xl" />
+
+            {/* Performance skeleton */}
+            <div className="bg-surface border border-default rounded-lg p-6 flex gap-8">
+              <div className="w-32 h-32 rounded-full bg-surface-2 animate-pulse shrink-0" />
+              <div className="flex-1 space-y-4">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex justify-between">
+                    <div className="h-4 w-40 bg-surface-2 animate-pulse rounded" />
+                    <div className="h-4 w-20 bg-surface-2 animate-pulse rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart skeleton */}
+            <div className="bg-surface border border-default rounded-lg p-6">
+              <div className="h-5 w-40 bg-surface-2 animate-pulse rounded mb-6" />
+              <div className="h-64 bg-surface-2 animate-pulse rounded-lg" />
+            </div>
+          </main>
+        </MainLayout>
       </div>
     );
   }
@@ -365,16 +388,6 @@ export default function GestaoOperacional() {
             </div>
             
             <div className="flex items-center gap-3">
-              {/* Botão de atualizar com cache limpo */}
-              <button
-                onClick={() => limparCacheEAtualizar()}
-                disabled={loading}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-[#5A5A5C] disabled:cursor-not-allowed cursor-pointer rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2"
-                title="Limpar cache e atualizar dados da planilha"
-              >
-                {loading ? "Carregando..." : "🔄 Forçar Atualização"}
-              </button>
-              
               {/* Botão de enviar screenshot para Seatalk */}
               {(() => {
                 const bloqueado = segundosParaSeatalk > 0;
@@ -384,7 +397,7 @@ export default function GestaoOperacional() {
                       onClick={() => enviarScreenshotParaSeatalk()}
                       disabled={enviandoScreenshot || loading || bloqueado}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-[#5A5A5C] disabled:cursor-not-allowed cursor-pointer rounded-lg text-white text-sm font-semibold transition-colors flex items-center gap-2"
-                      title={bloqueado ? `Disponível em ${formatarContador(segundosParaSeatalk)}` : "Enviar screenshot para Seatalk (sem ranking)"}
+                      title={bloqueado ? `Disponível em ${formatarContador(segundosParaSeatalk)}` : "Enviar screenshot para Seatalk"}
                     >
                       <Send className="w-4 h-4" />
                       {enviandoScreenshot ? "Enviando..." : "Enviar para Seatalk"}
@@ -444,7 +457,7 @@ export default function GestaoOperacional() {
                 Dados de: <span className="font-bold text-page">{dashboardData?.turno || turno}</span> - {dashboardData?.dataReferencia ? new Date(dashboardData.dataReferencia + 'T00:00:00').toLocaleDateString('pt-BR') : 'Carregando...'}
                 {dashboardData?.ultimaAtualizacao && (
                   <span className="ml-4 text-xs opacity-75">
-                    | Última atualização: {new Date(dashboardData.ultimaAtualizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    | Última atualização da planilha: {new Date(dashboardData.ultimaAtualizacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 )}
               </span>
@@ -689,74 +702,6 @@ export default function GestaoOperacional() {
             <h2 className="text-xl font-semibold mb-4">Capacidade por Hora</h2>
             <CapacidadeTable data={dashboardData?.capacidadePorHora || []} />
           </div> */}
-
-          {/* Ranking Top 15 Produtividade */}
-          {!ocultarRanking && (
-            <div className="bg-surface border border-default rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Top 15 - Produtividade</h2>
-            <p className="text-sm text-muted mb-6">
-              Ranking dos colaboradores com maior produção no dia selecionado
-            </p>
-            
-            {dashboardData?.rankingProdutividade && dashboardData.rankingProdutividade.length > 0 ? (
-              <>
-                {/* Top 3 - Gráfico Visual */}
-                <div className="grid grid-cols-3 gap-4 mb-8">
-                  {dashboardData.rankingProdutividade.slice(0, 3).map((colaborador, index) => {
-                    const bgColors = ['bg-yellow-500', 'bg-gray-400', 'bg-orange-600'];
-                    
-                    return (
-                      <div key={index} className="flex flex-col items-center">
-                        <div className="text-4xl mb-2">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                        </div>
-                        <div className="w-full bg-surface-2 rounded-lg p-4 text-center">
-                          <div className="text-xs text-muted mb-2">{index + 1}º Lugar</div>
-                          <div className="text-sm font-semibold text-white mb-2 truncate" title={colaborador.nome}>
-                            {colaborador.nome}
-                          </div>
-                          <div className={`${bgColors[index]} text-white font-bold text-2xl py-2 rounded`}>
-                            {colaborador.total.toLocaleString("pt-BR")}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Tabela Completa */}
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-surface-2">
-                        <th className="border border-default p-3 text-center font-semibold text-page">Posição</th>
-                        <th className="border border-default p-3 text-left font-semibold text-page">Nome</th>
-                        <th className="border border-default p-3 text-center font-semibold text-page">Total Produzido</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboardData.rankingProdutividade.map((colaborador, index) => (
-                        <tr key={index} className="hover:bg-surface-3">
-                          <td className="border border-default p-3 text-center text-page font-bold">
-                            {index + 1}º
-                          </td>
-                          <td className="border border-default p-3 text-left text-page">
-                            {colaborador.nome}
-                          </td>
-                          <td className="border border-default p-3 text-center text-page font-semibold">
-                            {colaborador.total.toLocaleString("pt-BR")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted">Sem dados disponíveis</div>
-            )}
-          </div>
-          )}
         </main>
       </MainLayout>
     </div>

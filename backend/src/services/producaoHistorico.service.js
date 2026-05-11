@@ -193,7 +193,66 @@ async function verificarRegistroExistente(turno, dataStr) {
   }
 }
 
+/**
+ * Salva apenas uma hora específica — usado pelo job horário (HH:05)
+ */
+async function salvarHoraUnica(turno, dataStr, hora) {
+  try {
+    const metasResult = await buscarMetasProducao(turno, dataStr);
+    if (!metasResult.success) throw new Error("Erro ao buscar metas");
+
+    const meta = metasResult.data.metasPorHora[hora] || 0;
+    if (meta === 0) {
+      console.log(`⚠️ [HORA] Sem meta para hora ${hora} | ${turno} | ${dataStr}`);
+      return { success: true, message: "Sem meta configurada", registros: 0 };
+    }
+
+    // T3 horas 0-5 ocorrem no dia seguinte ao início do turno
+    let dataSheets = dataStr;
+    if (turno === "T3" && hora <= 5) {
+      const d = new Date(dataStr);
+      d.setDate(d.getDate() + 1);
+      dataSheets = d.toISOString().slice(0, 10);
+    }
+
+    const qtdResult = await buscarQuantidadeRealizada(dataSheets);
+    const realizadoHora = qtdResult.success ? Math.round(qtdResult.data[hora] || 0) : 0;
+    const percentual = meta > 0 ? parseFloat(((realizadoHora / meta) * 100).toFixed(2)) : 0;
+
+    await prisma.producaoHoraHistorico.upsert({
+      where: {
+        dataReferencia_turno_hora: {
+          dataReferencia: new Date(dataStr),
+          turno,
+          hora,
+        },
+      },
+      update: {
+        meta: Math.round(meta),
+        realizado: realizadoHora,
+        percentual,
+        updatedAt: new Date(),
+      },
+      create: {
+        dataReferencia: new Date(dataStr),
+        turno,
+        hora,
+        meta: Math.round(meta),
+        realizado: realizadoHora,
+        percentual,
+      },
+    });
+
+    console.log(`✅ [HORA] ${turno} ${dataStr} h${hora}: meta=${Math.round(meta)} realizado=${realizadoHora} (${percentual}%)`);
+    return { success: true, message: `Hora ${hora} salva`, registros: 1 };
+  } catch (error) {
+    console.error(`❌ [HORA] Erro ao salvar hora ${hora}:`, error.message);
+    return { success: false, message: error.message };
+  }
+}
+
 module.exports = {
   salvarProducaoHistorico,
+  salvarHoraUnica,
   verificarRegistroExistente
 };
