@@ -352,39 +352,41 @@ function BarBlock({ data }) {
 function BarBlockH({ data }) {
   if (!data?.length) return <Empty />
   const fmt = (n = "") => {
-    const p = String(n).trim().split(" ")
-    return p.length >= 2 ? `${p[0]} ${p[1]}` : n
+    const s = String(n).trim()
+    return s.length > 20 ? s.slice(0, 19) + "…" : s
   }
   const sorted = [...data].sort((a, b) => b.value - a.value)
-  const h = Math.max(280, sorted.length * 40)
+  const h = Math.max(280, sorted.length * 44)
   return (
-    <ResponsiveContainer width="100%" height={h}>
-      <BarChart
-        layout="vertical"
-        data={sorted.map((d) => ({ ...d, name: fmt(d.name) }))}
-        margin={{ top: 0, right: 36, bottom: 0, left: 0 }}
-      >
-        <CartesianGrid stroke="var(--color-border)" horizontal={false} />
-        <XAxis
-          type="number"
-          tick={{ fill: "var(--color-muted)", fontSize: 11 }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          dataKey="name"
-          type="category"
-          tick={{ fill: "var(--color-muted)", fontSize: 12 }}
-          axisLine={false}
-          tickLine={false}
-          width={110}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-        <Bar dataKey="value" fill={BRAND} radius={[0, 6, 6, 0]} maxBarSize={20}>
-          <LabelList dataKey="value" position="right" style={{ fill: "var(--color-muted)", fontSize: 11, fontWeight: 600 }} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div style={{ width: "100%", overflowX: "hidden" }}>
+      <ResponsiveContainer width="100%" height={h}>
+        <BarChart
+          layout="vertical"
+          data={sorted.map((d) => ({ ...d, name: fmt(d.name) }))}
+          margin={{ top: 0, right: 48, bottom: 0, left: 8 }}
+        >
+          <CartesianGrid stroke="var(--color-border)" horizontal={false} />
+          <XAxis
+            type="number"
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            dataKey="name"
+            type="category"
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            width={160}
+          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+          <Bar dataKey="value" fill={BRAND} radius={[0, 6, 6, 0]} maxBarSize={20}>
+            <LabelList dataKey="value" position="right" style={{ fill: "var(--color-muted)", fontSize: 11, fontWeight: 600 }} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
 
@@ -457,6 +459,15 @@ export default function DashboardDesligamento() {
   const [fim,         setFim]         = useState(isoToday())
   const { estacaoId } = useEstacao()
 
+  /* ─── section 06 state ─── */
+  const [det,         setDet]         = useState(null)
+  const [loadingDet,  setLoadingDet]  = useState(false)
+  const [pageDet,     setPageDet]     = useState(1)
+  const [searchDet,   setSearchDet]   = useState("")
+  const [searchInput, setSearchInput] = useState("")
+  const [sortDet,     setSortDet]     = useState("nome")
+  const [sortDir,     setSortDir]     = useState("asc")
+
   async function fetchData() {
     try {
       setLoading(true)
@@ -476,7 +487,34 @@ export default function DashboardDesligamento() {
     }
   }
 
+  async function fetchDetalhado({ page = pageDet, search = searchDet, sort = sortDet, dir = sortDir } = {}) {
+    try {
+      setLoadingDet(true)
+      const params = {
+        inicio,
+        fim,
+        turno: turno === "ALL" ? undefined : turno,
+        page,
+        limit: 50,
+        sort,
+        sortDir: dir,
+      }
+      if (search) params.search = search
+      const res = await api.get("/dashboard/desligamento/detalhado", { params })
+      setDet(res.data)
+    } catch (err) {
+      console.error("❌ DETALHADO:", err)
+    } finally {
+      setLoadingDet(false)
+    }
+  }
+
   useEffect(() => { fetchData() }, [turno, inicio, fim, estacaoId])
+
+  useEffect(() => {
+    setPageDet(1)
+    fetchDetalhado({ page: 1, search: searchDet, sort: sortDet, dir: sortDir })
+  }, [turno, inicio, fim, estacaoId])
 
   /* ─── memos ─── */
   const motivos   = useMemo(() => toChartData(data?.motivos),   [data])
@@ -492,7 +530,6 @@ export default function DashboardDesligamento() {
   const css = `
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
     input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
-    .recharts-wrapper, .recharts-surface { overflow: visible !important; }
   `
 
   return (
@@ -726,6 +763,340 @@ export default function DashboardDesligamento() {
               icon={<IconAlert c="#F59E0B" s={15} />}
             >
               {loading ? <Skeleton style={{ height: 380 }} /> : <BarBlockH data={porLider} />}
+            </Card>
+          </section>
+
+          {/* ── 06 — HCs DESLIGADOS DETALHADO ───────────── */}
+          <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <SectionLabel num="06" title="HCs Desligados (Detalhado)" />
+            <Card
+              title="Listagem Completa de Desligados"
+              subtitle="Histórico individual com faltas, atestados e tempo de casa"
+              icon={<IconUsers c={BRAND} s={15} />}
+            >
+              {/* controls */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+                {/* search */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: "1 1 220px", minWidth: 0 }}>
+                  <label style={{ fontSize: 10, color: "var(--color-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                    Buscar colaborador
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      placeholder="Nome…"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          setSearchDet(searchInput)
+                          setPageDet(1)
+                          fetchDetalhado({ page: 1, search: searchInput, sort: sortDet, dir: sortDir })
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        background: "var(--color-surface-2)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 12,
+                        padding: "9px 14px",
+                        fontSize: 13,
+                        color: "var(--color-text)",
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                      onFocus={(e) => (e.target.style.borderColor = "rgba(250,76,0,0.5)")}
+                      onBlur={(e)  => (e.target.style.borderColor = "var(--color-border)")}
+                    />
+                  </div>
+                </div>
+
+                {/* sort */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={{ fontSize: 10, color: "var(--color-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                    Ordenar por
+                  </label>
+                  <select
+                    value={sortDet}
+                    onChange={(e) => {
+                      setSortDet(e.target.value)
+                      setPageDet(1)
+                      fetchDetalhado({ page: 1, search: searchDet, sort: e.target.value, dir: sortDir })
+                    }}
+                    style={{
+                      background: "var(--color-surface-2)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 12,
+                      padding: "9px 14px",
+                      fontSize: 13,
+                      color: "var(--color-text)",
+                      outline: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="nome">Nome</option>
+                    <option value="tempoCasa">Tempo de Casa</option>
+                    <option value="faltas">Faltas</option>
+                    <option value="atestados">Atestados</option>
+                  </select>
+                </div>
+
+                {/* direction */}
+                <button
+                  onClick={() => {
+                    const nd = sortDir === "asc" ? "desc" : "asc"
+                    setSortDir(nd)
+                    setPageDet(1)
+                    fetchDetalhado({ page: 1, search: searchDet, sort: sortDet, dir: nd })
+                  }}
+                  style={{
+                    height: 40,
+                    padding: "0 16px",
+                    borderRadius: 12,
+                    background: "var(--color-surface-2)",
+                    border: "1px solid var(--color-border)",
+                    color: "var(--color-text)",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    alignSelf: "flex-end",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  {sortDir === "asc" ? "↑ A→Z" : "↓ Z→A"}
+                </button>
+
+                {/* search button */}
+                <button
+                  onClick={() => {
+                    setSearchDet(searchInput)
+                    setPageDet(1)
+                    fetchDetalhado({ page: 1, search: searchInput, sort: sortDet, dir: sortDir })
+                  }}
+                  disabled={loadingDet}
+                  style={{
+                    height: 40,
+                    padding: "0 20px",
+                    borderRadius: 12,
+                    background: loadingDet ? "var(--color-surface-2)" : BRAND,
+                    color: loadingDet ? "var(--color-muted)" : "#fff",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    border: "none",
+                    cursor: loadingDet ? "not-allowed" : "pointer",
+                    alignSelf: "flex-end",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {loadingDet ? "…" : "Buscar"}
+                </button>
+              </div>
+
+              {/* table */}
+              {loadingDet && !det ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[...Array(6)].map((_, i) => (
+                    <Skeleton key={i} style={{ height: 44, borderRadius: 8 }} />
+                  ))}
+                </div>
+              ) : !det?.data?.length ? (
+                <Empty />
+              ) : (
+                <>
+                  <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--color-border)" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: "var(--color-surface-2)" }}>
+                          {["Nome", "Empresa", "Setor", "Turno", "Escala", "Tempo de Casa", "Faltas", "Atestados", "Recorrente"].map((h) => (
+                            <th
+                              key={h}
+                              style={{
+                                padding: "10px 14px",
+                                textAlign: "left",
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: "var(--color-muted)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.1em",
+                                whiteSpace: "nowrap",
+                                borderBottom: "1px solid var(--color-border)",
+                              }}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {det.data.map((row, i) => (
+                          <tr
+                            key={row.opsId}
+                            style={{
+                              borderBottom: "1px solid var(--color-border)",
+                              background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                              transition: "background 0.15s",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-2)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)")}
+                          >
+                            <td style={{ padding: "10px 14px", color: "var(--color-text)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                              {row.nome}
+                            </td>
+                            <td style={{ padding: "10px 14px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>
+                              {row.empresa}
+                            </td>
+                            <td style={{ padding: "10px 14px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>
+                              {row.setor}
+                            </td>
+                            <td style={{ padding: "10px 14px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>
+                              {row.turno}
+                            </td>
+                            <td style={{ padding: "10px 14px", color: "var(--color-muted)", whiteSpace: "nowrap" }}>
+                              {row.escala}
+                            </td>
+                            <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: row.diasCasa <= 30 ? "#EF4444" : "var(--color-text)",
+                                }}
+                              >
+                                {row.tempoCasa}
+                              </span>
+                            </td>
+                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  minWidth: 28,
+                                  padding: "2px 8px",
+                                  borderRadius: 20,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  background: row.faltas >= 3 ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.05)",
+                                  color: row.faltas >= 3 ? "#EF4444" : "var(--color-muted)",
+                                  border: `1px solid ${row.faltas >= 3 ? "rgba(239,68,68,0.25)" : "var(--color-border)"}`,
+                                }}
+                              >
+                                {row.faltas}
+                              </span>
+                            </td>
+                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  minWidth: 28,
+                                  padding: "2px 8px",
+                                  borderRadius: 20,
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  background: row.atestados >= 2 ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)",
+                                  color: row.atestados >= 2 ? "#F59E0B" : "var(--color-muted)",
+                                  border: `1px solid ${row.atestados >= 2 ? "rgba(245,158,11,0.25)" : "var(--color-border)"}`,
+                                }}
+                              >
+                                {row.atestados}
+                              </span>
+                            </td>
+                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                              {row.recorrente ? (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "3px 10px",
+                                    borderRadius: 20,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    background: "rgba(239,68,68,0.1)",
+                                    color: "#EF4444",
+                                    border: "1px solid rgba(239,68,68,0.25)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  ● Recorrente
+                                </span>
+                              ) : (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    padding: "3px 10px",
+                                    borderRadius: 20,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    background: "rgba(34,197,94,0.08)",
+                                    color: "#22C55E",
+                                    border: "1px solid rgba(34,197,94,0.2)",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  ● Normal
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* pagination */}
+                  {det.pagination && det.pagination.totalPages > 1 && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--color-muted)" }}>
+                        {det.pagination.total} registros · página {det.pagination.page} de {det.pagination.totalPages}
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          disabled={!det.pagination.hasPreviousPage || loadingDet}
+                          onClick={() => {
+                            const np = pageDet - 1
+                            setPageDet(np)
+                            fetchDetalhado({ page: np, search: searchDet, sort: sortDet, dir: sortDir })
+                          }}
+                          style={{
+                            padding: "6px 16px",
+                            borderRadius: 10,
+                            background: "var(--color-surface-2)",
+                            border: "1px solid var(--color-border)",
+                            color: det.pagination.hasPreviousPage ? "var(--color-text)" : "var(--color-subtle)",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: det.pagination.hasPreviousPage ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          ← Anterior
+                        </button>
+                        <button
+                          disabled={!det.pagination.hasNextPage || loadingDet}
+                          onClick={() => {
+                            const np = pageDet + 1
+                            setPageDet(np)
+                            fetchDetalhado({ page: np, search: searchDet, sort: sortDet, dir: sortDir })
+                          }}
+                          style={{
+                            padding: "6px 16px",
+                            borderRadius: 10,
+                            background: "var(--color-surface-2)",
+                            border: "1px solid var(--color-border)",
+                            color: det.pagination.hasNextPage ? "var(--color-text)" : "var(--color-subtle)",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: det.pagination.hasNextPage ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          Próxima →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </Card>
           </section>
 
