@@ -377,13 +377,14 @@ function buildTempoMedioEmpresa(colaboradores) {
 function buildStatusColaboradores({
   colaboradores,
   atestados,
+  totalInativos = 0,
 }) {
   const status = {
     ativos: 0,
     afastadosCurto: 0,
     inss: 0,
     ferias: 0,
-    inativos: 0,
+    inativos: totalInativos,
   };
 
   /* ===============================
@@ -401,19 +402,13 @@ function buildStatusColaboradores({
   colaboradores.forEach(c => {
     const statusColab = String(c.status).toUpperCase();
 
-    // 1️⃣ INATIVO
-    if (statusColab === "INATIVO") {
-      status.inativos++;
-      return;
-    }
-
-    // 2️⃣ FÉRIAS
+    // 1️⃣ FÉRIAS
     if (statusColab === "FERIAS") {
       status.ferias++;
       return;
     }
 
-    // 3️⃣ AFASTADO (refinado por atestado)
+    // 2️⃣ AFASTADO (refinado por atestado)
     if (statusColab === "AFASTADO") {
       const diasAtestado = atestadosMap.get(c.opsId) || 0;
 
@@ -425,7 +420,7 @@ function buildStatusColaboradores({
       return;
     }
 
-    // 4️⃣ ATIVO
+    // 3️⃣ ATIVO
     status.ativos++;
   });
 
@@ -1654,6 +1649,15 @@ const carregarDashboardAdmin = async (req, res) => {
       },
     });
 
+    // Count de inativos elegíveis (cargo Auxiliar de Logística) — query separada pois não entram no fluxo principal
+    const totalInativosElegiveis = await prisma.colaborador.count({
+      where: {
+        status: "INATIVO",
+        cargo: { nomeCargo: { contains: "AUXILIAR DE LOGÍSTICA", mode: "insensitive" } },
+        ...estacaoFilter,
+      },
+    });
+
     const overview = buildOverview({
       frequencias,
       inicio: inicioFinal,
@@ -1759,8 +1763,9 @@ const carregarDashboardAdmin = async (req, res) => {
         },
 
         statusColaboradores: buildStatusColaboradores({
-          colaboradores: colaboradoresPeriodo,
+          colaboradores: colaboradoresFiltrados,
           atestados,
+          totalInativos: totalInativosElegiveis,
         }),
 
         genero: buildGenero(colaboradoresPeriodo),
