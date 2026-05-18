@@ -18,7 +18,7 @@ import domtoimage from "dom-to-image-more"
 import api from "../services/api"
 import { useNavigate } from "react-router-dom"
 /* ================= ROOT ================= */
-export default function OperationalReport({ report }) {
+export default function OperationalReport({ report, estacaoId }) {
   const {
     header,
     kpis,
@@ -169,6 +169,7 @@ export default function OperationalReport({ report }) {
         assunto: "Relatório Operacional",
         periodo: report.header.periodo,
         turno: report.header.turno,
+        estacaoId: estacaoId ?? null,
       })
       alert("Relatório enviado com sucesso ✅")
     } catch (err) {

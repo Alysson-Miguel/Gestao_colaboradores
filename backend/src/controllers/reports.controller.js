@@ -15,7 +15,10 @@ async function getEstacaoGroupId(req) {
 }
 
 async function getEstacaoEmails(req) {
-  const estacaoId = req.user?.idEstacao || (req.query?.estacaoId ? Number(req.query.estacaoId) : null);
+  const estacaoId =
+    (req.body?.estacaoId ? Number(req.body.estacaoId) : null) ||
+    (req.user?.idEstacao  ? Number(req.user.idEstacao)  : null) ||
+    (req.query?.estacaoId ? Number(req.query.estacaoId) : null);
   if (!estacaoId) return [];
 
   const rows = await prisma.$queryRaw`

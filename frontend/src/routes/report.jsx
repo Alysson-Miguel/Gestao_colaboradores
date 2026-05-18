@@ -16,5 +16,5 @@ export default function ReportRoute() {
     belts: state.belts ?? null,
   })
 
-  return <OperationalReport report={report} />
+  return <OperationalReport report={report} estacaoId={state.estacaoId} />
 }
