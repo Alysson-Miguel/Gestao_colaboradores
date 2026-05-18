@@ -56,12 +56,12 @@ export default function DetalhesTreinamento() {
   /* ================= LOAD ================= */
   async function load() {
     try {
-      const res = await api.get(`/treinamentos`);
-      const found = res.data.data.find((t) => t.idTreinamento === Number(id));
-      if (!found) { navigate("/treinamentos"); return; }
-      setTreinamento(found);
+      const res = await api.get(`/treinamentos/${id}`);
+      if (!res.data?.data) { navigate("/treinamentos"); return; }
+      setTreinamento(res.data.data);
     } catch (e) {
       if (e.response?.status === 401) { logout(); navigate("/login"); }
+      else if (e.response?.status === 404) { navigate("/treinamentos"); }
     } finally {
       setLoading(false);
     }

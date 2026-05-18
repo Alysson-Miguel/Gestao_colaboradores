@@ -40,6 +40,14 @@ router.get(
   treinamentoController.listTreinamentos
 );
 
+/* BUSCAR TREINAMENTO POR ID */
+router.get(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
+  treinamentoController.getTreinamento
+);
+
 /* PRESIGN UPLOAD ATA */
 router.post(
   "/:id/presign-ata",

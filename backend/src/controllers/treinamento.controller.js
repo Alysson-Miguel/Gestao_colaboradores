@@ -134,6 +134,49 @@ exports.createTreinamento = async (req, res) => {
 
 
 /* =====================================================
+   BUSCAR TREINAMENTO POR ID
+===================================================== */
+exports.getTreinamento = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const treinamento = await prisma.treinamento.findUnique({
+      where: { idTreinamento: Number(id) },
+      include: {
+        liderResponsavel: {
+          select: { nomeCompleto: true },
+        },
+        setores: {
+          include: { setor: true },
+        },
+        participantes: {
+          include: {
+            colaborador: {
+              select: {
+                nomeCompleto: true,
+                cpf: true,
+                setor: { select: { nomeSetor: true } },
+                turno: { select: { nomeTurno: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!treinamento) {
+      return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
+    }
+
+    return res.json({ success: true, data: treinamento });
+  } catch (err) {
+    console.error("❌ getTreinamento:", err);
+    return res.status(500).json({ success: false, message: "Erro ao buscar treinamento" });
+  }
+};
+
+
+/* =====================================================
    LISTAR TREINAMENTOS
 ===================================================== */
 exports.statsTreinamentos = async (req, res) => {
