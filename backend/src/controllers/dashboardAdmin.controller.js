@@ -593,32 +593,32 @@ function buildFaltasPorTempoCasa({ frequencias, colaboradoresMap }) {
 }
 
 /* ---------- OVERVIEW ---------- */
-function buildOverview({ frequencias, inicio, fim }) {
+function buildOverview({ frequencias, inicio, fim, colaboradores = [] }) {
+  const diasPeriodo = daysInclusive(inicio, fim);
+
+  // HC Operacional Escalado = todos colaboradores ATIVO elegíveis
+  // Excluídos por status de banco: FERIAS / AFASTADO (já saem aqui)
+  // Atestado médico: status ATIVO → permanece contabilizado ✓
+  const totalColaboradores = colaboradores.filter(c => c.status === "ATIVO").length;
+
   if (!frequencias.length) {
     return {
-      totalColaboradores: 0,
+      totalColaboradores,
       presentes: 0,
       absenteismo: 0,
       faltas: 0,
-      diasEscalados: 0,
     };
   }
-
-  const diasPeriodo = daysInclusive(inicio, fim);
 
   let absDias = 0;
   let faltasDias = 0;
 
-  const escaladosSet = new Set();
   const presentesSet = new Set();
 
   frequencias.forEach(f => {
     const s = getStatusDoDia(f);
 
-    // só quem estava escalado no dia
     if (!s.contaComoEscalado) return;
-
-    escaladosSet.add(f.opsId);
 
     if (s.code === "P") {
       presentesSet.add(f.opsId);
@@ -630,14 +630,13 @@ function buildOverview({ frequencias, inicio, fim }) {
 
     if (s.code === "F" || s.code === "FJ") {
       faltasDias++;
-    } 
+    }
   });
 
-  const totalEscalados = escaladosSet.size;
-  const diasEsperados = totalEscalados * diasPeriodo;
+  const diasEsperados = totalColaboradores * diasPeriodo;
 
   return {
-    totalColaboradores: totalEscalados,
+    totalColaboradores,
     presentes: presentesSet.size,
     faltas: faltasDias,
     absenteismo:
@@ -1658,7 +1657,8 @@ const carregarDashboardAdmin = async (req, res) => {
     const overview = buildOverview({
       frequencias,
       inicio: inicioFinal,
-      fim: fimFinal
+      fim: fimFinal,
+      colaboradores: colaboradoresFiltrados,
     });
 
     /* ===============================
