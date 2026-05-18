@@ -1,7 +1,7 @@
 const { prisma } = require("../config/database");
 const crypto = require("crypto");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const { GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getR2Client } = require("../services/r2");
 
 const BUCKET = process.env.R2_BUCKET_NAME;
@@ -275,53 +275,69 @@ exports.listTreinamentos = async (req, res) => {
 /* =====================================================
    PRESIGN UPLOAD ATA (PDF)
 ===================================================== */
+// Mantido apenas para compatibilidade — não é mais usado pelo frontend
 exports.presignUploadAta = async (req, res) => {
-  try {
+  return res.status(410).json({ success: false, message: "Use POST /:id/upload-ata" });
+};
 
+/* =====================================================
+   UPLOAD ATA DIRETO (multipart → backend → R2)
+   Evita CORS: o backend faz o PUT ao R2 server-side
+===================================================== */
+exports.uploadAta = async (req, res) => {
+  try {
     const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Arquivo PDF não enviado" });
+    }
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
     });
 
     if (!treinamento) {
-      return res.status(404).json({
-        success: false,
-        message: "Treinamento não encontrado",
-      });
+      return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
     if (treinamento.status !== "ABERTO") {
-      return res.status(400).json({
-        success: false,
-        message: "Treinamento já finalizado",
-      });
+      return res.status(400).json({ success: false, message: "Treinamento já finalizado" });
     }
 
-    if (!process.env.R2_WORKER_UPLOAD_URL) {
-      return res.status(500).json({
-        success: false,
-        message: "R2_WORKER_UPLOAD_URL não configurado",
-      });
+    if (!BUCKET) {
+      return res.status(500).json({ success: false, message: "R2_BUCKET_NAME não configurado" });
     }
 
     const key = `treinamentos/${id}/${crypto.randomUUID()}.pdf`;
 
-    return res.json({
-      success: true,
-      key,
-      uploadUrl: `${process.env.R2_WORKER_UPLOAD_URL}/${key}`,
+    const r2 = getR2Client();
+    await r2.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: "application/pdf",
+      ContentLength: req.file.size,
+    }));
+
+    // Finaliza o treinamento já com a chave salva
+    const updated = await prisma.treinamento.update({
+      where: { idTreinamento: Number(id) },
+      data: {
+        status: "FINALIZADO",
+        ataPdfUrl: key,
+        ataPdfNome: req.file.originalname || "ata-treinamento.pdf",
+        ataPdfMime: "application/pdf",
+        ataPdfSize: req.file.size,
+        finalizadoAt: new Date(),
+        finalizadoPor: req.user.id,
+      },
     });
+
+    return res.json({ success: true, data: updated });
 
   } catch (err) {
-
-    console.error("❌ presignUploadAta:", err);
-
-    return res.status(500).json({
-      success: false,
-      message: "Erro ao gerar URL de upload",
-    });
-
+    console.error("❌ uploadAta:", err);
+    return res.status(500).json({ success: false, message: "Erro ao fazer upload da ATA" });
   }
 };
 

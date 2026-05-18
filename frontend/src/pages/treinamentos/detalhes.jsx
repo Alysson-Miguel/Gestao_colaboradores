@@ -155,15 +155,14 @@ export default function DetalhesTreinamento() {
     if (!file) { alert("Selecione o PDF da ata"); return; }
     setUploading(true);
     try {
-      const presign = await api.post(`/treinamentos/${treinamento.idTreinamento}/presign-ata`);
-      const { uploadUrl, key } = presign.data;
-      const uploadRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": "application/pdf" }, body: file });
-      if (!uploadRes.ok) {
-        throw new Error(`Falha no upload para o R2 (${uploadRes.status})`);
-      }
-      await api.post(`/treinamentos/${treinamento.idTreinamento}/finalizar`, {
-        documentoKey: key, nome: file.name, mime: file.type, size: file.size,
-      });
+      // Envia o PDF via multipart ao backend — backend faz o PUT ao R2 (sem CORS)
+      const formData = new FormData();
+      formData.append("ata", file);
+      await api.post(
+        `/treinamentos/${treinamento.idTreinamento}/upload-ata`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
       alert("Treinamento finalizado com sucesso");
       navigate("/treinamentos");
     } catch (err) {

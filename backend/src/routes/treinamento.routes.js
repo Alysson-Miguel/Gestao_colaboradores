@@ -1,8 +1,19 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 
 const treinamentoController = require("../controllers/treinamento.controller");
 const { authenticate, authorize } = require("../middlewares/auth.middleware");
+
+// Multer em memória — limite 20 MB
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") cb(null, true);
+    else cb(new Error("Apenas arquivos PDF são aceitos"), false);
+  },
+});
 
 /* =====================================================
    TREINAMENTOS
@@ -72,7 +83,16 @@ router.put(
   treinamentoController.atualizarParticipantes
 );
 
-/* FINALIZAR TREINAMENTO */
+/* UPLOAD ATA + FINALIZAR (multipart — backend faz PUT ao R2) */
+router.post(
+  "/:id/upload-ata",
+  authenticate,
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
+  upload.single("ata"),
+  treinamentoController.uploadAta
+);
+
+/* FINALIZAR TREINAMENTO (legado — mantido para compatibilidade) */
 router.post(
   "/:id/finalizar",
   authenticate,
