@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer")
 
 async function sendReportEmail({
+  to,
   image,
   assunto,
   periodo,
@@ -14,6 +15,8 @@ async function sendReportEmail({
       pass: process.env.GMAIL_APP_PASSWORD,
     },
   })
+
+  const destinatarios = Array.isArray(to) ? to : [to];
 
   const html = `
     <div style="font-family: Arial, sans-serif;">
@@ -33,20 +36,7 @@ async function sendReportEmail({
 
   await transporter.sendMail({
     from: `"Relatórios Operacionais" <${process.env.GMAIL_USER}>`,
-    to: [
-      "thiago.feitoza@shopee.com",
-      "thaian.braga@shopee.com",
-      "alysson.nascimento@shopee.com",
-      "kleverson.pereira@shopee.com",
-      "gabriel.apereira@shopee.com",
-      "marcio.oliveira@shopee.com",
-      "diego.alves@shopee.com",
-      "felipe.cavalcanti@shopee.com",
-      "camilla.msilva@shopee.com",
-      "joao.maciel@shopee.com",
-      "luiz.semiano@shopee.com",
-      "nieli.souza@shopee.com",
-    ],
+    to: destinatarios,
     subject: `${assunto} • ${periodo} • Turno ${turno}`,
     html,
     attachments: [

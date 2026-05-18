@@ -1,4 +1,4 @@
-﻿import { X } from "lucide-react";
+﻿import { X, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../services/api";
 
@@ -10,6 +10,12 @@ export default function EstacaoModal({ estacao, onClose, onSave, isAdmin = false
     sheetsPresencaId: estacao?.sheetsPresencaId || "",
     seatalkGroupId: estacao?.seatalkGroupId || "",
   }));
+
+  const [emailRh, setEmailRh] = useState(() =>
+    Array.isArray(estacao?.emailRh) ? estacao.emailRh : []
+  );
+  const [novoEmail, setNovoEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   const [regionais, setRegionais] = useState([]);
 
@@ -45,9 +51,29 @@ export default function EstacaoModal({ estacao, onClose, onSave, isAdmin = false
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function adicionarEmail() {
+    const email = novoEmail.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("E-mail inválido");
+      return;
+    }
+    if (emailRh.includes(email)) {
+      setEmailError("E-mail já adicionado");
+      return;
+    }
+    setEmailRh((prev) => [...prev, email]);
+    setNovoEmail("");
+    setEmailError("");
+  }
+
+  function removerEmail(email) {
+    setEmailRh((prev) => prev.filter((e) => e !== email));
+  }
+
   async function handleSave() {
     if (!form.nome || !form.idRegional) return;
-    await onSave(form);
+    await onSave({ ...form, emailRh });
   }
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 sm:px-6">
@@ -130,6 +156,56 @@ export default function EstacaoModal({ estacao, onClose, onSave, isAdmin = false
                 onChange={handleChange}
                 placeholder="Ex: oc_xxxxxxxxxxxxxxxxxxxxxxxx"
               />
+
+              {/* E-MAILS RELATÓRIO OPERACIONAL */}
+              <div>
+                <label className="text-xs text-muted">
+                  E-mails — Relatório Operacional
+                </label>
+
+                {/* Lista atual */}
+                {emailRh.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {emailRh.map((email) => (
+                      <div
+                        key={email}
+                        className="flex items-center justify-between px-3 py-1.5 bg-surface-2 border border-default rounded-lg text-sm"
+                      >
+                        <span className="text-page truncate">{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => removerEmail(email)}
+                          className="ml-2 text-muted hover:text-[#FF453A] transition-colors shrink-0"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input adicionar */}
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="email"
+                    value={novoEmail}
+                    onChange={(e) => { setNovoEmail(e.target.value); setEmailError(""); }}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), adicionarEmail())}
+                    placeholder="nome@shopee.com"
+                    className="flex-1 px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
+                  />
+                  <button
+                    type="button"
+                    onClick={adicionarEmail}
+                    className="px-3 py-2 rounded-xl bg-[#FA4C00]/15 hover:bg-[#FA4C00]/25 text-[#FA4C00] transition-colors"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+                {emailError && (
+                  <p className="text-xs text-[#FF453A] mt-1">{emailError}</p>
+                )}
+              </div>
             </>
           )}
         </div>

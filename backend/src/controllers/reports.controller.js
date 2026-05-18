@@ -14,6 +14,17 @@ async function getEstacaoGroupId(req) {
   return rows[0]?.seatalk_group_id ?? null;
 }
 
+async function getEstacaoEmails(req) {
+  const estacaoId = req.user?.idEstacao || (req.query?.estacaoId ? Number(req.query.estacaoId) : null);
+  if (!estacaoId) return [];
+
+  const rows = await prisma.$queryRaw`
+    SELECT email_rh FROM estacao WHERE id_estacao = ${estacaoId}
+  `;
+  const emails = rows[0]?.email_rh ?? [];
+  return Array.isArray(emails) ? emails.filter(Boolean) : [];
+}
+
 async function sendReportByEmail(req, res, next) {
   try {
     const { image, assunto, periodo, turno } = req.body
@@ -25,7 +36,18 @@ async function sendReportByEmail(req, res, next) {
       })
     }
 
+    const destinatarios = await getEstacaoEmails(req);
+
+    if (!destinatarios.length) {
+      return res.status(422).json({
+        success: false,
+        code: "NO_EMAILS_CONFIGURED",
+        message: "Nenhum e-mail configurado para esta estação. Adicione destinatários em Configurações → Estações.",
+      });
+    }
+
     await sendReportEmail({
+      to: destinatarios,
       image,
       assunto,
       periodo,
@@ -35,7 +57,7 @@ async function sendReportByEmail(req, res, next) {
 
     return res.json({
       success: true,
-      message: "Relatório enviado com sucesso",
+      message: `Relatório enviado para ${destinatarios.length} destinatário(s)`,
     })
   } catch (err) {
     next(err)
