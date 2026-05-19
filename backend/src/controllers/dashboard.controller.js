@@ -390,6 +390,7 @@ const carregarDashboard = async (req, res) => {
     =============================== */
     const turnoSetorAgg = {};
     const generoPorTurno = initTurnoMap();
+    const generoPorTurnoSeen = { T1: new Set(), T2: new Set(), T3: new Set(), "Sem turno": new Set() };
     const statusPorTurno = initTurnoMap();
     const empresaPorTurno = initTurnoMap();
     const ausenciasHoje = [];
@@ -419,9 +420,8 @@ const carregarDashboard = async (req, res) => {
     /* ===============================
        5️⃣ LOOP PRINCIPAL (ALINHADO AO ADMIN)
     =============================== */
-    // Snapshot: itera sobre registros do dia — inclui desligados que tinham registro nesse dia
+    // Itera sobre todos os registros do período — acumula para período > 1 dia
     frequenciasPeriodo
-      .filter((f) => isoDate(f.dataReferencia) === dataSnapshotStr)
       .forEach((registroSnapshot) => {
       const c = registroSnapshot.colaborador;
       if (!c) return;
@@ -470,8 +470,10 @@ const carregarDashboard = async (req, res) => {
 
       turnoSetorAgg[turno].totalEscalados++;
 
-      generoPorTurno[turno][genero] =
-        (generoPorTurno[turno][genero] || 0) + 1;
+      if (!generoPorTurnoSeen[turno].has(c.opsId)) {
+        generoPorTurnoSeen[turno].add(c.opsId);
+        generoPorTurno[turno][genero] = (generoPorTurno[turno][genero] || 0) + 1;
+      }
 
       if (!empresaPorTurno[turno][empresa]) {
         empresaPorTurno[turno][empresa] = { total: 0, ausencias: 0, faltas: 0, atestados: 0 };
@@ -514,6 +516,7 @@ const carregarDashboard = async (req, res) => {
         ausenciasHoje.push({
           colaboradorId: c.opsId,
           nome: c.nomeCompleto,
+          data: isoDate(registroSnapshot.dataReferencia),
           turno,
           motivo: sSnap.label, // "Falta" | "Atestado Médico"
           setor: normalize(c.setor?.nomeSetor),
@@ -586,7 +589,7 @@ await Promise.all(
         turno === "T2" ? 2 : 3;
 
       const whereReal = {
-        data: new Date(dataSnapshotStr),
+        data: { gte: new Date(isoDate(inicio) + "T00:00:00.000Z"), lte: new Date(isoDate(fim) + "T00:00:00.000Z") },
         idTurno: turnoId,
       };
       if (estacaoIdDash) whereReal.idEstacao = estacaoIdDash;
@@ -612,21 +615,38 @@ await Promise.all(
 =============================== */
 const diaristasPlanejadosPorTurno = { T1: 0, T2: 0, T3: 0 };
 
+// Gera lista de datas no período
+const datasNoPeriodo = [];
+{
+  const cur = new Date(isoDate(inicio) + "T00:00:00.000Z");
+  const fimDate = new Date(isoDate(fim) + "T00:00:00.000Z");
+  while (cur <= fimDate) {
+    datasNoPeriodo.push(isoDate(cur));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+}
+
 for (const turno of ["T1", "T2", "T3"]) {
   try {
     if (!estacaoIdDash || estacaoIdDash === ESTACAO_SHEETS) {
-      // Estação 1 ou global: busca no Sheets
-      const resultado = await buscarDwPlanejado(turno, dataSnapshotStr);
-      diaristasPlanejadosPorTurno[turno] = Number(resultado?.data?.dwPlanejado || 0);
+      // Estação 1 ou global: busca no Sheets — soma todas as datas do período
+      let total = 0;
+      for (const dataStr of datasNoPeriodo) {
+        const resultado = await buscarDwPlanejado(turno, dataStr);
+        total += Number(resultado?.data?.dwPlanejado || 0);
+      }
+      diaristasPlanejadosPorTurno[turno] = total;
     } else {
-      // Demais estações: busca no banco
+      // Demais estações: busca no banco pelo range
       const turnoId = turno === "T1" ? 1 : turno === "T2" ? 2 : 3;
-      const registro = await buscarDwPlanejadoBanco({
-        data: dataSnapshotStr,
-        idTurno: turnoId,
-        idEstacao: estacaoIdDash
+      const registros = await prisma.dwPlanejado.findMany({
+        where: {
+          data: { gte: new Date(isoDate(inicio) + "T00:00:00.000Z"), lte: new Date(isoDate(fim) + "T00:00:00.000Z") },
+          idTurno: turnoId,
+          idEstacao: estacaoIdDash,
+        },
       });
-      diaristasPlanejadosPorTurno[turno] = registro?.quantidade ?? 0;
+      diaristasPlanejadosPorTurno[turno] = registros.reduce((sum, r) => sum + (r.quantidade ?? 0), 0);
     }
   } catch (err) {
     console.warn(`⚠️ DW Planejado falhou para ${turno}:`, err.message);

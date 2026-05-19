@@ -20,6 +20,7 @@ export default function EscalaModal({ escala, onClose, onSave }) {
   const { estacaoId: estacaoSelecionada } = useEstacao();
 
   const isAdmin = user?.role === "ADMIN";
+  const isAltaGestao = user?.role === "ALTA_GESTAO";
   const precisaEscolherEstacao = isAdmin && !estacaoSelecionada && !escala;
 
   const [form, setForm] = useState({
@@ -30,7 +31,7 @@ export default function EscalaModal({ escala, onClose, onSave }) {
     diasDsr:         Array.isArray(escala?.diasDsr) ? escala.diasDsr : [],
     descricao:       escala?.descricao       || "",
     ativo:           escala?.ativo           ?? true,
-    idEstacao:       escala?.idEstacao || estacaoSelecionada || "",
+    idEstacao:       escala?.idEstacao || estacaoSelecionada || user?.idEstacao || "",
   });
   const [saving, setSaving] = useState(false);
   const [estacoes, setEstacoes] = useState([]);

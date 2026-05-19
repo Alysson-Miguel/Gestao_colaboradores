@@ -225,21 +225,26 @@ export default function DashboardOperacional() {
     : 0;
 
 
+  const isPeriodo = useMemo(() => {
+    if (!appliedRange.from || !appliedRange.to) return false;
+    return appliedRange.from.toISOString().slice(0, 10) !== appliedRange.to.toISOString().slice(0, 10);
+  }, [appliedRange]);
+
   const kpis = useMemo(
     () => [
       {
         icon: Users,
-        label: "Colaboradores Planejados",
+        label: isPeriodo ? "Planejamentos no Período" : "Colaboradores Planejados",
         value: totalColaboradores,
       },
       {
         icon: Clock,
-        label: "Colaboradores Presentes",
+        label: isPeriodo ? "Presenças no Período" : "Colaboradores Presentes",
         value: presentes,
       },
       {
         icon: Users,
-        label: "Ausências",
+        label: isPeriodo ? "Ausências no Período" : "Ausências",
         value: ausencias,
         color: "#d6000e",
       },
@@ -252,12 +257,12 @@ export default function DashboardOperacional() {
       },
       {
         icon: Users,
-        label: "Diaristas Planejados",
+        label: isPeriodo ? "Diaristas Planejados no Período" : "Diaristas Planejados",
         value: diaristasPlanejados,
       },
       {
         icon: Users,
-        label: "Diaristas Presentes",
+        label: isPeriodo ? "Diaristas Presentes no Período" : "Diaristas Presentes",
         value: diaristasPresentes,
       },
       {
@@ -276,6 +281,7 @@ export default function DashboardOperacional() {
       },
     ],
     [
+      isPeriodo,
       totalColaboradores,
       presentes,
       ausencias,
@@ -506,6 +512,19 @@ export default function DashboardOperacional() {
           </div>
 
 
+          {isPeriodo && (
+            <div className="flex items-center gap-2">
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                background: "rgba(250,76,0,0.12)", color: "#FA4C00",
+                border: "1px solid rgba(250,76,0,0.3)",
+              }}>
+                Dados acumulados do período
+              </span>
+            </div>
+          )}
+
           <KpiCardsRow items={kpis} />
 
           <EmpresasSection title="Quantidade por Empresa" items={empresasItems} />
@@ -554,9 +573,14 @@ export default function DashboardOperacional() {
           )}
 
           <AusentesHojeTable
-            title={turnoSelecionado === "TODOS" ? "Ausentes — Todos os Turnos" : `Ausentes no turno — ${turnoSelecionado}`}
+            title={
+              isPeriodo
+                ? (turnoSelecionado === "TODOS" ? "Ausentes no Período — Todos os Turnos" : `Ausentes no Período — ${turnoSelecionado}`)
+                : (turnoSelecionado === "TODOS" ? "Ausentes — Todos os Turnos" : `Ausentes no turno — ${turnoSelecionado}`)
+            }
             data={ausentesTurno}
             columns={[
+              ...(isPeriodo ? [{ key: "data", label: "Data", render: (v) => v ? new Date(v + "T00:00:00").toLocaleDateString("pt-BR") : "-" }] : []),
               { key: "nome", label: "Colaborador" },
               { key: "motivo", label: "Motivo" },
               { key: "setor", label: "Setor" },
@@ -564,7 +588,7 @@ export default function DashboardOperacional() {
               { key: "tempoCasa", label: "Tempo de Casa" },
               { key: "diasFolga", label: "Dias de Folga" }
             ]}
-            getRowKey={(row) => row.colaboradorId}
+            getRowKey={(row) => `${row.colaboradorId}-${row.data}`}
             emptyMessage="Nenhum ausente no turno"
           />
         </main>

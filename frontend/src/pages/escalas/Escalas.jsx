@@ -16,6 +16,7 @@ export default function EscalasPage() {
   const { isDark } = useContext(ThemeContext);
   const { permissions, user } = useContext(AuthContext);
   const isAdmin = permissions?.isAdmin ?? false;
+  const isAltaGestao = permissions?.isAltaGestao ?? false;
   const userEstacaoId = user?.idEstacao ?? null;
   const [escalas,     setEscalas]     = useState([]);
   const [loading,     setLoading]     = useState(false);
@@ -85,20 +86,22 @@ export default function EscalasPage() {
                 {escalas.length}
               </span>
             </div>
-            <button
-              onClick={() => { setSelected(null); setModalOpen(true); }}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "9px 16px", borderRadius: 10, border: "none",
-                background: "#FA4C00", color: "#FFFFFF",
-                fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#e64500")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#FA4C00")}
-            >
-              <Plus size={16} />
-              Nova Escala
-            </button>
+            {(isAdmin || isAltaGestao) && (
+              <button
+                onClick={() => { setSelected(null); setModalOpen(true); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "9px 16px", borderRadius: 10, border: "none",
+                  background: "#FA4C00", color: "#FFFFFF",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#e64500")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#FA4C00")}
+              >
+                <Plus size={16} />
+                Nova Escala
+              </button>
+            )}
           </div>
 
           {/* search */}
