@@ -973,11 +973,18 @@ const updateColaborador = async (req, res) => {
         /* =========================
            CRIAR NOVO HISTÓRICO
         ========================= */
-        await tx.colaboradorEscalaHistorico.create({
-          data: {
+        await tx.colaboradorEscalaHistorico.upsert({
+          where: {
+            opsId_dataInicio: { opsId, dataInicio: hoje },
+          },
+          create: {
             opsId,
             idEscala: novaEscalaId,
             dataInicio: hoje,
+          },
+          update: {
+            idEscala: novaEscalaId,
+            dataFim: null,
           },
         });
 
