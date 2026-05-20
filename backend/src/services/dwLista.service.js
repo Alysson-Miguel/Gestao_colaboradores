@@ -17,6 +17,9 @@ const EMPRESAS_FIXAS = {
 const IDS_EMPRESAS_FIXAS = Object.keys(EMPRESAS_FIXAS).map(Number);
 
 const buscarDwLista = async ({ data, idTurno, idEmpresa, idEstacao }) => {
+  const turnosDB = await prisma.turno.findMany({ select: { idTurno: true, nomeTurno: true } });
+  const turnoMap = Object.fromEntries(turnosDB.map((t) => [t.idTurno, t.nomeTurno]));
+
   const andConditions = [];
 
   // Empresas fixas (ou filtro específico)
@@ -56,7 +59,6 @@ const buscarDwLista = async ({ data, idTurno, idEmpresa, idEstacao }) => {
   });
 
   const agrupado = {};
-  const turnoMap = { 1: "T1", 2: "T2", 3: "T3" };
   const estacaoNum = idEstacao ? Number(idEstacao) : null;
 
   // Preparar batch de requests para Calculadora (estação 1)

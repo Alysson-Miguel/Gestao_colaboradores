@@ -588,8 +588,10 @@ await Promise.all(
       const whereReal = {
         data: { gte: new Date(isoDate(inicio) + "T00:00:00.000Z"), lte: new Date(isoDate(fim) + "T00:00:00.000Z") },
         idTurno: turnoId,
+        ...(estacaoIdDash
+          ? { OR: [{ idEstacao: estacaoIdDash }, { idEstacao: null }] }
+          : {}),
       };
-      if (estacaoIdDash) whereReal.idEstacao = estacaoIdDash;
 
       const diaristasReais = await prisma.dwReal.findMany({ where: whereReal });
 
