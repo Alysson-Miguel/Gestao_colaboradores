@@ -279,6 +279,13 @@ const carregarDashboard = async (req, res) => {
             escala: true,
             cargo: true,
             lider: true,
+            atestadosMedicos: {
+              where: {
+                status: "ATIVO",
+                dataInicio: { lte: fim },
+                dataFim: { gte: inicio },
+              },
+            },
           },
         }),
 
@@ -576,6 +583,67 @@ const carregarDashboard = async (req, res) => {
         ? Number(((totalAusenciasDias / totalHcAptoDias) * 100).toFixed(2))
         : 0;
 
+    /* ===============================
+       6️⃣.1 ATESTADOS MÉDICOS (origem: atestadosMedicos)
+       Colaboradores com AM via tabela separada não têm registro em frequenciasPeriodo
+       — precisam entrar em ausenciasHoje manualmente
+    =============================== */
+    const ausenciasSet = new Set(
+      ausenciasHoje.map((a) => `${a.colaboradorId}_${a.data}`)
+    );
+
+    const DIAS_PT_ATES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+    for (const c of colaboradores) {
+      if (!c.atestadosMedicos?.length) continue;
+      if (!isCargoElegivel(c.cargo?.nomeCargo)) continue;
+
+      const turno = normalizeTurno(c.turno?.nomeTurno);
+      if (turno === "Sem turno") continue;
+      if (turnoFiltro && turno !== turnoFiltro) continue;
+
+      const tempoCasa = calcularTempoDeCasa(c.dataAdmissao);
+      const diasFolga =
+        (c.escala?.diasDsr || []).length > 0
+          ? c.escala.diasDsr.map((d) => DIAS_PT_ATES[d] ?? d).join("/")
+          : "-";
+
+      for (const atestado of c.atestadosMedicos) {
+        // Itera cada dia do período coberto pelo atestado que se sobrepõe ao range do dashboard
+        const cur = new Date(
+          Math.max(new Date(atestado.dataInicio).getTime(), inicio.getTime())
+        );
+        const fimAtes = new Date(
+          Math.min(new Date(atestado.dataFim).getTime(), fim.getTime())
+        );
+
+        while (cur <= fimAtes) {
+          const dataStr = isoDate(cur);
+          const key = `${c.opsId}_${dataStr}`;
+
+          if (!ausenciasSet.has(key)) {
+            ausenciasHoje.push({
+              colaboradorId: c.opsId,
+              nome: c.nomeCompleto,
+              data: dataStr,
+              turno,
+              motivo: "Atestado Médico",
+              setor: normalize(c.setor?.nomeSetor),
+              empresa: normalize(c.empresa?.razaoSocial),
+              admissao: c.dataAdmissao,
+              lider: normalize(c.lider?.nomeCompleto),
+              origem: "atestado",
+              tempoCasa: tempoCasa.faixa,
+              diasCasa: tempoCasa.dias,
+              diasFolga,
+            });
+            ausenciasSet.add(key);
+          }
+
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+      }
+    }
 
 /* ===============================
    7️⃣ DIARISTAS PRESENTES (REAIS)
