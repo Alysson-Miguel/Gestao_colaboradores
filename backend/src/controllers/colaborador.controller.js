@@ -1390,14 +1390,36 @@ const importColaboradores = async (req, res) => {
           if (escalaMudou) {
             const hoje = startOfDayBR();
 
-            /* HISTÓRICO */
-            await prisma.colaboradorEscalaHistorico.create({
-              data: {
+            /* FECHAR HISTÓRICO ANTERIOR */
+            await prisma.colaboradorEscalaHistorico.updateMany({
+              where: {
                 opsId: colab.opsId,
-                idEscala: data.idEscala,
-                dataInicio: hoje,
+                dataFim: null,
+              },
+              data: {
+                dataFim: new Date(hoje.getTime() - 86400000),
               },
             });
+
+            /* CRIAR NOVO HISTÓRICO */
+            const historicoHoje = await prisma.colaboradorEscalaHistorico.findFirst({
+              where: { opsId: colab.opsId, dataInicio: hoje },
+            });
+
+            if (historicoHoje) {
+              await prisma.colaboradorEscalaHistorico.update({
+                where: { id: historicoHoje.id },
+                data: { idEscala: data.idEscala, dataFim: null },
+              });
+            } else {
+              await prisma.colaboradorEscalaHistorico.create({
+                data: {
+                  opsId: colab.opsId,
+                  idEscala: data.idEscala,
+                  dataInicio: hoje,
+                },
+              });
+            }
 
             /* ESCALA */
             const escala = await prisma.escala.findUnique({
