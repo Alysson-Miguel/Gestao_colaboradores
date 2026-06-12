@@ -266,8 +266,11 @@ const carregarDashboard = async (req, res) => {
       await Promise.all([
         prisma.colaborador.findMany({
           where: {
-            status: "ATIVO",
-            dataDesligamento: null,
+            // Inclui ativos + desligados após o início do período (para preservar histórico)
+            OR: [
+              { status: "ATIVO", dataDesligamento: null },
+              { dataDesligamento: { gt: inicio } },
+            ],
             ...(!req.dbContext?.isGlobal && req.dbContext?.estacaoId
               ? { idEstacao: req.dbContext.estacaoId }
               : {}),
@@ -435,8 +438,12 @@ const carregarDashboard = async (req, res) => {
       const c = registroSnapshot.colaborador;
       if (!c) return;
 
-      // Ignora colaboradores desligados — não devem aparecer como ausentes
-      if (!["ATIVO", "FERIAS", "AFASTADO"].includes(c.status)) return;
+      // Ignora colaboradores desligados — mas inclui quem foi desligado APÓS a data de referência
+      // (ex: desligado em 10/06 ainda deve aparecer nos registros de 01/06)
+      const dataRefSnap = new Date(registroSnapshot.dataReferencia);
+      const foiDesligadoDepois =
+        c.dataDesligamento && new Date(c.dataDesligamento) > dataRefSnap;
+      if (!["ATIVO", "FERIAS", "AFASTADO"].includes(c.status) && !foiDesligadoDepois) return;
 
       // Verifica cargo na data do registro — colaborador pode ter mudado de cargo depois
       if (!isCargoElegivelNoDia(c.opsId, registroSnapshot.dataReferencia, c.cargo?.idCargo)) return;
