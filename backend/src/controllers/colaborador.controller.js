@@ -1448,13 +1448,19 @@ const importColaboradores = async (req, res) => {
 
           existing ? atualizados++ : criados++;
 
-          // Onboarding: apenas para colaboradores novos
-          if (!existing) {
-            try {
+          // Onboarding: gera se ainda não existir registro para o dia de admissão
+          try {
+            const dia1 = new Date(`${dataAdmissao.toISOString().slice(0, 10)}T00:00:00.000Z`);
+            const jaTemOnboarding = await prisma.frequencia.findFirst({
+              where: { opsId: colab.opsId, dataReferencia: dia1 },
+              select: { idFrequencia: true },
+            });
+            if (!jaTemOnboarding) {
               await gerarOnboardingColaborador({ opsId: colab.opsId, dataAdmissao });
-            } catch (onboardErr) {
-              console.warn(`⚠ Onboarding falhou para ${colab.opsId}: ${onboardErr.message}`);
+              console.log(`✅ Onboarding gerado para ${colab.opsId} (admissão: ${dataAdmissao.toISOString().slice(0, 10)})`);
             }
+          } catch (onboardErr) {
+            console.error(`❌ Onboarding falhou para ${colab.opsId}: ${onboardErr.message}`);
           }
 
         } catch (err) {

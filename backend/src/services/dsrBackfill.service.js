@@ -120,15 +120,17 @@ async function gerarDSRFuturoColaborador({ opsId, nomeEscala, tx = prisma, dias 
  * Gera os 2 dias de Onboarding (ON) para um colaborador:
  * data_admissao e data_admissao + 1 dia.
  */
-async function gerarOnboardingColaborador({ opsId, dataAdmissao, tx = prisma }) {
+async function gerarOnboardingColaborador({ opsId, dataAdmissao, tx = prisma, idTipoAusenciaFallback = 34 }) {
   if (!opsId) throw new Error("opsId é obrigatório.");
   if (!dataAdmissao) throw new Error("dataAdmissao é obrigatória.");
 
+  // Tenta pelo código "ON"; se não achar, usa o ID fixo como fallback
   const tipoON = await tx.tipoAusencia.findFirst({
-    where: { codigo: "ON" },
-    select: { idTipoAusencia: true },
+    where: { OR: [{ codigo: "ON" }, { idTipoAusencia: idTipoAusenciaFallback }] },
+    select: { idTipoAusencia: true, codigo: true },
+    orderBy: { codigo: "asc" }, // "ON" < outros códigos, garante prioridade
   });
-  if (!tipoON) throw new Error("Tipo de ausência ON não encontrado.");
+  if (!tipoON) throw new Error(`Tipo de ausência ON não encontrado (tentou código "ON" e id ${idTipoAusenciaFallback}).`);
 
   const dia1 = startOfDay(new Date(dataAdmissao));
   const dia2 = new Date(dia1);

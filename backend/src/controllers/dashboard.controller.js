@@ -92,8 +92,7 @@ const initTurnoMap = (turnoNomes = ["T1", "T2", "T3"]) =>
    STATUS DO DIA — PADRÃO ADMIN (COM 4 ESTADOS OPERACIONAIS)
 ===================================================== */
 function getStatusDoDiaOperacional(f) {
-  // DSR/FO têm prioridade máxima — mesmo que haja horaEntrada (ajuste indevido),
-  // o dia de folga não deve ser contado como escalado
+  // DSR/FO/AM/AA têm prioridade máxima — mesmo que haja horaEntrada
   if (f?.tipoAusencia) {
     const codigo = String(f.tipoAusencia.codigo || "").toUpperCase();
 
@@ -102,6 +101,10 @@ function getStatusDoDiaOperacional(f) {
     }
     if (codigo === "FO") {
       return { label: "Folga", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
+    }
+    // Atestado médico tem prioridade sobre horaEntrada (batida pode ser erro de registro)
+    if (codigo === "AM" || codigo === "AA") {
+      return { label: "Atestado Médico", contaComoEscalado: true, impactaAbsenteismo: true, origem: "tipoAusencia" };
     }
   }
 
