@@ -547,13 +547,18 @@ const getControlePresenca = async (req, res) => {
 
     const whereColaborador = {
       OR: [
-        { status: "ATIVO" },
+        { status: "ATIVO", dataDesligamento: null },
         {
           status: { in: ["FERIAS", "AFASTADO"] },
           dataFimStatus: { lt: hoje },
+          dataDesligamento: null,
+        },
+        // Desligados no mês visualizado: permanecem visíveis até o fim do mês do desligamento
+        {
+          status: "INATIVO",
+          dataDesligamento: { gte: inicioMes, lte: fimMes },
         },
       ],
-      dataDesligamento: null,
       // Isolamento por estação: ADMIN vê todas, demais só a sua
       ...(!req.dbContext?.isGlobal && req.dbContext?.estacaoId
         ? { idEstacao: req.dbContext.estacaoId }

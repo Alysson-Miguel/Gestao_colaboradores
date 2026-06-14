@@ -14,7 +14,13 @@ const {
   errorResponse,
   forbiddenResponse,
 } = require("../utils/response");
-const { gerarDSRBackfillColaborador, gerarDSRFuturoColaborador, gerarOnboardingColaborador } = require("../services/dsrBackfill.service");
+const {
+  gerarDSRBackfillColaborador,
+  gerarDSRFuturoColaborador,
+  gerarOnboardingColaborador,
+  gerarFrequenciaDesligamento,
+  gerarFrequenciaAfastamento,
+} = require("../services/dsrBackfill.service");
 
 
 /* ================= HELPERS DE DATA (BR) ================= */
@@ -852,6 +858,8 @@ const updateColaborador = async (req, res) => {
     console.log("📦 DATA FINAL:", data);
 
     let nomeEscalaParaDSR = null;
+    let payloadDesligamento = null; // { dataDesligamento, tipoDesligamento }
+    let payloadAfastamento  = null; // { dataInicio, dataFim }
 
     const colaborador = await prisma.$transaction(async (tx) => {
       const hoje = startOfDayBR();
@@ -906,6 +914,11 @@ const updateColaborador = async (req, res) => {
             },
           });
         }
+
+        payloadDesligamento = {
+          dataDesligamento: dataDesl,
+          tipoDesligamento: tipoDesligamento ?? atual.tipoDesligamento ?? "DP",
+        };
       }
 
       /* =========================
@@ -944,6 +957,13 @@ const updateColaborador = async (req, res) => {
               },
             });
           }
+        }
+
+        if (virouAfastado) {
+          payloadAfastamento = {
+            dataInicio: atualizado.dataInicioStatus,
+            dataFim:    atualizado.dataFimStatus,
+          };
         }
       }
 
@@ -1029,6 +1049,32 @@ const updateColaborador = async (req, res) => {
         dataInicio: colaborador.dataAdmissao,
         idEstacao: idEstacaoColab,
       });
+    }
+
+    if (payloadDesligamento) {
+      try {
+        await gerarFrequenciaDesligamento({
+          opsId,
+          dataDesligamento: payloadDesligamento.dataDesligamento,
+          tipoDesligamento:  payloadDesligamento.tipoDesligamento,
+        });
+        console.log(`✅ Frequência desligamento gerada para ${opsId}`);
+      } catch (e) {
+        console.error(`❌ Erro ao gerar frequência desligamento para ${opsId}:`, e.message);
+      }
+    }
+
+    if (payloadAfastamento) {
+      try {
+        await gerarFrequenciaAfastamento({
+          opsId,
+          dataInicio: payloadAfastamento.dataInicio,
+          dataFim:    payloadAfastamento.dataFim,
+        });
+        console.log(`✅ Frequência afastamento gerada para ${opsId}`);
+      } catch (e) {
+        console.error(`❌ Erro ao gerar frequência afastamento para ${opsId}:`, e.message);
+      }
     }
 
     return successResponse(

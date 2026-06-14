@@ -145,8 +145,102 @@ async function gerarOnboardingColaborador({ opsId, dataAdmissao, tx = prisma, id
   }
 }
 
+/**
+ * Preenche os dias restantes do mês de desligamento com o tipo correspondente
+ * (DP / DV / DF) na tabela frequencia, a partir de dataDesligamento.
+ */
+async function gerarFrequenciaDesligamento({ opsId, dataDesligamento, tipoDesligamento, tx = prisma }) {
+  if (!opsId || !dataDesligamento) return;
+
+  const CODIGOS_VALIDOS = ["DP", "DV", "DF"];
+  const codigoInput = String(tipoDesligamento || "").toUpperCase();
+  const codigoFinal = CODIGOS_VALIDOS.find((c) => codigoInput.includes(c)) || "DP";
+
+  const tipoAus = await tx.tipoAusencia.findFirst({
+    where: { codigo: codigoFinal },
+    select: { idTipoAusencia: true },
+  });
+  if (!tipoAus) return;
+
+  // Usa UTC para evitar deslocamento de fuso (mesmo padrão do ponto.controller)
+  const d0 = new Date(dataDesligamento);
+  const inicio = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate()));
+  const fimMes = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 0)); // último dia do mês
+
+  for (
+    let cur = new Date(inicio);
+    cur.getTime() <= fimMes.getTime();
+    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate() + 1))
+  ) {
+    const dataRef = new Date(cur);
+    await tx.frequencia.upsert({
+      where: { opsId_dataReferencia: { opsId, dataReferencia: dataRef } },
+      update: {
+        idTipoAusencia: tipoAus.idTipoAusencia,
+        justificativa: "AUTO_DESLIGAMENTO",
+        manual: false,
+        validado: true,
+      },
+      create: {
+        opsId,
+        dataReferencia: dataRef,
+        idTipoAusencia: tipoAus.idTipoAusencia,
+        justificativa: "AUTO_DESLIGAMENTO",
+        manual: false,
+        validado: true,
+      },
+    });
+  }
+}
+
+/**
+ * Preenche o período de afastamento com AFA na tabela frequencia.
+ */
+async function gerarFrequenciaAfastamento({ opsId, dataInicio, dataFim, tx = prisma }) {
+  if (!opsId || !dataInicio || !dataFim) return;
+
+  const tipoAus = await tx.tipoAusencia.findFirst({
+    where: { OR: [{ codigo: "AFA" }, { codigo: "AF" }] },
+    select: { idTipoAusencia: true },
+    orderBy: { codigo: "asc" },
+  });
+  if (!tipoAus) return;
+
+  const di = new Date(dataInicio);
+  const df = new Date(dataFim);
+  const inicio = new Date(Date.UTC(di.getUTCFullYear(), di.getUTCMonth(), di.getUTCDate()));
+  const fim    = new Date(Date.UTC(df.getUTCFullYear(), df.getUTCMonth(), df.getUTCDate()));
+
+  for (
+    let cur = new Date(inicio);
+    cur.getTime() <= fim.getTime();
+    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate() + 1))
+  ) {
+    const dataRef = new Date(cur);
+    await tx.frequencia.upsert({
+      where: { opsId_dataReferencia: { opsId, dataReferencia: dataRef } },
+      update: {
+        idTipoAusencia: tipoAus.idTipoAusencia,
+        justificativa: "AUTO_AFASTAMENTO",
+        manual: false,
+        validado: true,
+      },
+      create: {
+        opsId,
+        dataReferencia: dataRef,
+        idTipoAusencia: tipoAus.idTipoAusencia,
+        justificativa: "AUTO_AFASTAMENTO",
+        manual: false,
+        validado: true,
+      },
+    });
+  }
+}
+
 module.exports = {
   gerarDSRBackfillColaborador,
   gerarDSRFuturoColaborador,
   gerarOnboardingColaborador,
+  gerarFrequenciaDesligamento,
+  gerarFrequenciaAfastamento,
 };
