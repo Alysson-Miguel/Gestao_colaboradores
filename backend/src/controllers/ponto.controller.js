@@ -1248,10 +1248,24 @@ const exportarPresencaSheets = async (req, res) => {
 
     console.log(`[${reqId}] Período: ${inicioMes.toISOString()} até ${fimMes.toISOString()}`);
 
-    // Exporta cargos operacionais
+    // Exporta cargos operacionais (inclui INATIVO do mês e FERIAS/AFASTADO)
+    const hojeExport = new Date();
+    hojeExport.setHours(0, 0, 0, 0);
+
     const whereColaborador = {
-      status: "ATIVO",
-      dataDesligamento: null,
+      OR: [
+        { status: "ATIVO", dataDesligamento: null },
+        {
+          status: { in: ["FERIAS", "AFASTADO"] },
+          dataFimStatus: { lt: hojeExport },
+          dataDesligamento: null,
+        },
+        // Desligados no mês exportado: aparecem até o fim do mês do desligamento
+        {
+          status: "INATIVO",
+          dataDesligamento: { gte: inicioMes, lte: fimMes },
+        },
+      ],
       ...(req.dbContext?.estacaoId ? { idEstacao: req.dbContext.estacaoId } : {}),
       cargo: {
         nomeCargo: {
