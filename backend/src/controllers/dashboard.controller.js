@@ -591,11 +591,6 @@ const carregarDashboard = async (req, res) => {
       }
     });
 
-    const absenteismoPeriodo =
-      totalHcAptoDias > 0
-        ? Number(((totalAusenciasDias / totalHcAptoDias) * 100).toFixed(2))
-        : 0;
-
     /* ===============================
        6️⃣.1 ATESTADOS MÉDICOS (origem: atestadosMedicos)
        Colaboradores com AM via tabela separada não têm registro em frequenciasPeriodo
@@ -689,6 +684,12 @@ const carregarDashboard = async (req, res) => {
         }
       }
     }
+
+    // Calculado APÓS seção 6.1 para incluir atestados sem registro em frequencia
+    const absenteismoPeriodo =
+      totalHcAptoDias > 0
+        ? Number(((totalAusenciasDias / totalHcAptoDias) * 100).toFixed(2))
+        : 0;
 
 /* ===============================
    7️⃣ DIARISTAS PRESENTES (REAIS)
