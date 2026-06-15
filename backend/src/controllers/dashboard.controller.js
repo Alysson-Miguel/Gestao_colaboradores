@@ -626,6 +626,12 @@ const carregarDashboard = async (req, res) => {
         );
 
         while (cur <= fimAtes) {
+          // Pula dias após o desligamento — colaborador INATIVO não conta como ausente
+          if (c.dataDesligamento && cur > new Date(c.dataDesligamento)) {
+            cur.setUTCDate(cur.getUTCDate() + 1);
+            continue;
+          }
+
           // Pula dias de DSR — colaborador está de folga, não é ausência
           const diaSemana = cur.getUTCDay();
           const ehDiaDSR = (c.escala?.diasDsr || []).includes(diaSemana);
