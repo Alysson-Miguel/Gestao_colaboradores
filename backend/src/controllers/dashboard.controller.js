@@ -441,11 +441,11 @@ const carregarDashboard = async (req, res) => {
       const c = registroSnapshot.colaborador;
       if (!c) return;
 
-      // Ignora colaboradores desligados — mas inclui quem foi desligado APÓS a data de referência
-      // (ex: desligado em 10/06 ainda deve aparecer nos registros de 01/06)
+      // Ignora colaboradores desligados — mas inclui quem foi desligado NA data ou depois
+      // (ex: desligado em 11/06 ainda deve aparecer no registro de 11/06, dia em que estava presente)
       const dataRefSnap = new Date(registroSnapshot.dataReferencia);
       const foiDesligadoDepois =
-        c.dataDesligamento && new Date(c.dataDesligamento) > dataRefSnap;
+        c.dataDesligamento && new Date(c.dataDesligamento) >= dataRefSnap;
       if (!["ATIVO", "FERIAS", "AFASTADO"].includes(c.status) && !foiDesligadoDepois) return;
 
       // Verifica cargo na data do registro — colaborador pode ter mudado de cargo depois
@@ -566,6 +566,11 @@ const carregarDashboard = async (req, res) => {
 
       // Alinhado à Seção 5: registro sem tipo e sem hora não é lançamento real
       if (isRegistroVazio(f)) return;
+
+      // Alinhado à Seção 5: inclui INATIVO apenas no dia do desligamento ou antes
+      const dataRefSnap6 = new Date(f.dataReferencia);
+      const foiDesligadoDepois6 = c.dataDesligamento && new Date(c.dataDesligamento) >= dataRefSnap6;
+      if (!["ATIVO", "FERIAS", "AFASTADO"].includes(c.status) && !foiDesligadoDepois6) return;
 
       // Verifica cargo na data do registro — colaborador pode ter mudado de cargo depois
       if (!isCargoElegivelNoDia(c.opsId, f.dataReferencia, c.cargo?.idCargo)) return;
