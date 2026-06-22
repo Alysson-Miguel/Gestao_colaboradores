@@ -46,7 +46,10 @@ function buildWhereHcApto(inicioDate, fimDate, empresaId, estacaoId, extras = {}
     ],
     colaborador: {
       is: {
-        status: { in: ["ATIVO", "FERIAS", "AFASTADO"] },
+        OR: [
+          { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
+          { dataDesligamento: { gte: inicioDate } },
+        ],
         cargo: { is: { nomeCargo: { in: CARGOS_ABSENTEISMO } } },
         ...(empresaIds.length
           ? { idEmpresa: { in: empresaIds.map(Number) } }
@@ -68,10 +71,13 @@ function buildWhereFrequencia(inicioDate, fimDate, empresaId, estacaoId, extras 
   const { setorNome, turnoNome } = extras;
   return {
     dataReferencia: { gte: inicioDate, lte: fimDate },
-    tipoAusencia: { is: { codigo: { in: ["F", "FJ", "AM", "AA"] } } },
+    tipoAusencia: { is: { codigo: { in: ["F", "FJ"] } } },
     colaborador: {
       is: {
-        status: { in: ["ATIVO", "FERIAS", "AFASTADO"] },
+        OR: [
+          { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
+          { dataDesligamento: { gte: inicioDate } },
+        ],
         cargo: { is: { nomeCargo: { in: CARGOS_ABSENTEISMO } } },
         ...(empresaIds.length
           ? { idEmpresa: { in: empresaIds.map(Number) } }
@@ -93,6 +99,10 @@ function buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras = 
     dataFim: { gte: inicioDate },
     status: { not: "CANCELADO" },
     colaborador: {
+      OR: [
+        { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
+        { dataDesligamento: { gte: inicioDate } },
+      ],
       cargo: { is: { nomeCargo: { in: CARGOS_ABSENTEISMO } } },
       ...(empresaIds.length
         ? { idEmpresa: { in: empresaIds.map(Number) } }
