@@ -237,10 +237,52 @@ async function gerarFrequenciaAfastamento({ opsId, dataInicio, dataFim, tx = pri
   }
 }
 
+/**
+ * Preenche os dias do mês de admissão ANTERIORES à dataAdmissao com NC no banco.
+ * Exemplo: admitido em 05/06 → cria NC para 01/06, 02/06, 03/06, 04/06.
+ * Usa skipDuplicates para não sobrescrever registros já existentes (ex: DSR).
+ */
+async function gerarNcPreAdmissao({ opsId, dataAdmissao, tx = prisma }) {
+  if (!opsId || !dataAdmissao) return;
+
+  const tipoNC = await tx.tipoAusencia.findFirst({
+    where: { codigo: "NC" },
+    select: { idTipoAusencia: true },
+  });
+  if (!tipoNC) return;
+
+  const adm = new Date(dataAdmissao);
+  const inicioMes = new Date(Date.UTC(adm.getUTCFullYear(), adm.getUTCMonth(), 1));
+  // Dia anterior à admissão (exclusive)
+  const ultimoDiaNC = new Date(Date.UTC(adm.getUTCFullYear(), adm.getUTCMonth(), adm.getUTCDate() - 1));
+
+  if (inicioMes > ultimoDiaNC) return; // Admitido no dia 1 — sem dias anteriores
+
+  const registros = [];
+  for (
+    let cur = new Date(inicioMes);
+    cur <= ultimoDiaNC;
+    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate() + 1))
+  ) {
+    registros.push({
+      opsId,
+      dataReferencia: new Date(cur),
+      idTipoAusencia: tipoNC.idTipoAusencia,
+      manual: false,
+      registradoPor: "SISTEMA_AUTO",
+    });
+  }
+
+  if (!registros.length) return;
+
+  await tx.frequencia.createMany({ data: registros, skipDuplicates: true });
+}
+
 module.exports = {
   gerarDSRBackfillColaborador,
   gerarDSRFuturoColaborador,
   gerarOnboardingColaborador,
   gerarFrequenciaDesligamento,
+  gerarNcPreAdmissao,
   gerarFrequenciaAfastamento,
 };

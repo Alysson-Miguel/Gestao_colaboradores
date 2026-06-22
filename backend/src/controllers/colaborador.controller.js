@@ -20,6 +20,7 @@ const {
   gerarOnboardingColaborador,
   gerarFrequenciaDesligamento,
   gerarFrequenciaAfastamento,
+  gerarNcPreAdmissao,
 } = require("../services/dsrBackfill.service");
 
 
@@ -636,6 +637,16 @@ const createColaborador = async (req, res) => {
          ONBOARDING (2 DIAS)
       ========================= */
       await gerarOnboardingColaborador({
+        opsId: novo.opsId,
+        dataAdmissao: dataAdmissaoDate || hoje,
+        tx,
+      });
+
+      /* =========================
+         NC PRÉ-ADMISSÃO
+         Preenche os dias do mês antes da admissão com NC
+      ========================= */
+      await gerarNcPreAdmissao({
         opsId: novo.opsId,
         dataAdmissao: dataAdmissaoDate || hoje,
         tx,
@@ -1628,6 +1639,48 @@ const backfillDSRTodos = async (req, res) => {
   }
 };
 
+/* ================= BACKFILL NC PRÉ-ADMISSÃO (MÊS ATUAL) ================= */
+const backfillNcPreAdmissao = async (req, res) => {
+  const agora = new Date();
+  const anoAtual = agora.getUTCFullYear();
+  const mesAtual = agora.getUTCMonth(); // 0-based
+
+  const inicioMes = new Date(Date.UTC(anoAtual, mesAtual, 1));
+  const fimMes    = new Date(Date.UTC(anoAtual, mesAtual + 1, 0, 23, 59, 59, 999));
+
+  res.json({ sucesso: true, mensagem: "Backfill NC pré-admissão iniciado em background. Verifique os logs do servidor." });
+
+  try {
+    const colaboradores = await prisma.colaborador.findMany({
+      where: {
+        dataAdmissao: { gte: inicioMes, lte: fimMes },
+      },
+      select: { opsId: true, dataAdmissao: true, nomeCompleto: true },
+    });
+
+    console.log(`[backfillNcPreAdmissao] ${colaboradores.length} colaborador(es) com admissão no mês atual`);
+
+    let processados = 0;
+    const erros = [];
+
+    for (const c of colaboradores) {
+      try {
+        await gerarNcPreAdmissao({ opsId: c.opsId, dataAdmissao: c.dataAdmissao });
+        processados++;
+        console.log(`✅ NC pré-admissão gerado para ${c.opsId} (${c.nomeCompleto}) — admissão: ${new Date(c.dataAdmissao).toISOString().slice(0, 10)}`);
+      } catch (err) {
+        erros.push({ opsId: c.opsId, erro: err.message });
+        console.error(`❌ Falhou para ${c.opsId}:`, err.message);
+      }
+    }
+
+    console.log(`[backfillNcPreAdmissao] Concluído. Processados: ${processados}, Erros: ${erros.length}`);
+    if (erros.length) console.log("Erros:", erros);
+  } catch (err) {
+    console.error("❌ ERRO backfillNcPreAdmissao:", err);
+  }
+};
+
 /* ================= FILTROS DA ESTAÇÃO ================= */
 const listarFiltrosEstacao = async (req, res) => {
   try {
@@ -1797,4 +1850,5 @@ module.exports = {
   listarFiltrosEstacao,
   exportarCsvColaboradores,
   backfillDSRTodos,
+  backfillNcPreAdmissao,
 };
