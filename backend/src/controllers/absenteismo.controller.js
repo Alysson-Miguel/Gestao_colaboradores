@@ -258,13 +258,28 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
 
     const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
-    const [faltas, atestados, hcAptoRecords] = await Promise.all([
+    const [frequenciasAll, atestados, hcAptoRecords] = await Promise.all([
+      // Busca TODOS os registros (igual ao operacional) — filtra código em JS para evitar problemas com is/nullable
       prisma.frequencia.findMany({
-        where: buildWhereFrequencia(inicioDate, fimDate, empresaId, estacaoId, extras, empresaIds),
+        where: {
+          dataReferencia: { gte: inicioDate, lte: fimDate },
+          colaborador: {
+            is: {
+              cargo: { is: { nomeCargo: { in: CARGOS_ABSENTEISMO } } },
+              ...(empresaIds.length
+                ? { idEmpresa: { in: empresaIds.map(Number) } }
+                : empresaId ? { idEmpresa: Number(empresaId) } : {}),
+              ...(estacaoId && { idEstacao: estacaoId }),
+              ...(extras.setorNome && { setor: { is: { nomeSetor: extras.setorNome } } }),
+              ...(extras.turnoNome && { turno: { is: { nomeTurno: extras.turnoNome } } }),
+            },
+          },
+        },
         include: {
           colaborador: {
             include: { empresa: true, setor: true, turno: true, lider: true, escala: true },
           },
+          tipoAusencia: true,
         },
       }),
       prisma.atestadoMedico.findMany({
@@ -280,6 +295,19 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
         include: { colaborador: { include: { turno: true, empresa: true } } },
       }),
     ]);
+
+    // Filtra em JS: apenas F/FJ/AM/AA, exclui desligados antes do período
+    const CODIGOS_AUSENCIA = new Set(["F", "FJ", "AM", "AA"]);
+    const faltas = frequenciasAll.filter((f) => {
+      const codigo = f.tipoAusencia?.codigo?.toUpperCase();
+      if (!CODIGOS_AUSENCIA.has(codigo)) return false;
+      const c = f.colaborador;
+      if (!c) return false;
+      if (!["ATIVO", "FERIAS", "AFASTADO"].includes(c.status)) {
+        if (!c.dataDesligamento || new Date(c.dataDesligamento) < inicioDate) return false;
+      }
+      return true;
+    });
 
     /* acc: cada chave armazena { faltas, atestados } */
     const acc = { empresa: {}, setor: {}, turno: {}, genero: {}, lider: {}, diaSemana: {}, escala: {} };
