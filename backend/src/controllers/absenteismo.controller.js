@@ -71,7 +71,7 @@ function buildWhereFrequencia(inicioDate, fimDate, empresaId, estacaoId, extras 
   const { setorNome, turnoNome } = extras;
   return {
     dataReferencia: { gte: inicioDate, lte: fimDate },
-    tipoAusencia: { is: { codigo: { in: ["F", "FJ"] } } },
+    tipoAusencia: { is: { codigo: { in: ["F", "FJ", "AM", "AA"] } } },
     colaborador: {
       is: {
         OR: [
@@ -97,7 +97,7 @@ function buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras = 
   return {
     dataInicio: { lte: fimDate },
     dataFim: { gte: inicioDate },
-    status: { not: "CANCELADO" },
+    status: "ATIVO",
     colaborador: {
       OR: [
         { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
@@ -289,6 +289,9 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
       obj[key][tipo]++;
     };
 
+    // opsIds já contados via frequencia — evita double-count com atestadoMedico
+    const opsIdsNaFrequencia = new Set(faltas.map(f => f.opsId));
+
     for (const f of faltas) {
       const c = f.colaborador;
       if (!c) continue;
@@ -304,6 +307,8 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
     for (const a of atestados) {
       const c = a.colaborador;
       if (!c) continue;
+      // Pula se já foi contado via frequencia (evita double-count AM/AA + atestadoMedico)
+      if (opsIdsNaFrequencia.has(a.opsId)) continue;
       inc(acc.empresa,   c.empresa?.razaoSocial || "N/I", "atestados");
       inc(acc.setor,     c.setor?.nomeSetor      || "N/I", "atestados");
       inc(acc.turno,     c.turno?.nomeTurno      || "N/I", "atestados");
