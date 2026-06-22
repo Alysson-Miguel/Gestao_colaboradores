@@ -2,6 +2,7 @@ const { prisma } = require("../config/database");
 const { getDateOperacional } = require("../utils/dateOperacional");
 const { buscarDwPlanejado } = require("../services/googleSheetsDW.service");
 const { buscarDwPlanejadoBanco } = require("../services/dwPlanejado.service");
+const { buscarDwPlanejadoCalculadoraBatch } = require("../services/googleSheetsCalculadora.service");
 
 const ESTACAO_SHEETS = 1;
 
@@ -768,15 +769,26 @@ const datasNoPeriodo = [];
 for (const turno of turnoNomes) {
   try {
     if (!estacaoIdDash) {
-      // Contexto global sem estação: busca no Sheets
+      // Contexto global sem estação: busca no Sheets daily_plan
       let total = 0;
       for (const dataStr of datasNoPeriodo) {
         const resultado = await buscarDwPlanejado(turno, dataStr);
         total += Number(resultado?.data?.dwPlanejado || 0);
       }
       diaristasPlanejadosPorTurno[turno] = total;
+    } else if (estacaoIdDash === ESTACAO_SHEETS) {
+      // Estação 1: busca na aba Calculadora (mesma fonte do Daily Works)
+      const turnoId = turnoIdMap[turno];
+      if (!turnoId) continue;
+      const requests = datasNoPeriodo.map((dataStr) => ({ dataISO: dataStr, idTurno: turnoId }));
+      const resultMap = await buscarDwPlanejadoCalculadoraBatch(requests);
+      let total = 0;
+      for (const dataStr of datasNoPeriodo) {
+        total += resultMap.get(`${dataStr}_${turnoId}`) || 0;
+      }
+      diaristasPlanejadosPorTurno[turno] = total;
     } else {
-      // Todas as estações (incluindo estação 1): busca no banco
+      // Demais estações: busca no banco
       const turnoId = turnoIdMap[turno];
       if (!turnoId) continue;
       const registros = await prisma.dwPlanejado.findMany({
