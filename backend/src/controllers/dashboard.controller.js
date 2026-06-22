@@ -722,9 +722,7 @@ await Promise.all(
           { data: { gte: new Date(isoDate(inicio) + "T00:00:00.000Z") } },
           { data: { lte: new Date(isoDate(fim) + "T00:00:00.000Z") } },
           { idTurno: turnoId },
-          ...(estacaoIdDash
-            ? [{ OR: [{ idEstacao: estacaoIdDash }, { idEstacao: null }] }]
-            : []),
+          ...(estacaoIdDash ? [{ idEstacao: estacaoIdDash }] : []),
         ],
       };
 
@@ -762,8 +760,8 @@ const datasNoPeriodo = [];
 
 for (const turno of turnoNomes) {
   try {
-    if (!estacaoIdDash || estacaoIdDash === ESTACAO_SHEETS) {
-      // Estação 1 ou global: busca no Sheets — soma todas as datas do período
+    if (!estacaoIdDash) {
+      // Contexto global sem estação: busca no Sheets
       let total = 0;
       for (const dataStr of datasNoPeriodo) {
         const resultado = await buscarDwPlanejado(turno, dataStr);
@@ -771,7 +769,7 @@ for (const turno of turnoNomes) {
       }
       diaristasPlanejadosPorTurno[turno] = total;
     } else {
-      // Demais estações: busca no banco pelo range
+      // Todas as estações (incluindo estação 1): busca no banco
       const turnoId = turnoIdMap[turno];
       if (!turnoId) continue;
       const registros = await prisma.dwPlanejado.findMany({
