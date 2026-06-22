@@ -401,7 +401,14 @@ const carregarDashboard = async (req, res) => {
     =============================== */
     // Turnos operacionais cadastrados no banco — filtrado pela estação atual
     const turnoNomes = [...new Set(turnos.map((t) => t.nomeTurno))];
-    const turnoIdMap = Object.fromEntries(turnos.map((t) => [t.nomeTurno, t.idTurno]));
+    // Prioriza o turno da estação atual; cai para idEstacao=null se não houver específico
+    const _estacaoIdParaMap = req.dbContext?.isGlobal ? null : (req.dbContext?.estacaoId ?? null);
+    const turnoIdMap = {};
+    for (const t of turnos) {
+      if (!turnoIdMap[t.nomeTurno] || t.idEstacao === _estacaoIdParaMap) {
+        turnoIdMap[t.nomeTurno] = t.idTurno;
+      }
+    }
 
     const turnoSetorAgg = {};
     const generoPorTurno = initTurnoMap(turnoNomes);
