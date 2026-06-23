@@ -636,6 +636,7 @@ function buildOverview({ frequencias, inicio, fim, colaboradores = [], atestados
     hcAcumulado,                                 // pessoa-dias acumulados no período
     presentes: presentesSet.size,
     faltas: faltasDias,
+    absDias,
     absenteismo:
       hcAcumulado > 0
         ? Number(((absDias / hcAcumulado) * 100).toFixed(2))
@@ -1787,9 +1788,7 @@ const carregarDashboardAdmin = async (req, res) => {
             admitidosPeriodo: admitidos.length,
             desligadosPeriodo: desligados.length,
           }),
-          atestados: atestados.filter(a =>
-            opsIdsEscaladosPeriodo.includes(a.opsId)
-          ).length,
+          atestados: overview.absDias - overview.faltas,
           faltas: overview.faltas,
           medidasDisciplinares: medidas.length,
           acidentes: acidentes.length,
