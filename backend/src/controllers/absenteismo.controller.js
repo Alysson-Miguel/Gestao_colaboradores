@@ -97,7 +97,7 @@ function buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras = 
   return {
     dataInicio: { lte: fimDate },
     dataFim:    { gte: inicioDate },
-    status: "ATIVO",
+    status: { not: "CANCELADO" },
     colaborador: {
       OR: [
         { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
