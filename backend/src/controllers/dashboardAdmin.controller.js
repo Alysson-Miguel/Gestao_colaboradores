@@ -593,12 +593,15 @@ function buildFaltasPorTempoCasa({ frequencias, colaboradoresMap }) {
 }
 
 /* ---------- OVERVIEW ---------- */
-function buildOverview({ frequencias, inicio, fim, colaboradores = [], atestadosDias = [] }) {
+function buildOverview({ frequencias, inicio, fim, colaboradores = [], opsIdsDesligados = [], atestadosDias = [] }) {
   const diasPeriodo = daysInclusive(inicio, fim);
 
-  // Apenas ATIVOs elegíveis entram no HC
+  // Apenas ATIVOs elegíveis entram no HC (denominador)
   const ativosElegiveis = colaboradores.filter(c => c.status === "ATIVO");
   const ativosSet = new Set(ativosElegiveis.map(c => c.opsId));
+
+  // Para ausências (numerador): ATIVO + recém-desligados (igual ao operacional)
+  const absDiasSet = new Set([...ativosSet, ...opsIdsDesligados]);
 
   // Conta dias excluídos por colaborador ATIVO (DSR, FE, AFA, NC, ON…)
   // Dias sem registro = trabalhando normalmente → não excluído
@@ -615,7 +618,7 @@ function buildOverview({ frequencias, inicio, fim, colaboradores = [], atestados
       excludedDays++;
     }
 
-    if (s.contaComoEscalado && ativosSet.has(f.opsId)) {
+    if (s.contaComoEscalado && absDiasSet.has(f.opsId)) {
       if (s.code === "P") presentesSet.add(f.opsId);
       if (s.impactaAbsenteismo) absDias++;
       if (s.code === "F" || s.code === "FJ") faltasDias++;
@@ -1585,9 +1588,21 @@ const carregarDashboardAdmin = async (req, res) => {
 /* ===============================
    BASE REAL DO PERÍODO (ESCALADOS)
 =============================== */
+    // Recém-desligados com cargo elegível: contam nas ausências (igual ao operacional)
+    const recentlyDesligados = await prisma.colaborador.findMany({
+      where: {
+        status: "INATIVO",
+        dataDesligamento: { gte: inicioFinal },
+        cargo: { nomeCargo: { contains: "AUXILIAR DE LOGÍSTICA", mode: "insensitive" } },
+        ...estacaoFilter,
+      },
+      select: { opsId: true },
+    });
+    const opsIdsDesligados = recentlyDesligados.map(c => c.opsId);
+
     const frequencias = await prisma.frequencia.findMany({
       where: {
-        opsId: { in: opsIds },
+        opsId: { in: [...opsIds, ...opsIdsDesligados] },
         dataReferencia: { gte: inicioFinal, lte: fimFinal },
       },
       include: { tipoAusencia: true },
@@ -1693,6 +1708,7 @@ const carregarDashboardAdmin = async (req, res) => {
       inicio: inicioFinal,
       fim: fimFinal,
       colaboradores: colaboradoresFiltrados,
+      opsIdsDesligados,
       atestadosDias,
     });
 
