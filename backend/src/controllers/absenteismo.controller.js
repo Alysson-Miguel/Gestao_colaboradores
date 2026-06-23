@@ -418,7 +418,7 @@ const getTendenciaAbsenteismo = async (req, res) => {
       }),
       prisma.atestadoMedico.findMany({
         where: buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras, empresaIds),
-        select: { dataInicio: true },
+        select: { dataInicio: true, dataFim: true },
       }),
     ]);
 
@@ -436,11 +436,15 @@ const getTendenciaAbsenteismo = async (req, res) => {
       }
     });
 
-    /* atestados por dia de início */
+    /* atestados — expande por todos os dias cobertos (clamped ao período consultado) */
     atestados.forEach((a) => {
-      const key = a.dataInicio.toISOString().slice(0, 10);
-      if (!mapa[key]) mapa[key] = { faltas: 0, atestados: 0 };
-      mapa[key].atestados += 1;
+      const di = new Date(Math.max(new Date(a.dataInicio).getTime(), inicioDate.getTime()));
+      const df = new Date(Math.min(new Date(a.dataFim).getTime(),    fimDate.getTime()));
+      for (let d = new Date(di); d <= df; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().slice(0, 10);
+        if (!mapa[key]) mapa[key] = { faltas: 0, atestados: 0 };
+        mapa[key].atestados += 1;
+      }
     });
 
     const resultado = Object.entries(mapa)
