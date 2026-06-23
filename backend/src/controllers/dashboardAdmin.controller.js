@@ -94,7 +94,7 @@ function getStatusDoDia(f) {
     if (codigo === "S1" || desc.includes("SINERGIA")) {
       return { code: "S1", contaComoEscalado: true, impactaAbsenteismo: false };
     }
-    if (codigo === "BH") {
+    if (codigo === "BH" || codigo === "BHDSR") {
       return { code: "BH", contaComoEscalado: true, impactaAbsenteismo: false };
     }
     if (["AFA", "AF", "LM", "LP", "T"].includes(codigo)) {
@@ -615,7 +615,7 @@ function buildOverview({ frequencias, inicio, fim, colaboradores = [], atestados
       excludedDays++;
     }
 
-    if (s.contaComoEscalado) {
+    if (s.contaComoEscalado && ativosSet.has(f.opsId)) {
       if (s.code === "P") presentesSet.add(f.opsId);
       if (s.impactaAbsenteismo) absDias++;
       if (s.code === "F" || s.code === "FJ") faltasDias++;
