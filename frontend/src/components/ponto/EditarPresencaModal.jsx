@@ -1,4 +1,4 @@
-﻿import { X, Save, Trash2 } from "lucide-react";
+import { X, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenca";
 
@@ -6,7 +6,6 @@ import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenc
    STATUS PERMITIDOS
 ============================= */
 const STATUS_OPTIONS = [
-  { code: "AA", label: "Atestado acompanhamento" },
   { code: "AFA", label: "Afastamento" },
   { code: "BH", label: "Banco de horas" },
   { code: "DSR", label: "DSR" },
@@ -15,7 +14,6 @@ const STATUS_OPTIONS = [
   { code: "FE", label: "Férias" },
   { code: "FO", label: "Folga" },
   { code: "F", label: "Falta não justificada" },
-
   { code: "LM", label: "Licença maternidade" },
   { code: "LP", label: "Licença paternidade" },
   { code: "NC", label: "Não contratado"},
@@ -26,11 +24,11 @@ const STATUS_OPTIONS = [
   { code: "ON", label: "Onboarding" },
 ];
 
-
 /* =============================
    JUSTIFICATIVAS PADRÃO
 ============================= */
 const JUSTIFICATIVAS = [
+  { code: "BANCO_DE_HORAS", label: "Banco de Horas" },
   { code: "ESQUECIMENTO_MARCACAO", label: "Esquecimento da marcação" },
   { code: "ALTERACAO_PONTO", label: "Alteração de ponto" },
   { code: "MARCACAO_INDEVIDA", label: "Marcação indevida" },
@@ -41,8 +39,19 @@ const JUSTIFICATIVAS = [
   { code: "FALTA_INJUSTIFICADA", label: "Falta injustificada" },
 ];
 
-const STATUS_COM_HORARIO = ["P", "BH"];
+// Status que NÃO mostram campos de hora (justificativa automática)
+const STATUS_SEM_HORARIO = ["BH", "S1"];
 
+// Status que habilitam edição de hora (demais mostram campos mas desabilitados)
+const STATUS_COM_HORARIO = ["P"];
+
+function autoJustificativa(status) {
+  if (status === "ON") return "ON";
+  if (status === "F") return "FALTA_INJUSTIFICADA";
+  if (status === "S1") return "SINERGIA_ENVIADA";
+  if (status === "BH") return "BANCO_DE_HORAS";
+  return "BANCO_DE_HORAS";
+}
 
 function toHHMM(iso) {
   if (!iso) return "";
@@ -52,7 +61,6 @@ function toHHMM(iso) {
   return `${hh}:${mm}`;
 }
 
-
 export default function EditarPresencaModal({
   open,
   onClose,
@@ -60,15 +68,16 @@ export default function EditarPresencaModal({
   dia,
   registro,
   isAdmin = false,
-  onSuccess, // opcional: recarregar grade
-  onDelete,  // opcional: callback após deletar
+  onSuccess,
+  onDelete,
 }) {
-  const [status, setStatus] = useState("") ;
+  const [status, setStatus] = useState("");
   const [renderKey, setRenderKey] = useState(0);
   const [horaEntrada, setHoraEntrada] = useState("");
   const [horaSaida, setHoraSaida] = useState("");
-  const [justificativa, setJustificativa] = useState("");
+  const [justificativa, setJustificativa] = useState("BANCO_DE_HORAS");
   const [loading, setLoading] = useState(false);
+<<<<<<< HEAD
   const isOnboarding = status === "ON";
   const isFaltaInjustificada = status === "F";
   const isFolga = status === "FO";
@@ -76,40 +85,43 @@ export default function EditarPresencaModal({
   /* =============================
      INIT
   ============================= */
+=======
+
+  const mostrarHorario = status !== "BH" && status !== "S1" && status !== "";
+  const permiteHorario = status === "P";
+
+>>>>>>> 9d2bfc557fcb248e47aeb204a8d43144d663303b
   useEffect(() => {
     if (!open) return;
-
-    // Se o registro tem entrada mas status é "-" ou vazio, infere "P"
     const statusInicial = registro?.status && registro.status !== "-"
       ? registro.status
       : (registro?.entrada ? "P" : "");
     setStatus(statusInicial);
     setHoraEntrada(toHHMM(registro?.entrada));
     setHoraSaida(toHHMM(registro?.saida));
-    setJustificativa("");
-
-    // 🔑 FORÇA REMOUNT DOS INPUTS
+    setJustificativa(autoJustificativa(statusInicial));
     setRenderKey((k) => k + 1);
   }, [open, registro]);
 
   useEffect(() => {
-    if (isOnboarding) {
-      setJustificativa("ON");
+    setJustificativa(autoJustificativa(status));
+    if (STATUS_SEM_HORARIO.includes(status)) {
       setHoraEntrada("");
       setHoraSaida("");
       setRenderKey((k) => k + 1);
+<<<<<<< HEAD
     } else if (isFaltaInjustificada) {
       setJustificativa("FALTA_INJUSTIFICADA");
     } else if (isFolga) {
       setJustificativa("FOLGA");
     } else if (isSuspensao) {
       setJustificativa("SUSPENSAO");
+=======
+>>>>>>> 9d2bfc557fcb248e47aeb204a8d43144d663303b
     }
   }, [status]);
 
   if (!open) return null;
-
-  const permiteHorario = STATUS_COM_HORARIO.includes(status);
 
   async function handleDelete() {
     if (!registro?.idFrequencia) return;
@@ -129,7 +141,8 @@ export default function EditarPresencaModal({
     }
   }
 
-  async function handleSave() {    if (!status) {
+  async function handleSave() {
+    if (!status) {
       alert("Status é obrigatório");
       return;
     }
@@ -139,8 +152,7 @@ export default function EditarPresencaModal({
       return;
     }
 
-    if (permiteHorario) {
-      // 🔒 VALIDAÇÃO: Status P (Presente) OBRIGA horário de entrada
+    if (mostrarHorario && permiteHorario) {
       if (status === "P" && !horaEntrada) {
         alert("Horário de entrada é obrigatório para status 'Presente'");
         return;
@@ -152,25 +164,15 @@ export default function EditarPresencaModal({
       }
 
       if (horaEntrada && horaSaida) {
-      const [hE, mE] = horaEntrada.split(":").map(Number);
-      const [hS, mS] = horaSaida.split(":").map(Number);
-
-      let entradaMin = hE * 60 + mE;
-      let saidaMin = hS * 60 + mS;
-
-      let minutos = saidaMin - entradaMin;
-
-      // 🔑 VIRADA DE DIA (T3)
-      if (minutos < 0) {
-        minutos += 24 * 60;
+        const [hE, mE] = horaEntrada.split(":").map(Number);
+        const [hS, mS] = horaSaida.split(":").map(Number);
+        let minutos = (hS * 60 + mS) - (hE * 60 + mE);
+        if (minutos < 0) minutos += 24 * 60;
+        if (minutos <= 0 || minutos > 16 * 60) {
+          alert("Jornada inválida. Verifique os horários informados.");
+          return;
+        }
       }
-
-      // 🔒 REGRA DE SEGURANÇA
-      if (minutos <= 0 || minutos > 16 * 60) {
-        alert("Jornada inválida. Verifique os horários informados.");
-        return;
-      }
-    }
     }
 
     try {
@@ -181,8 +183,8 @@ export default function EditarPresencaModal({
         dataReferencia: dia.date,
         status,
         justificativa,
-        horaEntrada: permiteHorario ? horaEntrada || null : null,
-        horaSaida: permiteHorario ? horaSaida || null : null,
+        horaEntrada: (mostrarHorario && permiteHorario) ? horaEntrada || null : null,
+        horaSaida: (mostrarHorario && permiteHorario) ? horaSaida || null : null,
       });
 
       alert("Presença ajustada com sucesso");
@@ -191,18 +193,15 @@ export default function EditarPresencaModal({
         opsId: colaborador.opsId,
         dataReferencia: dia.date,
         status,
-        horaEntrada: permiteHorario ? horaEntrada || null : null,
-        horaSaida: permiteHorario ? horaSaida || null : null,
+        horaEntrada: (mostrarHorario && permiteHorario) ? horaEntrada || null : null,
+        horaSaida: (mostrarHorario && permiteHorario) ? horaSaida || null : null,
       });
 
       onClose();
 
     } catch (err) {
       console.error(err);
-      alert(
-        err?.response?.data?.message ||
-          "Erro ao ajustar presença"
-      );
+      alert(err?.response?.data?.message || "Erro ao ajustar presença");
     } finally {
       setLoading(false);
     }
@@ -212,14 +211,14 @@ export default function EditarPresencaModal({
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start sm:items-center justify-center pt-10 sm:pt-0 p-4">
       <div
         className="
-          w-full 
-          max-w-md 
-          max-h-[90vh] 
+          w-full
+          max-w-md
+          max-h-[90vh]
           overflow-y-auto
-          bg-surface 
-          rounded-2xl 
-          shadow-xl 
-          p-6 
+          bg-surface
+          rounded-2xl
+          shadow-xl
+          p-6
           space-y-6
         "
       >
@@ -247,7 +246,6 @@ export default function EditarPresencaModal({
             className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2"
           >
             <option value="">Selecione um status</option>
-
             {STATUS_OPTIONS.filter((s) => !s.adminOnly || isAdmin).map((s) => (
               <option key={s.code} value={s.code}>
                 {s.label}
@@ -256,41 +254,41 @@ export default function EditarPresencaModal({
           </select>
         </div>
 
-        {/* HORÁRIOS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-muted">
-              Hora Entrada
-              {status === "P" && <span className="text-red-400 ml-1">*</span>}
-            </label>
-            <input
-              key={`entrada-${renderKey}`}
-              type="time"
-              value={horaEntrada}
-              disabled={!permiteHorario}
-              onChange={(e) => setHoraEntrada(e.target.value)}
-              className={`w-full bg-surface-2 border rounded-xl px-4 py-2 disabled:opacity-40 ${
-                status === "P" && !horaEntrada 
-                  ? "border-red-400" 
-                  : "border-default"
-              }`}
-            />
+        {/* HORÁRIOS — oculto para BH e S1 */}
+        {mostrarHorario && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-muted">
+                Hora Entrada
+                {status === "P" && <span className="text-red-400 ml-1">*</span>}
+              </label>
+              <input
+                key={`entrada-${renderKey}`}
+                type="time"
+                value={horaEntrada}
+                disabled={!permiteHorario}
+                onChange={(e) => setHoraEntrada(e.target.value)}
+                className={`w-full bg-surface-2 border rounded-xl px-4 py-2 disabled:opacity-40 ${
+                  status === "P" && !horaEntrada ? "border-red-400" : "border-default"
+                }`}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted">Hora Saída</label>
+              <input
+                key={`saida-${renderKey}`}
+                type="time"
+                value={horaSaida}
+                disabled={!permiteHorario}
+                onChange={(e) => setHoraSaida(e.target.value)}
+                className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2 disabled:opacity-40"
+              />
+            </div>
           </div>
-
-          <div>
-            <label className="text-xs text-muted">Hora Saída</label>
-            <input
-              key={`saida-${renderKey}`}
-              type="time"
-              value={horaSaida}
-              disabled={!permiteHorario}
-              onChange={(e) => setHoraSaida(e.target.value)}
-              className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2 disabled:opacity-40"
-            />
-          </div>
-        </div>
+        )}
 
         {/* JUSTIFICATIVA */}
+<<<<<<< HEAD
         {!isFolga && !isSuspensao && (
           <div>
             <label className="text-xs text-muted">
@@ -311,6 +309,25 @@ export default function EditarPresencaModal({
             </select>
           </div>
         )}
+=======
+        <div>
+          <label className="text-xs text-muted">
+            Justificativa <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={justificativa}
+            onChange={(e) => setJustificativa(e.target.value)}
+            className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2"
+          >
+            <option value="">Selecione uma justificativa</option>
+            {JUSTIFICATIVAS.map((j) => (
+              <option key={j.code} value={j.code}>
+                {j.label}
+              </option>
+            ))}
+          </select>
+        </div>
+>>>>>>> 9d2bfc557fcb248e47aeb204a8d43144d663303b
 
         {/* ACTIONS */}
         <div className="flex flex-col sm:flex-row justify-end gap-3">
@@ -322,7 +339,6 @@ export default function EditarPresencaModal({
             Cancelar
           </button>
 
-          {/* APAGAR — só admin/alta gestão e só quando há registro */}
           {isAdmin && registro?.idFrequencia && (
             <button
               onClick={handleDelete}
