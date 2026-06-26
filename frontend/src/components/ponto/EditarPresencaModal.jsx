@@ -77,20 +77,16 @@ export default function EditarPresencaModal({
   const [horaSaida, setHoraSaida] = useState("");
   const [justificativa, setJustificativa] = useState("BANCO_DE_HORAS");
   const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
   const isOnboarding = status === "ON";
   const isFaltaInjustificada = status === "F";
   const isFolga = status === "FO";
   const isSuspensao = status === "SU";
-  /* =============================
-     INIT
-  ============================= */
-=======
-
   const mostrarHorario = status !== "BH" && status !== "S1" && status !== "";
   const permiteHorario = status === "P";
 
->>>>>>> 9d2bfc557fcb248e47aeb204a8d43144d663303b
+  /* =============================
+     INIT
+  ============================= */
   useEffect(() => {
     if (!open) return;
     const statusInicial = registro?.status && registro.status !== "-"
@@ -109,15 +105,12 @@ export default function EditarPresencaModal({
       setHoraEntrada("");
       setHoraSaida("");
       setRenderKey((k) => k + 1);
-<<<<<<< HEAD
     } else if (isFaltaInjustificada) {
       setJustificativa("FALTA_INJUSTIFICADA");
     } else if (isFolga) {
       setJustificativa("FOLGA");
     } else if (isSuspensao) {
       setJustificativa("SUSPENSAO");
-=======
->>>>>>> 9d2bfc557fcb248e47aeb204a8d43144d663303b
     }
   }, [status]);
 
@@ -288,7 +281,6 @@ export default function EditarPresencaModal({
         )}
 
         {/* JUSTIFICATIVA */}
-<<<<<<< HEAD
         {!isFolga && !isSuspensao && (
           <div>
             <label className="text-xs text-muted">
@@ -309,25 +301,6 @@ export default function EditarPresencaModal({
             </select>
           </div>
         )}
-=======
-        <div>
-          <label className="text-xs text-muted">
-            Justificativa <span className="text-red-400">*</span>
-          </label>
-          <select
-            value={justificativa}
-            onChange={(e) => setJustificativa(e.target.value)}
-            className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2"
-          >
-            <option value="">Selecione uma justificativa</option>
-            {JUSTIFICATIVAS.map((j) => (
-              <option key={j.code} value={j.code}>
-                {j.label}
-              </option>
-            ))}
-          </select>
-        </div>
->>>>>>> 9d2bfc557fcb248e47aeb204a8d43144d663303b
 
         {/* ACTIONS */}
         <div className="flex flex-col sm:flex-row justify-end gap-3">
