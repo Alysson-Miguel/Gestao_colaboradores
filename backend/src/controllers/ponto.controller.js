@@ -780,30 +780,12 @@ const getControlePresenca = async (req, res) => {
         const dataISO = ymd(dataCalendario);
         const key = `${c.opsId}_${dataISO}`;
 
-        /* ===============================
-           ATESTADO MÉDICO TEM PRIORIDADE MÁXIMA
-           (exceto quando o dia é DSR)
-        =============================== */
         const diasDsrAtestado = getDiasDsrNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.diasDsr || []);
         const diaDSR = isDiaDSRSync(dataCalendario, diasDsrAtestado);
 
-        const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
-          (a) =>
-            dataCalendario >= startOfDay(a.dataInicio) &&
-            dataCalendario <= startOfDay(a.dataFim)
-        );
-
-        if (atestadoDia) {
-          diasMap[dataISO] = {
-            status: "AM",
-            origem: "atestado",
-            manual: false,
-          };
-          continue;
-        }
-
         /* ===============================
-           MANUAL TEM PRIORIDADE
+           MANUAL TEM PRIORIDADE MÁXIMA
+           (sobrepõe atestado — override explícito do operador)
         =============================== */
         if (freqMap[key]?.manual) {
           const f = freqMap[key];
@@ -819,6 +801,25 @@ const getControlePresenca = async (req, res) => {
               ? (userNomeMap[f.registradoPor] || f.registradoPor)
               : null,
             justificativa: f.justificativa || null,
+          };
+          continue;
+        }
+
+        /* ===============================
+           ATESTADO MÉDICO
+           (exceto quando o dia é DSR)
+        =============================== */
+        const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
+          (a) =>
+            dataCalendario >= startOfDay(a.dataInicio) &&
+            dataCalendario <= startOfDay(a.dataFim)
+        );
+
+        if (atestadoDia) {
+          diasMap[dataISO] = {
+            status: "AM",
+            origem: "atestado",
+            manual: false,
           };
           continue;
         }
@@ -1402,18 +1403,7 @@ const exportarPresencaSheets = async (req, res) => {
         const diasDsrDiaCtrl = getDiasDsrNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.diasDsr || []);
         const diaDSR = isDiaDSRSync(dataCalendario, diasDsrDiaCtrl);
 
-        // Atestado médico tem prioridade máxima (exceto em dias de DSR)
-        const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
-          (a) =>
-            dataCalendario >= startOfDay(a.dataInicio) &&
-            dataCalendario <= startOfDay(a.dataFim)
-        );
-        if (atestadoDia) {
-          diasMap[dataISO] = { status: "AM", origem: "atestado", manual: false };
-          continue;
-        }
-
-        // Manual tem prioridade
+        // Manual tem prioridade máxima (override explícito do operador, sobrepõe atestado)
         if (freqMap[key]?.manual) {
           const f = freqMap[key];
           diasMap[dataISO] = {
@@ -1423,6 +1413,17 @@ const exportarPresencaSheets = async (req, res) => {
             validado: !!f.validado,
             manual: true,
           };
+          continue;
+        }
+
+        // Atestado médico (exceto em dias de DSR)
+        const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
+          (a) =>
+            dataCalendario >= startOfDay(a.dataInicio) &&
+            dataCalendario <= startOfDay(a.dataFim)
+        );
+        if (atestadoDia) {
+          diasMap[dataISO] = { status: "AM", origem: "atestado", manual: false };
           continue;
         }
 

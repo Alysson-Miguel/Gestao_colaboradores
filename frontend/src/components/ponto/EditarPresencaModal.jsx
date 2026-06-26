@@ -1,4 +1,4 @@
-﻿import { X, Save, Trash2 } from "lucide-react";
+import { X, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenca";
 
@@ -6,7 +6,6 @@ import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenc
    STATUS PERMITIDOS
 ============================= */
 const STATUS_OPTIONS = [
-  { code: "AA", label: "Atestado acompanhamento" },
   { code: "AFA", label: "Afastamento" },
   { code: "BH", label: "Banco de horas" },
   { code: "DSR", label: "DSR" },
@@ -15,7 +14,6 @@ const STATUS_OPTIONS = [
   { code: "FE", label: "Férias" },
   { code: "FO", label: "Folga" },
   { code: "F", label: "Falta não justificada" },
-
   { code: "LM", label: "Licença maternidade" },
   { code: "LP", label: "Licença paternidade" },
   { code: "NC", label: "Não contratado"},
@@ -25,11 +23,11 @@ const STATUS_OPTIONS = [
   { code: "ON", label: "Onboarding" },
 ];
 
-
 /* =============================
    JUSTIFICATIVAS PADRÃO
 ============================= */
 const JUSTIFICATIVAS = [
+  { code: "BANCO_DE_HORAS", label: "Banco de Horas" },
   { code: "ESQUECIMENTO_MARCACAO", label: "Esquecimento da marcação" },
   { code: "ALTERACAO_PONTO", label: "Alteração de ponto" },
   { code: "MARCACAO_INDEVIDA", label: "Marcação indevida" },
@@ -40,17 +38,12 @@ const JUSTIFICATIVAS = [
   { code: "FALTA_INJUSTIFICADA", label: "Falta injustificada" },
 ];
 
-const STATUS_COM_HORARIO = ["P", "BH"];
-
-
-function toHHMM(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+function autoJustificativa(status) {
+  if (status === "ON") return "ON";
+  if (status === "F") return "FALTA_INJUSTIFICADA";
+  if (status === "S1") return "SINERGIA_ENVIADA";
+  return "BANCO_DE_HORAS";
 }
-
 
 export default function EditarPresencaModal({
   open,
@@ -59,50 +52,27 @@ export default function EditarPresencaModal({
   dia,
   registro,
   isAdmin = false,
-  onSuccess, // opcional: recarregar grade
-  onDelete,  // opcional: callback após deletar
+  onSuccess,
+  onDelete,
 }) {
-  const [status, setStatus] = useState("") ;
-  const [renderKey, setRenderKey] = useState(0);
-  const [horaEntrada, setHoraEntrada] = useState("");
-  const [horaSaida, setHoraSaida] = useState("");
-  const [justificativa, setJustificativa] = useState("");
+  const [status, setStatus] = useState("");
+  const [justificativa, setJustificativa] = useState("BANCO_DE_HORAS");
   const [loading, setLoading] = useState(false);
-  const isOnboarding = status === "ON";
-  const isFaltaInjustificada = status === "F";
-  /* =============================
-     INIT
-  ============================= */
+
   useEffect(() => {
     if (!open) return;
-
-    // Se o registro tem entrada mas status é "-" ou vazio, infere "P"
     const statusInicial = registro?.status && registro.status !== "-"
       ? registro.status
       : (registro?.entrada ? "P" : "");
     setStatus(statusInicial);
-    setHoraEntrada(toHHMM(registro?.entrada));
-    setHoraSaida(toHHMM(registro?.saida));
-    setJustificativa("");
-
-    // 🔑 FORÇA REMOUNT DOS INPUTS
-    setRenderKey((k) => k + 1);
+    setJustificativa(autoJustificativa(statusInicial));
   }, [open, registro]);
 
   useEffect(() => {
-    if (isOnboarding) {
-      setJustificativa("ON");
-      setHoraEntrada("");
-      setHoraSaida("");
-      setRenderKey((k) => k + 1);
-    } else if (isFaltaInjustificada) {
-      setJustificativa("FALTA_INJUSTIFICADA");
-    }
+    setJustificativa(autoJustificativa(status));
   }, [status]);
 
   if (!open) return null;
-
-  const permiteHorario = STATUS_COM_HORARIO.includes(status);
 
   async function handleDelete() {
     if (!registro?.idFrequencia) return;
@@ -122,7 +92,8 @@ export default function EditarPresencaModal({
     }
   }
 
-  async function handleSave() {    if (!status) {
+  async function handleSave() {
+    if (!status) {
       alert("Status é obrigatório");
       return;
     }
@@ -130,40 +101,6 @@ export default function EditarPresencaModal({
     if (!justificativa) {
       alert("Justificativa é obrigatória");
       return;
-    }
-
-    if (permiteHorario) {
-      // 🔒 VALIDAÇÃO: Status P (Presente) OBRIGA horário de entrada
-      if (status === "P" && !horaEntrada) {
-        alert("Horário de entrada é obrigatório para status 'Presente'");
-        return;
-      }
-
-      if (horaSaida && !horaEntrada) {
-        alert("Hora de saída não pode existir sem hora de entrada");
-        return;
-      }
-
-      if (horaEntrada && horaSaida) {
-      const [hE, mE] = horaEntrada.split(":").map(Number);
-      const [hS, mS] = horaSaida.split(":").map(Number);
-
-      let entradaMin = hE * 60 + mE;
-      let saidaMin = hS * 60 + mS;
-
-      let minutos = saidaMin - entradaMin;
-
-      // 🔑 VIRADA DE DIA (T3)
-      if (minutos < 0) {
-        minutos += 24 * 60;
-      }
-
-      // 🔒 REGRA DE SEGURANÇA
-      if (minutos <= 0 || minutos > 16 * 60) {
-        alert("Jornada inválida. Verifique os horários informados.");
-        return;
-      }
-    }
     }
 
     try {
@@ -174,8 +111,8 @@ export default function EditarPresencaModal({
         dataReferencia: dia.date,
         status,
         justificativa,
-        horaEntrada: permiteHorario ? horaEntrada || null : null,
-        horaSaida: permiteHorario ? horaSaida || null : null,
+        horaEntrada: null,
+        horaSaida: null,
       });
 
       alert("Presença ajustada com sucesso");
@@ -184,8 +121,8 @@ export default function EditarPresencaModal({
         opsId: colaborador.opsId,
         dataReferencia: dia.date,
         status,
-        horaEntrada: permiteHorario ? horaEntrada || null : null,
-        horaSaida: permiteHorario ? horaSaida || null : null,
+        horaEntrada: null,
+        horaSaida: null,
       });
 
       onClose();
@@ -205,14 +142,14 @@ export default function EditarPresencaModal({
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start sm:items-center justify-center pt-10 sm:pt-0 p-4">
       <div
         className="
-          w-full 
-          max-w-md 
-          max-h-[90vh] 
+          w-full
+          max-w-md
+          max-h-[90vh]
           overflow-y-auto
-          bg-surface 
-          rounded-2xl 
-          shadow-xl 
-          p-6 
+          bg-surface
+          rounded-2xl
+          shadow-xl
+          p-6
           space-y-6
         "
       >
@@ -249,40 +186,6 @@ export default function EditarPresencaModal({
           </select>
         </div>
 
-        {/* HORÁRIOS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-muted">
-              Hora Entrada
-              {status === "P" && <span className="text-red-400 ml-1">*</span>}
-            </label>
-            <input
-              key={`entrada-${renderKey}`}
-              type="time"
-              value={horaEntrada}
-              disabled={!permiteHorario}
-              onChange={(e) => setHoraEntrada(e.target.value)}
-              className={`w-full bg-surface-2 border rounded-xl px-4 py-2 disabled:opacity-40 ${
-                status === "P" && !horaEntrada 
-                  ? "border-red-400" 
-                  : "border-default"
-              }`}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-muted">Hora Saída</label>
-            <input
-              key={`saida-${renderKey}`}
-              type="time"
-              value={horaSaida}
-              disabled={!permiteHorario}
-              onChange={(e) => setHoraSaida(e.target.value)}
-              className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2 disabled:opacity-40"
-            />
-          </div>
-        </div>
-
         {/* JUSTIFICATIVA */}
         <div>
           <label className="text-xs text-muted">
@@ -290,9 +193,8 @@ export default function EditarPresencaModal({
           </label>
           <select
             value={justificativa}
-            disabled={isOnboarding || isFaltaInjustificada}
             onChange={(e) => setJustificativa(e.target.value)}
-            className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2 disabled:opacity-50"
+            className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2"
           >
             <option value="">Selecione uma justificativa</option>
             {JUSTIFICATIVAS.map((j) => (
@@ -313,7 +215,6 @@ export default function EditarPresencaModal({
             Cancelar
           </button>
 
-          {/* APAGAR — só admin/alta gestão e só quando há registro */}
           {isAdmin && registro?.idFrequencia && (
             <button
               onClick={handleDelete}
