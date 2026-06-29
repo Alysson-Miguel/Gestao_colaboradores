@@ -79,6 +79,8 @@ const getAllColaboradores = async (req, res) => {
     idLider,
     escala,
     turno,
+    cipa,
+    gestante,
   } = req.query;
 
   const skip = (Number(page) - 1) * Number(limit);
@@ -111,6 +113,8 @@ const getAllColaboradores = async (req, res) => {
       nomeTurno: turno, // "T1" | "T2" | "T3"
     };
   }
+  if (cipa === "true") where.cipa = true;
+  if (gestante === "true") where.gestante = true;
 
 
   try {
