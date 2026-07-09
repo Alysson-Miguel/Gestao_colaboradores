@@ -421,6 +421,7 @@ const carregarDashboard = async (req, res) => {
     const generoPorTurnoSeen = Object.fromEntries(
       [...turnoNomes, "Sem turno"].map((t) => [t, new Set()])
     );
+    const tempoCasaPorTurno = initTurnoMap(turnoNomes);
     const statusPorTurno = initTurnoMap(turnoNomes);
     const empresaPorTurno = initTurnoMap(turnoNomes);
     const ausenciasHoje = [];
@@ -568,6 +569,10 @@ const carregarDashboard = async (req, res) => {
       if (!generoPorTurnoSeen[turno].has(c.opsId)) {
         generoPorTurnoSeen[turno].add(c.opsId);
         generoPorTurno[turno][genero] = (generoPorTurno[turno][genero] || 0) + 1;
+
+        const faixaTempoCasa = calcularTempoDeCasa(c.dataAdmissao).faixa;
+        tempoCasaPorTurno[turno][faixaTempoCasa] =
+          (tempoCasaPorTurno[turno][faixaTempoCasa] || 0) + 1;
       }
 
       if (!empresaPorTurno[turno][empresa]) {
@@ -1049,6 +1054,13 @@ const aderenciaDW =
 
         generoPorTurno: Object.fromEntries(
           Object.entries(generoPorTurno).map(([t, g]) => [
+            t,
+            Object.entries(g).map(([name, value]) => ({ name, value })),
+          ])
+        ),
+
+        tempoCasaPorTurno: Object.fromEntries(
+          Object.entries(tempoCasaPorTurno).map(([t, g]) => [
             t,
             Object.entries(g).map(([name, value]) => ({ name, value })),
           ])
