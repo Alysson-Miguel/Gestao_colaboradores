@@ -167,6 +167,7 @@ export default function DashboardOperacional() {
       return todos.reduce(
         (acc, t) => {
           acc.totalEscalados += t.totalEscalados || 0;
+          acc.colaboradoresPlanejados += t.colaboradoresPlanejados || 0;
           acc.presentes += t.presentes || 0;
           acc.ausentes += t.ausentes || 0;
           acc.diaristasPlanejados += t.diaristasPlanejados || 0;
@@ -182,6 +183,7 @@ export default function DashboardOperacional() {
         },
         {
           totalEscalados: 0,
+          colaboradoresPlanejados: 0,
           presentes: 0,
           ausentes: 0,
           diaristasPlanejados: 0,
@@ -194,6 +196,7 @@ export default function DashboardOperacional() {
     return (
       dados?.distribuicaoTurnoSetor?.find((t) => t.turno === turnoSelecionado) || {
         totalEscalados: 0,
+        colaboradoresPlanejados: 0,
         presentes: 0,
         ausentes: 0,
         diaristasPresentes: 0,
@@ -206,6 +209,9 @@ export default function DashboardOperacional() {
     KPIs — POR TURNO (FONTE ÚNICA)
   ===================================================== */
   const totalColaboradores = turnoData.totalEscalados || 0;
+  // Card "Colaboradores Planejados" — fixo, baseado na escala (turno + DSR),
+  // não depende de lançamento de presença já ter sido feito no dia.
+  const colaboradoresPlanejados = turnoData.colaboradoresPlanejados || 0;
   const presentes = turnoData.presentes || 0;
   const ausencias = turnoData.ausentes || 0;
 
@@ -237,7 +243,7 @@ export default function DashboardOperacional() {
       {
         icon: Users,
         label: isPeriodo ? "Planejamentos no Período" : "Colaboradores Planejados",
-        value: totalColaboradores,
+        value: colaboradoresPlanejados,
       },
       {
         icon: Clock,
@@ -285,6 +291,7 @@ export default function DashboardOperacional() {
     [
       isPeriodo,
       totalColaboradores,
+      colaboradoresPlanejados,
       presentes,
       ausencias,
       absenteismoTurno,
@@ -333,6 +340,16 @@ export default function DashboardOperacional() {
     () => {
       if (turnoSelecionado === "TODOS") return dados?.ausenciasHoje || [];
       return dados?.ausenciasHoje?.filter((a) => a.turno === turnoSelecionado) || [];
+    },
+    [dados, turnoSelecionado]
+  );
+
+  // Presenças/lançamentos registrados num dia de DSR do colaborador — não conta
+  // como planejado, mas o registro existe (ex: trabalhou no dia de folga).
+  const presencasForaEscalaTurno = useMemo(
+    () => {
+      if (turnoSelecionado === "TODOS") return dados?.presencasForaEscala || [];
+      return dados?.presencasForaEscala?.filter((p) => p.turno === turnoSelecionado) || [];
     },
     [dados, turnoSelecionado]
   );
@@ -561,6 +578,11 @@ export default function DashboardOperacional() {
             <StatusColaboradoresSection
               title="Status dos Colaboradores"
               items={statusItems}
+              footer={
+                presencasForaEscalaTurno.length > 0
+                  ? `⚠ ${presencasForaEscalaTurno.length} lançamento(s) em dia de DSR (colaborador trabalhou fora da escala)`
+                  : ""
+              }
             />
           </div>
 

@@ -146,6 +146,10 @@ function getStatusDoDiaOperacional(f) {
         return { label: "Licença Maternidade", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
       case "LP":
         return { label: "Licença Paternidade", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "AB":
+        return { label: "Licença - Atestado de Óbito", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
+      case "JE":
+        return { label: "Licença - Justiça Eleitoral", contaComoEscalado: false, impactaAbsenteismo: false, origem: "tipoAusencia" };
       case "S1":
         return { label: "Sinergia Enviada", contaComoEscalado: true, impactaAbsenteismo: false, origem: "tipoAusencia" };
       case "BH":
@@ -219,6 +223,7 @@ const carregarDashboard = async (req, res) => {
           periodo: { inicio: dataOperacionalStr, fim: dataOperacionalStr },
           kpis: {
             totalColaboradores: 0,
+            colaboradoresPlanejados: 0,
             presentes: 0,
             ausencias: 0,
             diaristasPlanejados: 0,
@@ -270,10 +275,10 @@ const carregarDashboard = async (req, res) => {
       await Promise.all([
         prisma.colaborador.findMany({
           where: {
-            // Inclui ativos + desligados após o início do período (para preservar histórico)
+            // Inclui ativos + desligados no dia do início do período em diante (para preservar histórico)
             OR: [
               { status: "ATIVO", dataDesligamento: null },
-              { dataDesligamento: { gt: inicio } },
+              { dataDesligamento: { gte: inicio } },
             ],
             ...(!req.dbContext?.isGlobal && req.dbContext?.estacaoId
               ? { idEstacao: req.dbContext.estacaoId }
@@ -416,10 +421,13 @@ const carregarDashboard = async (req, res) => {
     const generoPorTurnoSeen = Object.fromEntries(
       [...turnoNomes, "Sem turno"].map((t) => [t, new Set()])
     );
+    const tempoCasaPorTurno = initTurnoMap(turnoNomes);
     const statusPorTurno = initTurnoMap(turnoNomes);
     const empresaPorTurno = initTurnoMap(turnoNomes);
     const ausenciasHoje = [];
+    const presencasForaEscala = []; // status escalado lançado num dia que é DSR pela escala do colaborador
     const tendenciaPorDia = {}; // { data: { presentes, ausentes, escalados } }
+    const DIAS_PT_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
     const distribuicaoVinculoPorTurno = Object.fromEntries(
       turnoNomes.map((t) => [t, { SPX: 0, BPO: 0 }])
@@ -526,6 +534,26 @@ const carregarDashboard = async (req, res) => {
       // Só entra na base do dia se estava escalado (FO/DSR fora)
       if (!sSnap.contaComoEscalado) return;
 
+      // 🏷️ SINALIZAÇÃO: lançamento escalado (Presente/Folga/etc) num dia que é
+      // DSR pela escala do colaborador — ele não estava "planejado" pra hoje,
+      // mas há um registro real. Não altera nenhuma contagem, só sinaliza.
+      const diaSemanaSnap = new Date(registroSnapshot.dataReferencia).getUTCDay();
+      const diasDsrSnap = c.escala?.diasDsr || [];
+      if (diasDsrSnap.includes(diaSemanaSnap)) {
+        presencasForaEscala.push({
+          colaboradorId: c.opsId,
+          nome: c.nomeCompleto,
+          data: isoDate(registroSnapshot.dataReferencia),
+          diaSemana: DIAS_PT_CURTO[diaSemanaSnap],
+          turno,
+          status: sSnap.label,
+          escala: normalize(c.escala?.nomeEscala),
+          setor: normalize(c.setor?.nomeSetor),
+          empresa: normalize(c.empresa?.razaoSocial),
+          lider: normalize(c.lider?.nomeCompleto),
+        });
+      }
+
       if (!turnoSetorAgg[turno]) {
         turnoSetorAgg[turno] = {
           turno,
@@ -541,6 +569,10 @@ const carregarDashboard = async (req, res) => {
       if (!generoPorTurnoSeen[turno].has(c.opsId)) {
         generoPorTurnoSeen[turno].add(c.opsId);
         generoPorTurno[turno][genero] = (generoPorTurno[turno][genero] || 0) + 1;
+
+        const faixaTempoCasa = calcularTempoDeCasa(c.dataAdmissao).faixa;
+        tempoCasaPorTurno[turno][faixaTempoCasa] =
+          (tempoCasaPorTurno[turno][faixaTempoCasa] || 0) + 1;
       }
 
       if (!empresaPorTurno[turno][empresa]) {
@@ -752,6 +784,86 @@ const carregarDashboard = async (req, res) => {
         : 0;
 
 /* ===============================
+   6️⃣.2 DATAS NO PERÍODO (compartilhado com 7️⃣.1 e 6️⃣.3)
+=============================== */
+const datasNoPeriodo = [];
+{
+  const cur = new Date(isoDate(inicio) + "T00:00:00.000Z");
+  const fimDate = new Date(isoDate(fim) + "T00:00:00.000Z");
+  while (cur <= fimDate) {
+    datasNoPeriodo.push(isoDate(cur));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+}
+
+/* ===============================
+   6️⃣.3 COLABORADORES PLANEJADOS (DISPONIBILIDADE REAL)
+   Conta todo colaborador ativo/elegível cujo dia da semana não seja um dia
+   de DSR da sua escala E que não tenha lançamento real indicando férias/
+   afastamento/licença/AB/JE (contaComoEscalado=false) — quem está em uma
+   dessas licenças não estava de fato disponível pra ser escalado no dia.
+   Usado apenas no card "Colaboradores Planejados" — não altera
+   totalEscalados (base de ausências/absenteísmo/tendência). A soma das
+   categorias do card "Status dos Colaboradores" deve sempre bater com
+   este total.
+=============================== */
+const colaboradoresPlanejadosPorTurno = Object.fromEntries(turnoNomes.map((t) => [t, 0]));
+
+colaboradores.forEach((c) => {
+  const foiDesligadoDepois = c.dataDesligamento && new Date(c.dataDesligamento) >= inicio;
+  if (!["ATIVO", "FERIAS", "AFASTADO"].includes(c.status) && !foiDesligadoDepois) return;
+
+  const turno = normalizeTurno(c.turno?.nomeTurno);
+  if (turno === "Sem turno") return;
+  if (turnoFiltro && turno !== turnoFiltro) return;
+
+  const diasDsr = c.escala?.diasDsr || [];
+  const admissao = c.dataAdmissao ? new Date(c.dataAdmissao) : null;
+  const desligamento = c.dataDesligamento ? new Date(c.dataDesligamento) : null;
+
+  for (const dataStr of datasNoPeriodo) {
+    const dia = new Date(`${dataStr}T00:00:00.000Z`);
+
+    if (admissao && dia < admissao) continue;
+    if (desligamento && dia > desligamento) continue;
+    if (!isCargoElegivelNoDia(c.opsId, dia, c.cargo?.idCargo)) continue;
+
+    const diaSemana = dia.getUTCDay();
+    const ehDiaDsr = diasDsr.includes(diaSemana);
+
+    // Dia planejado sem lançamento real de frequência (ou registro vazio) — não sabemos
+    // se é falta, atraso no lançamento ou turno ainda em andamento. Mostra como categoria
+    // separada no card de Status apenas para visibilidade, SEM contar como ausência/falta
+    // e SEM entrar em totalHcAptoDias/totalAusenciasDias/empresaPorTurno/tendenciaPorDia.
+    const key = `${c.opsId}_${dataStr}`;
+    const freqRecord = _freqDedupMap.get(key);
+    const semLancamento = !freqRecord || isRegistroVazio(freqRecord);
+    const sSnapPlan = !semLancamento ? getStatusDoDiaOperacional(freqRecord) : null;
+
+    if (ehDiaDsr) {
+      // Dia de folga na escala — só entra em "Planejados" se há lançamento real
+      // de trabalho (colaborador trabalhou fora da escala); sem isso não é planejado.
+      if (!sSnapPlan || !sSnapPlan.contaComoEscalado) continue;
+    } else {
+      // Lançamento real de férias/afastamento/licença/AB/JE — colaborador não estava
+      // disponível pra ser escalado nesse dia, então não entra em "Planejados".
+      if (sSnapPlan && !sSnapPlan.contaComoEscalado) continue;
+    }
+
+    colaboradoresPlanejadosPorTurno[turno] += 1;
+
+    if (semLancamento && !ausenciasSet.has(key)) {
+      statusPorTurno[turno]["Sem Lançamento"] =
+        (statusPorTurno[turno]["Sem Lançamento"] || 0) + 1;
+    }
+  }
+});
+
+const totalColaboradoresPlanejados = Object.values(
+  colaboradoresPlanejadosPorTurno
+).reduce((a, b) => a + b, 0);
+
+/* ===============================
    7️⃣ DIARISTAS PRESENTES (REAIS)
 =============================== */
 const diaristasPresentes = Object.fromEntries(turnoNomes.map((t) => [t, 0]));
@@ -793,16 +905,7 @@ await Promise.all(
 =============================== */
 const diaristasPlanejadosPorTurno = Object.fromEntries(turnoNomes.map((t) => [t, 0]));
 
-// Gera lista de datas no período
-const datasNoPeriodo = [];
-{
-  const cur = new Date(isoDate(inicio) + "T00:00:00.000Z");
-  const fimDate = new Date(isoDate(fim) + "T00:00:00.000Z");
-  while (cur <= fimDate) {
-    datasNoPeriodo.push(isoDate(cur));
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-}
+// datasNoPeriodo já calculado na seção 6️⃣.2
 
 // Mapa de turno nome → número (T1→1, T2→2, T3→3) para lookup na Calculadora
 // A Calculadora usa TURNO_COL = {1:3, 2:4, 3:5} que corresponde ao número do turno, não ao idTurno do banco
@@ -922,18 +1025,23 @@ const aderenciaDW =
         // KPIs alinhados ao Admin
         kpis: {
           totalColaboradores: totalHcAptoDias,
+          colaboradoresPlanejados: totalColaboradoresPlanejados,
           presentes: totalHcAptoDias - totalAusenciasDias,
           ausencias: totalAusenciasDias,
           diaristasPlanejados: totalDiaristasPlanejados,
           diaristasPresentes: totalDiaristasPresentes,
           aderenciaDW,
           absenteismo: absenteismoPeriodo,
+          presencasForaEscala: presencasForaEscala.length,
         },
+
+        presencasForaEscala,
 
         distribuicaoTurnoSetor: turnoNomes.map((turno) => {
           const t = turnoSetorAgg[turno] || { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {} };
           return {
             ...t,
+            colaboradoresPlanejados: colaboradoresPlanejadosPorTurno[turno] || 0,
             diaristasPlanejados: diaristasPlanejadosPorTurno[turno] || 0,
             diaristasPresentes: diaristasPresentes[turno] || 0,
             aderenciaDW: aderenciaDwPorTurno[turno] || 0,
@@ -946,6 +1054,13 @@ const aderenciaDW =
 
         generoPorTurno: Object.fromEntries(
           Object.entries(generoPorTurno).map(([t, g]) => [
+            t,
+            Object.entries(g).map(([name, value]) => ({ name, value })),
+          ])
+        ),
+
+        tempoCasaPorTurno: Object.fromEntries(
+          Object.entries(tempoCasaPorTurno).map(([t, g]) => [
             t,
             Object.entries(g).map(([name, value]) => ({ name, value })),
           ])
