@@ -847,6 +847,21 @@ const getControlePresenca = async (req, res) => {
         }
 
         /* ===============================
+           STATUS DO COLABORADOR (AFASTADO / FERIAS)
+           Sobrepõe frequência e DSR — colaborador em férias/afastado
+           não deve mostrar DSR nem registros automáticos.
+           Manual já foi tratado acima e mantém prioridade.
+        =============================== */
+        if (c.status === "AFASTADO") {
+          diasMap[dataISO] = { status: "AFA", origem: "status", manual: false };
+          continue;
+        }
+        if (c.status === "FERIAS") {
+          diasMap[dataISO] = { status: "FE", origem: "status", manual: false };
+          continue;
+        }
+
+        /* ===============================
            FREQUÊNCIA
         =============================== */
         if (freqMap[key]) {
@@ -872,21 +887,6 @@ const getControlePresenca = async (req, res) => {
             status: "DSR",
             manual: false,
           };
-          continue;
-        }
-
-        /* ===============================
-           STATUS DO COLABORADOR (AFASTADO / FERIAS)
-           Quando não há ausência específica cadastrada na tabela ausencias,
-           usa o status do colaborador como fallback visual para não deixar "-"
-           em dias que o colaborador sabidamente não está disponível.
-        =============================== */
-        if (c.status === "AFASTADO") {
-          diasMap[dataISO] = { status: "AFA", origem: "status", manual: false };
-          continue;
-        }
-        if (c.status === "FERIAS") {
-          diasMap[dataISO] = { status: "FE", origem: "status", manual: false };
           continue;
         }
 
@@ -1454,6 +1454,16 @@ const exportarPresencaSheets = async (req, res) => {
           continue;
         }
 
+        // FERIAS/AFASTADO sobrepõe frequência automática e DSR
+        if (c.status === "AFASTADO") {
+          diasMap[dataISO] = { status: "AFA", manual: false };
+          continue;
+        }
+        if (c.status === "FERIAS") {
+          diasMap[dataISO] = { status: "FE", manual: false };
+          continue;
+        }
+
         // Frequência
         if (freqMap[key]) {
           const f = freqMap[key];
@@ -1464,16 +1474,6 @@ const exportarPresencaSheets = async (req, res) => {
             validado: f.validado,
             manual: f.manual ?? false,
           };
-          continue;
-        }
-
-        // Status do colaborador como fallback visual (FERIAS/AFASTADO sem registro de frequência)
-        if (c.status === "AFASTADO") {
-          diasMap[dataISO] = { status: "AFA", manual: false };
-          continue;
-        }
-        if (c.status === "FERIAS") {
-          diasMap[dataISO] = { status: "FE", manual: false };
           continue;
         }
 
