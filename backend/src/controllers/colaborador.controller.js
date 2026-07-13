@@ -68,54 +68,10 @@ function aplicarStatusDinamico(colaborador) {
 
 /* ================= GET ALL ================= */
 const getAllColaboradores = async (req, res) => {
-  const {
-    page = 1,
-    limit = 10,
-    search,
-    status,
-    idSetor,
-    idCargo,
-    idEmpresa,
-    idLider,
-    escala,
-    turno,
-    cipa,
-    gestante,
-  } = req.query;
+  const { page = 1, limit = 10 } = req.query;
 
   const skip = (Number(page) - 1) * Number(limit);
-  const where = {};
-
-  // Filtro de estação — ADMIN/ALTA_GESTAO veem tudo
-  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
-    where.idEstacao = req.dbContext.estacaoId;
-  }
-
-  if (search) {
-    where.OR = [
-      { nomeCompleto: { contains: search, mode: "insensitive" } },
-      { matricula: { contains: search, mode: "insensitive" } },
-      { opsId: { contains: search, mode: "insensitive" } },
-      { cpf: { contains: search, mode: "insensitive" } },
-    ];
-  }
-
-  if (status !== undefined && status !== "") {
-    where.status = status;
-  }
-  if (idSetor) where.idSetor = Number(idSetor);
-  if (idCargo) where.idCargo = Number(idCargo);
-  if (idEmpresa) where.idEmpresa = Number(idEmpresa);
-  if (idLider) where.idLider = idLider;
-  if (escala) { where.escala = { nomeEscala: escala};} // A | B | C
-  if (turno) {
-    where.turno = {
-      nomeTurno: turno, // "T1" | "T2" | "T3"
-    };
-  }
-  if (cipa === "true") where.cipa = true;
-  if (gestante === "true") where.gestante = true;
-
+  const where = buildWhere(req.query, req.dbContext);
 
   try {
     const [data, total] = await Promise.all([
@@ -1781,31 +1737,63 @@ const listarSetores = async (req, res) => {
 };
 
 /* ================= EXPORTAR CSV ================= */
+// Normaliza um valor de query string (string única, CSV ou array) em array
+function toArray(val) {
+  if (val === undefined || val === null || val === "") return undefined;
+  const arr = Array.isArray(val) ? val : String(val).split(",");
+  const clean = arr.map((v) => String(v).trim()).filter(Boolean);
+  return clean.length ? clean : undefined;
+}
+
 function buildWhere(query, dbContext) {
   const {
-    search, status, idSetor, idCargo, idEmpresa, idLider, escala, turno,
+    search, status, idSetor, idCargo, idEmpresa, idLider, escala, turno, cipa, gestante,
   } = query;
 
   const where = {};
+  const andConditions = [];
 
   if (!dbContext?.isGlobal && dbContext?.estacaoId) {
     where.idEstacao = dbContext.estacaoId;
   }
   if (search) {
-    where.OR = [
-      { nomeCompleto: { contains: search, mode: "insensitive" } },
-      { matricula:    { contains: search, mode: "insensitive" } },
-      { opsId:        { contains: search, mode: "insensitive" } },
-      { cpf:          { contains: search, mode: "insensitive" } },
-    ];
+    andConditions.push({
+      OR: [
+        { nomeCompleto: { contains: search, mode: "insensitive" } },
+        { matricula:    { contains: search, mode: "insensitive" } },
+        { opsId:        { contains: search, mode: "insensitive" } },
+        { cpf:          { contains: search, mode: "insensitive" } },
+      ],
+    });
   }
-  if (status)   where.status   = status;
-  if (idSetor)  where.idSetor  = Number(idSetor);
-  if (idCargo)  where.idCargo  = Number(idCargo);
-  if (idEmpresa) where.idEmpresa = Number(idEmpresa);
-  if (idLider)  where.idLider  = idLider;
-  if (escala)   where.escala   = { nomeEscala: escala };
-  if (turno)    where.turno    = { nomeTurno: turno };
+
+  const statusArr = toArray(status);
+  const statusConditions = [];
+  if (statusArr) statusConditions.push({ status: { in: statusArr } });
+  if (cipa === "true") statusConditions.push({ cipa: true });
+  if (gestante === "true") statusConditions.push({ gestante: true });
+  if (statusConditions.length === 1) andConditions.push(statusConditions[0]);
+  else if (statusConditions.length > 1) andConditions.push({ OR: statusConditions });
+
+  const idSetorArr = toArray(idSetor);
+  if (idSetorArr) where.idSetor = { in: idSetorArr.map(Number) };
+
+  const idCargoArr = toArray(idCargo);
+  if (idCargoArr) where.idCargo = { in: idCargoArr.map(Number) };
+
+  const idEmpresaArr = toArray(idEmpresa);
+  if (idEmpresaArr) where.idEmpresa = { in: idEmpresaArr.map(Number) };
+
+  const idLiderArr = toArray(idLider);
+  if (idLiderArr) where.idLider = { in: idLiderArr };
+
+  const escalaArr = toArray(escala);
+  if (escalaArr) where.escala = { nomeEscala: { in: escalaArr } };
+
+  const turnoArr = toArray(turno);
+  if (turnoArr) where.turno = { nomeTurno: { in: turnoArr } };
+
+  if (andConditions.length) where.AND = andConditions;
 
   return where;
 }
@@ -1829,6 +1817,7 @@ const exportarCsvColaboradores = async (req, res) => {
 
     const rows = data.map(aplicarStatusDinamico).map((c) => [
       c.nomeCompleto || "",
+      c.email || "",
       c.empresa?.razaoSocial || "",
       c.setor?.nomeSetor || "",
       c.turno?.nomeTurno || "",
@@ -1839,7 +1828,7 @@ const exportarCsvColaboradores = async (req, res) => {
       c.lider?.nomeCompleto || "",
     ]);
 
-    const header = ["Nome", "Empresa", "Setor", "Turno", "Escala", "Cargo", "Status", "Admissão", "Liderança"];
+    const header = ["Nome", "Email", "Empresa", "Setor", "Turno", "Escala", "Cargo", "Status", "Admissão", "Liderança"];
     const csvLines = [header, ...rows].map((r) =>
       r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
     );

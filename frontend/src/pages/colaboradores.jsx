@@ -10,18 +10,44 @@ import Header from "../components/Header";
 import EmployeeTable from "../components/EmployeeTable";
 import Pagination from "../components/Pagination";
 import LoadingScreen from "../components/LoadingScreen";
+import MultiSelect from "../components/MultiSelect";
 import { ColaboradoresAPI } from "../services/colaboradores";
+
+const STATUS_OPTIONS = [
+  { value: "ATIVO", label: "Ativo" },
+  { value: "INATIVO", label: "Inativo" },
+  { value: "AFASTADO", label: "Afastado" },
+  { value: "FERIAS", label: "Férias" },
+  { value: "CIPA", label: "CIPA" },
+  { value: "GESTANTE", label: "Gestante" },
+];
+
+/* Monta os parâmetros de query a partir dos filtros (multi-select) selecionados */
+function montarFiltrosParams({ turnos, escalas, lideres, status, cargos, setores }) {
+  const statusPuros = status.filter((s) => s !== "CIPA" && s !== "GESTANTE");
+
+  return {
+    turno: turnos.length ? turnos.join(",") : undefined,
+    escala: escalas.length ? escalas.join(",") : undefined,
+    idLider: lideres.length ? lideres.join(",") : undefined,
+    idCargo: cargos.length ? cargos.join(",") : undefined,
+    idSetor: setores.length ? setores.join(",") : undefined,
+    status: statusPuros.length ? statusPuros.join(",") : undefined,
+    cipa: status.includes("CIPA") ? "true" : undefined,
+    gestante: status.includes("GESTANTE") ? "true" : undefined,
+  };
+}
 
 export default function ColaboradoresPage() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
-  const [turnoSelecionado, setTurnoSelecionado] = useState("TODOS");
-  const [escalaSelecionada, setEscalaSelecionada] = useState("TODOS");
-  const [liderSelecionado, setLiderSelecionado] = useState("TODOS");
-  const [statusSelecionado, setStatusSelecionado] = useState("TODOS");
-  const [cargoSelecionado, setCargoSelecionado] = useState("TODOS");
-  const [setorSelecionado, setSetorSelecionado] = useState("TODOS");
+  const [turnosSelecionados, setTurnosSelecionados] = useState([]);
+  const [escalasSelecionadas, setEscalasSelecionadas] = useState([]);
+  const [lideresSelecionados, setLideresSelecionados] = useState([]);
+  const [statusSelecionados, setStatusSelecionados] = useState([]);
+  const [cargosSelecionados, setCargosSelecionados] = useState([]);
+  const [setoresSelecionados, setSetoresSelecionados] = useState([]);
 
   const [lideres, setLideres] = useState([]);
   const [cargos, setCargos] = useState([]);
@@ -69,14 +95,14 @@ export default function ColaboradoresPage() {
         page,
         limit,
         search: query || undefined,
-        turno: turnoSelecionado !== "TODOS" ? turnoSelecionado : undefined,
-        escala: escalaSelecionada !== "TODOS" ? escalaSelecionada : undefined,
-        idLider: liderSelecionado !== "TODOS" ? liderSelecionado : undefined,
-        idCargo: cargoSelecionado !== "TODOS" ? Number(cargoSelecionado) : undefined,
-        idSetor: setorSelecionado !== "TODOS" ? Number(setorSelecionado) : undefined,
-        status: !["TODOS", "CIPA", "GESTANTE"].includes(statusSelecionado) ? statusSelecionado : undefined,
-        cipa: statusSelecionado === "CIPA" ? "true" : undefined,
-        gestante: statusSelecionado === "GESTANTE" ? "true" : undefined,
+        ...montarFiltrosParams({
+          turnos: turnosSelecionados,
+          escalas: escalasSelecionadas,
+          lideres: lideresSelecionados,
+          status: statusSelecionados,
+          cargos: cargosSelecionados,
+          setores: setoresSelecionados,
+        }),
       };
 
       const res = await ColaboradoresAPI.listar(params);
@@ -96,12 +122,12 @@ export default function ColaboradoresPage() {
     page,
     limit,
     query,
-    turnoSelecionado,
-    escalaSelecionada,
-    liderSelecionado,
-    statusSelecionado,
-    cargoSelecionado,
-    setorSelecionado,
+    turnosSelecionados,
+    escalasSelecionadas,
+    lideresSelecionados,
+    statusSelecionados,
+    cargosSelecionados,
+    setoresSelecionados,
   ]);
 
   useEffect(() => {
@@ -124,33 +150,33 @@ export default function ColaboradoresPage() {
     setPage(1);
   };
 
-  const handleTurnoChange = (val) => {
-    setTurnoSelecionado(val);
+  const handleTurnoChange = (vals) => {
+    setTurnosSelecionados(vals);
     setPage(1);
   };
 
-  const handleEscalaChange = (val) => {
-    setEscalaSelecionada(val);
+  const handleEscalaChange = (vals) => {
+    setEscalasSelecionadas(vals);
     setPage(1);
   };
 
-  const handleLiderChange = (val) => {
-    setLiderSelecionado(val);
+  const handleLiderChange = (vals) => {
+    setLideresSelecionados(vals);
     setPage(1);
   };
 
-  const handleStatusChange = (val) => {
-    setStatusSelecionado(val);
+  const handleStatusChange = (vals) => {
+    setStatusSelecionados(vals);
     setPage(1);
   };
 
-  const handleCargoChange = (val) => {
-    setCargoSelecionado(val);
+  const handleCargoChange = (vals) => {
+    setCargosSelecionados(vals);
     setPage(1);
   };
 
-  const handleSetorChange = (val) => {
-    setSetorSelecionado(val);
+  const handleSetorChange = (vals) => {
+    setSetoresSelecionados(vals);
     setPage(1);
   };
 
@@ -173,14 +199,14 @@ export default function ColaboradoresPage() {
       setExportando(true);
       const params = {
         search: query || undefined,
-        turno: turnoSelecionado !== "TODOS" ? turnoSelecionado : undefined,
-        escala: escalaSelecionada !== "TODOS" ? escalaSelecionada : undefined,
-        idLider: liderSelecionado !== "TODOS" ? liderSelecionado : undefined,
-        idCargo: cargoSelecionado !== "TODOS" ? Number(cargoSelecionado) : undefined,
-        idSetor: setorSelecionado !== "TODOS" ? Number(setorSelecionado) : undefined,
-        status: !["TODOS", "CIPA", "GESTANTE"].includes(statusSelecionado) ? statusSelecionado : undefined,
-        cipa: statusSelecionado === "CIPA" ? "true" : undefined,
-        gestante: statusSelecionado === "GESTANTE" ? "true" : undefined,
+        ...montarFiltrosParams({
+          turnos: turnosSelecionados,
+          escalas: escalasSelecionadas,
+          lideres: lideresSelecionados,
+          status: statusSelecionados,
+          cargos: cargosSelecionados,
+          setores: setoresSelecionados,
+        }),
       };
       const res = await ColaboradoresAPI.exportarCsv(params);
       const url = URL.createObjectURL(res.data);
@@ -232,83 +258,56 @@ export default function ColaboradoresPage() {
               </div>
 
               {/* TURNO */}
-              <select
-                value={turnoSelecionado}
-                onChange={(e) => handleTurnoChange(e.target.value)}
-                className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page"
-              >
-                <option value="TODOS">Turnos</option>
-                {turnos.map((t) => (
-                  <option key={t.idTurno} value={t.nomeTurno}>{t.nomeTurno}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Turnos"
+                selected={turnosSelecionados}
+                onChange={handleTurnoChange}
+                options={turnos.map((t) => ({ value: t.nomeTurno, label: t.nomeTurno }))}
+              />
 
               {/* ESCALA */}
-              <select
-                value={escalaSelecionada}
-                onChange={(e) => handleEscalaChange(e.target.value)}
-                className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page"
-              >
-                <option value="TODOS">Escalas</option>
-                {escalas.map((e) => (
-                  <option key={e.idEscala} value={e.nomeEscala}>{e.nomeEscala}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Escalas"
+                selected={escalasSelecionadas}
+                onChange={handleEscalaChange}
+                options={escalas.map((e) => ({ value: e.nomeEscala, label: e.nomeEscala }))}
+              />
 
               {/* SETOR */}
-              <select
-                value={setorSelecionado}
-                onChange={(e) => handleSetorChange(e.target.value)}
-                className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page"
-              >
-                <option value="TODOS">Setores</option>
-                {setores.map((s) => (
-                  <option key={s.idSetor} value={s.idSetor}>{s.nomeSetor}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Setores"
+                selected={setoresSelecionados}
+                onChange={handleSetorChange}
+                options={setores.map((s) => ({ value: s.idSetor, label: s.nomeSetor }))}
+              />
 
               {/* CARGO */}
-              <select
-                value={cargoSelecionado}
-                onChange={(e) => handleCargoChange(e.target.value)}
-                className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page"
-              >
-                <option value="TODOS">Cargos</option>
-                {cargos.map((c) => (
-                  <option key={c.idCargo} value={c.idCargo}>{c.nomeCargo}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Cargos"
+                selected={cargosSelecionados}
+                onChange={handleCargoChange}
+                options={cargos.map((c) => ({ value: c.idCargo, label: c.nomeCargo }))}
+              />
 
               {/* STATUS */}
-              <select
-                value={statusSelecionado}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page"
-              >
-                <option value="TODOS">Status</option>
-                <option value="ATIVO">Ativo</option>
-                <option value="INATIVO">Inativo</option>
-                <option value="AFASTADO">Afastado</option>
-                <option value="FERIAS">Férias</option>
-                <option disabled>──────────</option>
-                <option value="CIPA">CIPA</option>
-                <option value="GESTANTE">Gestante</option>
-              </select>
+              <MultiSelect
+                label="Status"
+                selected={statusSelecionados}
+                onChange={handleStatusChange}
+                options={STATUS_OPTIONS}
+              />
             </div>
 
             {/* LINHA 2: líder + ações */}
             <div className="flex flex-wrap items-center gap-3">
               {/* LÍDER */}
-              <select
-                value={liderSelecionado}
-                onChange={(e) => handleLiderChange(e.target.value)}
-                className="bg-surface border border-default px-4 py-2 rounded-xl text-sm text-page flex-1 min-w-[180px] max-w-xs"
-              >
-                <option value="TODOS">Líderes</option>
-                {lideres.map((l) => (
-                  <option key={l.opsId} value={l.opsId}>{l.nomeCompleto}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="Líderes"
+                selected={lideresSelecionados}
+                onChange={handleLiderChange}
+                options={lideres.map((l) => ({ value: l.opsId, label: l.nomeCompleto }))}
+                className="flex-1 min-w-[180px] max-w-xs"
+              />
 
 
               <div className="flex items-center gap-2 ml-auto">
