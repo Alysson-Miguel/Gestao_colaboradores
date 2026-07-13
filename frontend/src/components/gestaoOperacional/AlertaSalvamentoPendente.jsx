@@ -138,7 +138,7 @@ export default function AlertaSalvamentoPendente() {
             </div>
           ))}
         </div>
-        
+           
         <div className="mt-3 pt-3 border-t border-red-200">
           <p className="text-xs text-gray-600">
             💡 Clique em "Salvar" para executar o salvamento manualmente
