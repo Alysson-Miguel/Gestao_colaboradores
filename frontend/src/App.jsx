@@ -56,6 +56,7 @@ import NovoAcidente from "./pages/acidentes/novo";
 import TreinamentosPage from "./pages/treinamentos";
 import DetalhesTreinamento from "./pages/treinamentos/detalhes";
 import NovoTreinamento from "./pages/treinamentos/novo";
+import ImportarTreinamento from "./pages/treinamentos/importar";
 
 /* ================= DW ============================*/
 import DwListPage from "./pages/DailyWorks/dwList";
@@ -313,6 +314,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <NovoTreinamento />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/importar"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO"]}>
+            <ImportarTreinamento />
           </ProtectedRoute>
         }
       />

@@ -372,14 +372,19 @@ export default function Sidebar({ isOpen, onClose }) {
 
             <div
               className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                gestaoOpen && !isCollapsed ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
+                gestaoOpen && !isCollapsed ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
               }`}
             >
               <div className="ml-8 mt-1 space-y-1">
                 <SidebarSubItem
                   label="Treinamentos"
-                  active={isActive("/treinamentos")}
+                  active={isActive("/treinamentos") && !location.pathname.includes("/importar")}
                   onClick={() => go("/treinamentos")}
+                />
+                <SidebarSubItem
+                  label="Importar Treinamento"
+                  active={location.pathname === "/treinamentos/importar"}
+                  onClick={() => go("/treinamentos/importar")}
                 />
               </div>
             </div>
