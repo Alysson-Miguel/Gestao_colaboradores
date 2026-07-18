@@ -41,6 +41,7 @@ export default function EmployeeTable({ employees = [], onView }) {
                 "Escala",
                 "Turno",
                 "Admissão",
+                "Email",
                 "Status",
                 "",
               ].map((h) => (
@@ -122,6 +123,10 @@ export default function EmployeeTable({ employees = [], onView }) {
                       : "-"}
                   </td>
 
+                  <td className="px-5 py-4 text-muted">
+                    {emp.email || "-"}
+                  </td>
+
                   <td className="px-5 py-4">
                     <Badge.Status
                       variant={status === "ATIVO" ? "success" : "danger"}
@@ -173,6 +178,7 @@ export default function EmployeeTable({ employees = [], onView }) {
               </div>
 
               <div className="text-xs text-muted space-y-1">
+                <p>Email: {emp.email || "-"}</p>
                 <p>Setor: {emp.setor?.nomeSetor || "-"}</p>
                 <p>Empresa: {emp.empresa?.razaoSocial || "-"}</p>
                 <p>Turno: {emp.turno?.nomeTurno || "-"}</p>
