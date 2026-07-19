@@ -110,19 +110,21 @@ model HistoricoMovimentacao {
 }
 
 model User {
-  id                      String           @id @default(uuid())
-  name                    String
-  email                   String           @unique
-  password                String
-  role                    UserRole         @default(USER)
-  avatar                  String?
-  isActive                Boolean          @default(true)
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  opsId                   String?          @map("ops_id") @db.VarChar(50)
-  idEstacao               Int?             @map("id_estacao")
-  estacao                 Estacao?         @relation(fields: [idEstacao], references: [idEstacao])
-  folgasDominicaisCriadas FolgaDominical[]
+  id                               String                   @id @default(uuid())
+  name                             String
+  email                            String                   @unique
+  password                         String
+  role                             UserRole                 @default(USER)
+  avatar                           String?
+  isActive                         Boolean                  @default(true)
+  createdAt                        DateTime                 @default(now())
+  updatedAt                        DateTime                 @updatedAt
+  opsId                            String?                  @map("ops_id") @db.VarChar(50)
+  idEstacao                        Int?                     @map("id_estacao")
+  estacao                          Estacao?                 @relation(fields: [idEstacao], references: [idEstacao])
+  folgasDominicaisCriadas          FolgaDominical[]
+  solicitacoesTreinamentoCriadas   SolicitacaoTreinamento[] @relation("SolicitacaoTreinamentoSolicitante")
+  solicitacoesTreinamentoDecididas SolicitacaoTreinamento[] @relation("SolicitacaoTreinamentoDecisor")
 
   @@index([opsId], map: "idx_users_ops_id")
   @@index([idEstacao], map: "idx_users_id_estacao")
@@ -150,16 +152,17 @@ model Empresa {
 }
 
 model Setor {
-  idSetor       Int                @id @default(autoincrement()) @map("id_setor")
-  nomeSetor     String             @map("nome_setor") @db.VarChar(100)
-  descricao     String?
-  ativo         Boolean            @default(true)
-  dataCriacao   DateTime           @default(now()) @map("data_criacao")
-  idEstacao     Int?               @map("id_estacao")
-  estacao       Estacao?           @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_setor_estacao")
-  colaboradores Colaborador[]
-  frequencias   Frequencia[]
-  treinamentos  TreinamentoSetor[]
+  idSetor                 Int                      @id @default(autoincrement()) @map("id_setor")
+  nomeSetor               String                   @map("nome_setor") @db.VarChar(100)
+  descricao               String?
+  ativo                   Boolean                  @default(true)
+  dataCriacao             DateTime                 @default(now()) @map("data_criacao")
+  idEstacao               Int?                     @map("id_estacao")
+  estacao                 Estacao?                 @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_setor_estacao")
+  colaboradores           Colaborador[]
+  frequencias             Frequencia[]
+  treinamentos            TreinamentoSetor[]
+  solicitacoesTreinamento SolicitacaoTreinamento[]
 
   @@index([idEstacao], map: "idx_setor_id_estacao")
   @@map("setor")
@@ -182,28 +185,28 @@ model Cargo {
 }
 
 model Estacao {
-  idEstacao              Int           @id @default(autoincrement()) @map("id_estacao")
-  nomeEstacao            String        @unique @map("nome_estacao") @db.VarChar(100)
-  localizacao            String?       @db.VarChar(200)
-  capacidade             Int?
-  ativo                  Boolean       @default(true)
-  dataCriacao            DateTime      @default(now()) @map("data_criacao")
-  idRegional             Int?          @map("id_regional")
-  sheetsMetaProducaoId   String?       @map("sheets_meta_producao_id") @db.VarChar(200)
-  sheetsPresencaId       String?       @map("sheets_presenca_id") @db.VarChar(200)
-  emailRh                String[]      @default([]) @map("email_rh")
-  seatalkGroupId         String?       @map("seatalk_group_id") @db.VarChar(200)
-  colaboradores          Colaborador[]
-  users                  User[]
-  setores                Setor[]
-  cargos                 Cargo[]
-  turnos                 Turno[]
-  empresas               Empresa[]
-  escalas                Escala[]
-  desligamentos          Desligamento[]
-  dwPlanejados           DwPlanejado[]
-  dwReais                DwReal[]
-  regional               Regional?     @relation(fields: [idRegional], references: [idRegional], onUpdate: NoAction, map: "fk_estacao_regional")
+  idEstacao            Int            @id @default(autoincrement()) @map("id_estacao")
+  nomeEstacao          String         @unique @map("nome_estacao") @db.VarChar(100)
+  localizacao          String?        @db.VarChar(200)
+  capacidade           Int?
+  ativo                Boolean        @default(true)
+  dataCriacao          DateTime       @default(now()) @map("data_criacao")
+  idRegional           Int?           @map("id_regional")
+  sheetsMetaProducaoId String?        @map("sheets_meta_producao_id") @db.VarChar(200)
+  sheetsPresencaId     String?        @map("sheets_presenca_id") @db.VarChar(200)
+  emailRh              String[]       @default([]) @map("email_rh")
+  seatalkGroupId       String?        @map("seatalk_group_id") @db.VarChar(200)
+  colaboradores        Colaborador[]
+  users                User[]
+  setores              Setor[]
+  cargos               Cargo[]
+  turnos               Turno[]
+  empresas             Empresa[]
+  escalas              Escala[]
+  desligamentos        Desligamento[]
+  dwPlanejados         DwPlanejado[]
+  dwReais              DwReal[]
+  regional             Regional?      @relation(fields: [idRegional], references: [idRegional], onUpdate: NoAction, map: "fk_estacao_regional")
 
   @@index([idRegional], map: "idx_estacao_id_regional")
   @@map("estacao")
@@ -230,18 +233,20 @@ model Escala {
 }
 
 model Turno {
-  idTurno        Int           @id @default(autoincrement()) @map("id_turno")
-  nomeTurno      String        @map("nome_turno") @db.VarChar(50)
-  horarioInicio  DateTime      @map("horario_inicio") @db.Time(6)
-  horarioFim     DateTime      @map("horario_fim") @db.Time(6)
-  ativo          Boolean       @default(true)
-  isOperacional  Boolean       @default(true) @map("is_operacional")
-  dataCriacao    DateTime      @default(now()) @map("data_criacao")
-  idEstacao      Int?          @map("id_estacao")
-  estacao       Estacao?      @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_turno_estacao")
-  colaboradores Colaborador[]
-  dwPlanejados  DwPlanejado[]
-  dwReais       DwReal[]
+  idTurno                 Int                      @id @default(autoincrement()) @map("id_turno")
+  nomeTurno               String                   @map("nome_turno") @db.VarChar(50)
+  horarioInicio           DateTime                 @map("horario_inicio") @db.Time(6)
+  horarioFim              DateTime                 @map("horario_fim") @db.Time(6)
+  ativo                   Boolean                  @default(true)
+  isOperacional           Boolean                  @default(true) @map("is_operacional")
+  dataCriacao             DateTime                 @default(now()) @map("data_criacao")
+  idEstacao               Int?                     @map("id_estacao")
+  estacao                 Estacao?                 @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_turno_estacao")
+  colaboradores           Colaborador[]
+  dwPlanejados            DwPlanejado[]
+  dwReais                 DwReal[]
+  treinamentos            Treinamento[]
+  solicitacoesTreinamento SolicitacaoTreinamento[]
 
   @@unique([nomeTurno, idEstacao], map: "uq_turno_nome_estacao")
   @@index([idEstacao], map: "idx_turno_id_estacao")
@@ -263,57 +268,58 @@ model Contrato {
 }
 
 model Colaborador {
-  opsId                      String                      @id @map("ops_id") @db.VarChar(50)
-  nomeCompleto               String                      @map("nome_completo") @db.VarChar(200)
-  genero                     String?                     @db.VarChar(20)
-  matricula                  String                      @unique @db.VarChar(50)
-  dataAdmissao               DateTime                    @map("data_admissao") @db.Date
-  dataDesligamento           DateTime?                   @map("data_desligamento") @db.Date
-  motivoDesligamento         MotivoDesligamento?         @map("motivo_desligamento")
-  tipoDesligamento           TipoDesligamento?           @map("tipo_desligamento")
-  dataInicioStatus           DateTime?                   @map("data_inicio_status") @db.Date
-  dataFimStatus              DateTime?                   @map("data_fim_status") @db.Date
-  horarioInicioJornada       DateTime                    @map("horario_inicio_jornada") @db.Time(6)
-  primeiroDiaPosDsr          DateTime?                   @map("primeiro_dia_pos_dsr") @db.Date
-  idSetor                    Int?                        @map("id_setor")
-  idCargo                    Int?                        @map("id_cargo")
-  idLider                    String?                     @map("id_lider") @db.VarChar(50)
-  idEstacao                  Int?                        @map("id_estacao")
-  idEmpresa                  Int?                        @map("id_empresa")
-  idContrato                 Int?                        @map("id_contrato")
-  idEscala                   Int?                        @map("id_escala")
-  idTurno                    Int?                        @map("id_turno")
-  status                     StatusColaborador           @default(ATIVO)
-  dataCriacao                DateTime                    @default(now()) @map("data_criacao")
-  dataAtualizacao            DateTime                    @default(now()) @updatedAt @map("data_atualizacao")
-  cpf                        String?                     @db.VarChar(14)
-  dataNascimento             DateTime?                   @map("data_nascimento")
-  email                      String?                     @unique @db.VarChar(200)
-  telefone                   String?                     @db.VarChar(20)
-  contatoEmergenciaNome      String?                     @map("contato_emergencia_nome") @db.VarChar(200)
-  contatoEmergenciaTelefone  String?                     @map("contato_emergencia_telefone") @db.VarChar(20)
-  cipa                       Boolean                     @default(false)
-  gestante                   Boolean                     @default(false)
-  acidentes                  AcidenteTrabalho[]
-  atestadosMedicos           AtestadoMedico[]
-  ausencias                  Ausencia[]
-  cargo                      Cargo?                      @relation(fields: [idCargo], references: [idCargo])
-  contrato                   Contrato?                   @relation(fields: [idContrato], references: [idContrato])
-  empresa                    Empresa?                    @relation(fields: [idEmpresa], references: [idEmpresa])
-  escala                     Escala?                     @relation(fields: [idEscala], references: [idEscala])
-  estacao                    Estacao?                    @relation(fields: [idEstacao], references: [idEstacao])
-  lider                      Colaborador?                @relation("LiderSubordinado", fields: [idLider], references: [opsId])
-  subordinados               Colaborador[]               @relation("LiderSubordinado")
-  setor                      Setor?                      @relation(fields: [idSetor], references: [idSetor])
-  turno                      Turno?                      @relation(fields: [idTurno], references: [idTurno])
-  desligamentos              Desligamento[]
-  frequencias                Frequencia[]
-  historicoMovimentacao      HistoricoMovimentacao[]     @relation("ColaboradorMovimentado")
-  medidasDisciplinares       MedidaDisciplinar[]
-  treinamentosLiderados      Treinamento[]               @relation("TreinamentoLider")
-  treinamentosParticipou     TreinamentoParticipante[]
-  folgasDominicais           FolgaDominical[]
-  sugestoesMedidaDisciplinar SugestaoMedidaDisciplinar[]
+  opsId                             String                               @id @map("ops_id") @db.VarChar(50)
+  nomeCompleto                      String                               @map("nome_completo") @db.VarChar(200)
+  genero                            String?                              @db.VarChar(20)
+  matricula                         String                               @unique @db.VarChar(50)
+  dataAdmissao                      DateTime                             @map("data_admissao") @db.Date
+  dataDesligamento                  DateTime?                            @map("data_desligamento") @db.Date
+  motivoDesligamento                MotivoDesligamento?                  @map("motivo_desligamento")
+  tipoDesligamento                  TipoDesligamento?                    @map("tipo_desligamento")
+  dataInicioStatus                  DateTime?                            @map("data_inicio_status") @db.Date
+  dataFimStatus                     DateTime?                            @map("data_fim_status") @db.Date
+  horarioInicioJornada              DateTime                             @map("horario_inicio_jornada") @db.Time(6)
+  primeiroDiaPosDsr                 DateTime?                            @map("primeiro_dia_pos_dsr") @db.Date
+  idSetor                           Int?                                 @map("id_setor")
+  idCargo                           Int?                                 @map("id_cargo")
+  idLider                           String?                              @map("id_lider") @db.VarChar(50)
+  idEstacao                         Int?                                 @map("id_estacao")
+  idEmpresa                         Int?                                 @map("id_empresa")
+  idContrato                        Int?                                 @map("id_contrato")
+  idEscala                          Int?                                 @map("id_escala")
+  idTurno                           Int?                                 @map("id_turno")
+  status                            StatusColaborador                    @default(ATIVO)
+  dataCriacao                       DateTime                             @default(now()) @map("data_criacao")
+  dataAtualizacao                   DateTime                             @default(now()) @updatedAt @map("data_atualizacao")
+  cpf                               String?                              @db.VarChar(14)
+  dataNascimento                    DateTime?                            @map("data_nascimento")
+  email                             String?                              @unique @db.VarChar(200)
+  telefone                          String?                              @db.VarChar(20)
+  contatoEmergenciaNome             String?                              @map("contato_emergencia_nome") @db.VarChar(200)
+  contatoEmergenciaTelefone         String?                              @map("contato_emergencia_telefone") @db.VarChar(20)
+  cipa                              Boolean                              @default(false)
+  gestante                          Boolean                              @default(false)
+  acidentes                         AcidenteTrabalho[]
+  atestadosMedicos                  AtestadoMedico[]
+  ausencias                         Ausencia[]
+  cargo                             Cargo?                               @relation(fields: [idCargo], references: [idCargo])
+  contrato                          Contrato?                            @relation(fields: [idContrato], references: [idContrato])
+  empresa                           Empresa?                             @relation(fields: [idEmpresa], references: [idEmpresa])
+  escala                            Escala?                              @relation(fields: [idEscala], references: [idEscala])
+  estacao                           Estacao?                             @relation(fields: [idEstacao], references: [idEstacao])
+  lider                             Colaborador?                         @relation("LiderSubordinado", fields: [idLider], references: [opsId])
+  subordinados                      Colaborador[]                        @relation("LiderSubordinado")
+  setor                             Setor?                               @relation(fields: [idSetor], references: [idSetor])
+  turno                             Turno?                               @relation(fields: [idTurno], references: [idTurno])
+  desligamentos                     Desligamento[]
+  frequencias                       Frequencia[]
+  historicoMovimentacao             HistoricoMovimentacao[]              @relation("ColaboradorMovimentado")
+  medidasDisciplinares              MedidaDisciplinar[]
+  treinamentosLiderados             Treinamento[]                        @relation("TreinamentoLider")
+  treinamentosParticipou            TreinamentoParticipante[]
+  folgasDominicais                  FolgaDominical[]
+  sugestoesMedidaDisciplinar        SugestaoMedidaDisciplinar[]
+  solicitacoesTreinamentoParticipou SolicitacaoTreinamentoParticipante[]
 
   @@index([matricula])
   @@index([status])
@@ -564,14 +570,20 @@ model Treinamento {
   criadoPor             String?                   @map("criado_por") @db.VarChar(50)
   dataCriacao           DateTime                  @default(now()) @map("data_criacao") @db.Timestamp(6)
   dataAtualizacao       DateTime                  @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
+  idTurno               Int?                      @map("id_turno")
+  tempoPrevistoMinutos  Int?                      @map("tempo_previsto_minutos")
+  observacoes           String?
   liderResponsavel      Colaborador               @relation("TreinamentoLider", fields: [liderResponsavelOpsId], references: [opsId], map: "fk_treinamento_lider")
+  turno                 Turno?                    @relation(fields: [idTurno], references: [idTurno], onUpdate: NoAction, map: "fk_treinamento_turno")
   participantes         TreinamentoParticipante[]
   setores               TreinamentoSetor[]
+  solicitacaoOrigem     SolicitacaoTreinamento?
 
   @@index([dataTreinamento], map: "idx_treinamento_data")
   @@index([liderResponsavelOpsId], map: "idx_treinamento_lider")
   @@index([soc], map: "idx_treinamento_soc")
   @@index([status], map: "idx_treinamento_status")
+  @@index([idTurno], map: "idx_treinamento_turno")
   @@map("treinamento")
 }
 
@@ -604,6 +616,79 @@ model TreinamentoSetor {
   @@index([idSetor], map: "idx_ts_setor")
   @@index([idTreinamento], map: "idx_ts_treinamento")
   @@map("treinamento_setor")
+}
+
+model AprovadorTreinamento {
+  idAprovador     Int      @id @default(autoincrement()) @map("id_aprovador")
+  nome            String   @db.VarChar(150)
+  email           String   @unique @db.VarChar(200)
+  ativo           Boolean  @default(true)
+  dataCriacao     DateTime @default(now()) @map("data_criacao") @db.Timestamp(6)
+  dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
+
+  @@index([ativo], map: "idx_aprovador_treinamento_ativo")
+  @@map("aprovador_treinamento")
+}
+
+model SolicitacaoTreinamento {
+  idSolicitacao        Int                          @id @default(autoincrement()) @map("id_solicitacao")
+  dataTreinamento      DateTime                     @map("data_treinamento") @db.Date
+  horarioInicio        String                       @map("horario_inicio") @db.VarChar(10)
+  horarioFim           String                       @map("horario_fim") @db.VarChar(10)
+  tempoPrevistoMinutos Int?                         @map("tempo_previsto_minutos")
+  idSetor              Int                          @map("id_setor")
+  idTurno              Int?                         @map("id_turno")
+  hcPrevisto           Int?                         @map("hc_previsto")
+  motivo               String                       @db.VarChar(500)
+  tema                 String                       @db.VarChar(200)
+  processo             String                       @db.VarChar(120)
+  observacoes          String?
+  status               StatusSolicitacaoTreinamento @default(PENDENTE)
+  solicitanteUserId    String                       @map("solicitante_user_id")
+  decididoPorUserId    String?                      @map("decidido_por_user_id")
+  decididoEm           DateTime?                    @map("decidido_em") @db.Timestamp(6)
+  motivoNegativa       String?                      @map("motivo_negativa") @db.VarChar(500)
+  idTreinamentoCriado  Int?                         @unique @map("id_treinamento_criado")
+  dataCriacao          DateTime                     @default(now()) @map("data_criacao") @db.Timestamp(6)
+  dataAtualizacao      DateTime                     @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
+
+  setor             Setor                                @relation(fields: [idSetor], references: [idSetor], onUpdate: NoAction, map: "fk_solicitacao_setor")
+  turno             Turno?                               @relation(fields: [idTurno], references: [idTurno], onUpdate: NoAction, map: "fk_solicitacao_turno")
+  solicitante       User                                 @relation("SolicitacaoTreinamentoSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solicitacao_solicitante")
+  decididoPor       User?                                @relation("SolicitacaoTreinamentoDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solicitacao_decisor")
+  treinamentoCriado Treinamento?                         @relation(fields: [idTreinamentoCriado], references: [idTreinamento], onUpdate: NoAction, map: "fk_solicitacao_treinamento")
+  participantes     SolicitacaoTreinamentoParticipante[]
+  historico         SolicitacaoTreinamentoHistorico[]
+
+  @@index([dataTreinamento], map: "idx_solicitacao_data")
+  @@index([status], map: "idx_solicitacao_status")
+  @@index([idSetor], map: "idx_solicitacao_setor")
+  @@index([solicitanteUserId], map: "idx_solicitacao_solicitante")
+  @@map("solicitacao_treinamento")
+}
+
+model SolicitacaoTreinamentoParticipante {
+  idSolicitacaoParticipante Int                    @id @default(autoincrement()) @map("id_solicitacao_participante")
+  idSolicitacao             Int                    @map("id_solicitacao")
+  opsId                     String                 @map("ops_id") @db.VarChar(50)
+  solicitacao               SolicitacaoTreinamento @relation(fields: [idSolicitacao], references: [idSolicitacao], onDelete: Cascade, map: "fk_stp_solicitacao")
+  colaborador               Colaborador            @relation(fields: [opsId], references: [opsId], map: "fk_stp_colaborador")
+
+  @@unique([idSolicitacao, opsId], map: "uq_stp_solicitacao_ops")
+  @@index([opsId], map: "idx_stp_ops_id")
+  @@index([idSolicitacao], map: "idx_stp_solicitacao")
+  @@map("solicitacao_treinamento_participante")
+}
+
+model SolicitacaoTreinamentoHistorico {
+  idHistorico   Int                    @id @default(autoincrement()) @map("id_historico")
+  idSolicitacao Int                    @map("id_solicitacao")
+  evento        String                 @db.VarChar(500)
+  criadoEm      DateTime               @default(now()) @map("criado_em") @db.Timestamp(6)
+  solicitacao   SolicitacaoTreinamento @relation(fields: [idSolicitacao], references: [idSolicitacao], onDelete: Cascade, map: "fk_sth_solicitacao")
+
+  @@index([idSolicitacao], map: "idx_sth_solicitacao")
+  @@map("solicitacao_treinamento_historico")
 }
 
 model DwPlanejado {
@@ -842,6 +927,12 @@ enum StatusTreinamento {
   AGUARDANDO_VALIDACAO
   FINALIZADO
   CANCELADO
+}
+
+enum StatusSolicitacaoTreinamento {
+  PENDENTE
+  APROVADA
+  NEGADA
 }
 
 enum StatusAcidente {

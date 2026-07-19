@@ -58,6 +58,13 @@ import DetalhesTreinamento from "./pages/treinamentos/detalhes";
 import NovoTreinamento from "./pages/treinamentos/novo";
 import ImportarTreinamento from "./pages/treinamentos/importar";
 
+/* ============ SOLICITAÇÕES DE TREINAMENTO + CALENDÁRIO ============ */
+import SolicitacoesTreinamentoPage from "./pages/treinamentos/solicitacoes";
+import NovaSolicitacaoTreinamento from "./pages/treinamentos/solicitacoes/nova";
+import DetalhesSolicitacaoTreinamento from "./pages/treinamentos/solicitacoes/detalhes";
+import CalendarioTreinamentos from "./pages/treinamentos/calendario";
+import AprovadoresTreinamentoPage from "./pages/treinamentos/aprovadores";
+
 /* ================= DW ============================*/
 import DwListPage from "./pages/DailyWorks/dwList";
 import DwNovoPage from "./pages/DailyWorks/dwNovo";
@@ -323,6 +330,51 @@ export default function App() {
         element={
           <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO"]}>
             <ImportarTreinamento />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/solicitacoes"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <SolicitacoesTreinamentoPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/solicitacoes/nova"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <NovaSolicitacaoTreinamento />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/solicitacoes/:id"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <DetalhesSolicitacaoTreinamento />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/calendario"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <CalendarioTreinamentos />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/treinamentos/aprovadores"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO"]}>
+            <AprovadoresTreinamentoPage />
           </ProtectedRoute>
         }
       />

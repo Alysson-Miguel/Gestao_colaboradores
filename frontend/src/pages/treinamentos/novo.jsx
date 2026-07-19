@@ -150,7 +150,9 @@ export default function NovoTreinamento() {
           </div>
 
           {/* FORM CONTAINER */}
-          <div className="px-4 lg:px-6 xl:px-8 space-y-4 lg:space-y-5 max-w-5xl">
+          <div className="px-4 lg:px-6 xl:px-8 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 items-start">
+          <div className="lg:col-span-3 space-y-4 lg:space-y-5">
             {/* SECTION: INFORMAÇÕES BÁSICAS */}
             <div className="bg-surface rounded-2xl lg:rounded-3xl p-4 lg:p-6 border border-default shadow-sm">
               <div className="flex items-center gap-2.5 mb-4 lg:mb-5">
@@ -295,8 +297,10 @@ export default function NovoTreinamento() {
                 })}
               </div>
             </div>
+          </div>
 
-            {/* SECTION: PARTICIPANTES */}
+          {/* COLUNA DIREITA: PARTICIPANTES (sticky) */}
+          <div className="lg:col-span-2 lg:sticky lg:top-6">
             <div className="bg-surface rounded-2xl lg:rounded-3xl p-4 lg:p-6 border border-default shadow-sm">
               <div className="flex items-center justify-between mb-4 lg:mb-5">
                 <div className="flex items-center gap-2.5">
@@ -430,7 +434,28 @@ export default function NovoTreinamento() {
                   )}
                 </div>
               </div>
+
+              {/* AÇÃO (desktop) — fica junto do card de participantes, sempre visível */}
+              <div className="hidden lg:block mt-5">
+                <button
+                  onClick={submit}
+                  disabled={loading || !isFormValid}
+                  className={`w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl font-semibold text-sm transition-all
+                    ${loading || !isFormValid
+                      ? "bg-surface-2 text-muted cursor-not-allowed border border-default"
+                      : "bg-[#FA4C00] text-white shadow-xl shadow-[#FA4C00]/30 hover:bg-[#D84300] active:scale-[0.98]"
+                    }`}
+                >
+                  {loading ? (
+                    <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Criando Treinamento...</>
+                  ) : (
+                    <><Save size={18} />Criar Treinamento</>
+                  )}
+                </button>
+              </div>
             </div>
+          </div>
+          </div>
           </div>
 
           {/* MOBILE BOTTOM BAR */}
@@ -450,27 +475,6 @@ export default function NovoTreinamento() {
                 <><Save size={18} />Criar Treinamento</>
               )}
             </button>
-          </div>
-
-          {/* DESKTOP ACTION */}
-          <div className="hidden lg:block px-6 xl:px-8 mt-6 max-w-5xl">
-            <div className="flex justify-end">
-              <button
-                onClick={submit}
-                disabled={loading || !isFormValid}
-                className={`flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-semibold text-sm transition-all
-                  ${loading || !isFormValid
-                    ? "bg-surface-2 text-muted cursor-not-allowed border border-default"
-                    : "bg-[#FA4C00] text-white shadow-xl shadow-[#FA4C00]/30 hover:bg-[#D84300] hover:scale-105 active:scale-100"
-                  }`}
-              >
-                {loading ? (
-                  <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />Criando Treinamento...</>
-                ) : (
-                  <><Save size={18} />Criar Treinamento</>
-                )}
-              </button>
-            </div>
           </div>
         </main>
       </MainLayout>

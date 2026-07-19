@@ -1,0 +1,217 @@
+/* Overrides do react-big-calendar para o Dark Theme do sistema.
+   A toolbar padrão é substituída por um componente próprio (ver calendario.jsx),
+   então as regras aqui cuidam apenas da grade/eventos/agenda. */
+
+.rbc-dark-theme,
+.rbc-dark-theme .rbc-calendar {
+  color: var(--color-text);
+  height: 100%;
+  font-family: inherit;
+}
+
+/* ── Grade mensal ─────────────────────────────────────── */
+.rbc-dark-theme .rbc-month-view {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.rbc-dark-theme .rbc-time-view,
+.rbc-dark-theme .rbc-agenda-view table {
+  border-color: var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.rbc-dark-theme .rbc-header {
+  color: var(--color-muted);
+  border-color: var(--color-border);
+  padding: 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--color-surface-2);
+}
+
+.rbc-dark-theme .rbc-header + .rbc-header {
+  border-left-color: var(--color-border);
+}
+
+.rbc-dark-theme .rbc-month-row,
+.rbc-dark-theme .rbc-day-bg,
+.rbc-dark-theme .rbc-date-cell,
+.rbc-dark-theme .rbc-time-content,
+.rbc-dark-theme .rbc-time-header-content,
+.rbc-dark-theme .rbc-timeslot-group,
+.rbc-dark-theme .rbc-time-gutter {
+  border-color: var(--color-border);
+}
+
+.rbc-dark-theme .rbc-day-bg {
+  transition: background-color 0.15s ease;
+}
+
+.rbc-dark-theme .rbc-day-bg:hover {
+  background: var(--color-surface-2);
+}
+
+.rbc-dark-theme .rbc-off-range-bg {
+  background: color-mix(in srgb, var(--color-surface-2) 55%, transparent);
+}
+
+.rbc-dark-theme .rbc-off-range-bg:hover {
+  background: var(--color-surface-2);
+}
+
+/* ── Dia atual: destaque sutil na célula + selo circular na data ── */
+.rbc-dark-theme .rbc-today {
+  background: rgba(250, 76, 0, 0.07);
+}
+
+.rbc-dark-theme .rbc-date-cell {
+  color: var(--color-muted);
+  padding: 6px 8px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.rbc-dark-theme .rbc-date-cell.rbc-now {
+  font-weight: 700;
+}
+
+.rbc-dark-theme .rbc-date-cell.rbc-now .rbc-button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #FA4C00;
+  color: #fff;
+}
+
+.rbc-dark-theme .rbc-off-range {
+  color: var(--color-subtle, var(--color-muted));
+  opacity: 0.55;
+}
+
+.rbc-dark-theme .rbc-button-link {
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ── Eventos (chips) ──────────────────────────────────── */
+.rbc-dark-theme .rbc-event {
+  padding: 3px 6px;
+  transition: transform 0.12s ease, filter 0.12s ease;
+  box-shadow: none;
+}
+
+.rbc-dark-theme .rbc-event:hover,
+.rbc-dark-theme .rbc-event:focus {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.rbc-dark-theme .rbc-event-label {
+  display: none;
+}
+
+.rbc-dark-theme .rbc-row-segment {
+  padding: 1px 3px;
+}
+
+.rbc-dark-theme .rbc-show-more {
+  color: #FA4C00;
+  background: transparent;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.rbc-dark-theme .rbc-show-more:hover {
+  text-decoration: underline;
+}
+
+/* Popover "+N mais" */
+.rbc-dark-theme .rbc-overlay {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  padding: 8px;
+}
+
+.rbc-dark-theme .rbc-overlay-header {
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Semanal ──────────────────────────────────────────── */
+.rbc-dark-theme .rbc-time-header,
+.rbc-dark-theme .rbc-time-content {
+  border-color: var(--color-border);
+}
+
+.rbc-dark-theme .rbc-time-slot {
+  color: var(--color-subtle, var(--color-muted));
+  font-size: 11px;
+}
+
+.rbc-dark-theme .rbc-current-time-indicator {
+  background-color: #FA4C00;
+  height: 2px;
+}
+
+.rbc-dark-theme .rbc-day-slot .rbc-event {
+  border-radius: 8px;
+}
+
+/* ── Agenda ───────────────────────────────────────────── */
+.rbc-dark-theme .rbc-agenda-view table.rbc-agenda-table {
+  color: var(--color-text);
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.rbc-dark-theme .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  color: var(--color-muted);
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+}
+
+.rbc-dark-theme .rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+  border-top: 1px solid var(--color-border);
+  padding: 12px;
+  vertical-align: middle;
+}
+
+.rbc-dark-theme .rbc-agenda-view table.rbc-agenda-table tbody > tr:hover > td {
+  background: var(--color-surface-2);
+}
+
+.rbc-dark-theme .rbc-agenda-date-cell,
+.rbc-dark-theme .rbc-agenda-time-cell {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rbc-dark-theme .rbc-agenda-empty {
+  color: var(--color-muted);
+  padding: 48px 12px;
+  text-align: center;
+  font-size: 13px;
+}
