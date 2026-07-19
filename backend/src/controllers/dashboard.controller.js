@@ -423,6 +423,23 @@ const carregarDashboard = async (req, res) => {
     );
     const tempoCasaPorTurno = initTurnoMap(turnoNomes);
     const statusPorTurno = initTurnoMap(turnoNomes);
+    // Companion de statusPorTurno: mesma estrutura, mas guarda os colaboradores
+    // de cada status (não só a contagem) para o modal "ver quem" no frontend.
+    const statusColaboradoresListPorTurno = initTurnoMap(turnoNomes);
+    function pushStatusColab(turno, label, c) {
+      statusPorTurno[turno] = statusPorTurno[turno] || {};
+      statusPorTurno[turno][label] = (statusPorTurno[turno][label] || 0) + 1;
+
+      statusColaboradoresListPorTurno[turno] = statusColaboradoresListPorTurno[turno] || {};
+      if (!statusColaboradoresListPorTurno[turno][label]) {
+        statusColaboradoresListPorTurno[turno][label] = [];
+      }
+      statusColaboradoresListPorTurno[turno][label].push({
+        opsId: c.opsId,
+        nome: c.nomeCompleto,
+        setor: normalize(c.setor?.nomeSetor) || "Sem setor",
+      });
+    }
     const empresaPorTurno = initTurnoMap(turnoNomes);
     const ausenciasHoje = [];
     const presencasForaEscala = []; // status escalado lançado num dia que é DSR pela escala do colaborador
@@ -597,8 +614,7 @@ const carregarDashboard = async (req, res) => {
       const setor = getSetor(registroSnapshot, c);
       const tempoCasa = calcularTempoDeCasa(c.dataAdmissao);
       // Status do snapshot (4 estados)
-      statusPorTurno[turno][sSnap.label] =
-        (statusPorTurno[turno][sSnap.label] || 0) + 1;
+      pushStatusColab(turno, sSnap.label, c);
 
       if (sSnap.label === "Presente") {
         turnoSetorAgg[turno].presentes++;
@@ -750,9 +766,7 @@ const carregarDashboard = async (req, res) => {
             // Colaborador tem atestado mas sem registro AM na frequência:
             // sincroniza status e KPIs para que status card = tabela de ausentes
             if (!turnoFiltro || turno === turnoFiltro) {
-              statusPorTurno[turno] = statusPorTurno[turno] || {};
-              statusPorTurno[turno]["Atestado Médico"] =
-                (statusPorTurno[turno]["Atestado Médico"] || 0) + 1;
+              pushStatusColab(turno, "Atestado Médico", c);
 
               if (!turnoSetorAgg[turno]) {
                 turnoSetorAgg[turno] = { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {} };
@@ -856,8 +870,7 @@ colaboradores.forEach((c) => {
     colaboradoresPlanejadosPorTurno[turno] += 1;
 
     if (semLancamento && !ausenciasSet.has(key)) {
-      statusPorTurno[turno]["Sem Lançamento"] =
-        (statusPorTurno[turno]["Sem Lançamento"] || 0) + 1;
+      pushStatusColab(turno, "Sem Lançamento", c);
     }
   }
 });
@@ -1077,6 +1090,9 @@ const aderenciaDW =
             Object.entries(s).map(([status, quantidade]) => ({
               status,
               quantidade,
+              colaboradores: (statusColaboradoresListPorTurno[t]?.[status] || [])
+                .slice()
+                .sort((a, b) => a.nome.localeCompare(b.nome)),
             })),
           ])
         ),

@@ -323,14 +323,23 @@ export default function DashboardOperacional() {
         const merged = {};
         turnoNomesDisponiveis.forEach((t) => {
           (dados?.statusColaboradoresPorTurno?.[t] || []).forEach((s) => {
-            merged[s.status] = (merged[s.status] || 0) + s.quantidade;
+            if (!merged[s.status]) {
+              merged[s.status] = { value: 0, colaboradores: [] };
+            }
+            merged[s.status].value += s.quantidade;
+            merged[s.status].colaboradores.push(...(s.colaboradores || []));
           });
         });
-        return Object.entries(merged).map(([label, value]) => ({ label, value }));
+        return Object.entries(merged).map(([label, m]) => ({
+          label,
+          value: m.value,
+          colaboradores: m.colaboradores,
+        }));
       }
       return (dados?.statusColaboradoresPorTurno?.[turnoSelecionado] || []).map((s) => ({
         label: s.status,
         value: s.quantidade,
+        colaboradores: s.colaboradores || [],
       }));
     },
     [dados, turnoSelecionado, turnoNomesDisponiveis]
