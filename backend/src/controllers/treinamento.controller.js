@@ -535,8 +535,17 @@ exports.atualizarParticipantes = async (req, res) => {
       });
     }
 
+    // Se este treinamento nasceu de uma Solicitação, mantém os participantes
+    // e o histórico da solicitação sincronizados com a edição.
+    const solicitacaoOrigem = await prisma.solicitacaoTreinamento.findUnique({
+      where: { idTreinamentoCriado: Number(id) },
+      select: { idSolicitacao: true },
+    });
+
+    const opsIds = participantes.map((p) => p.opsId).filter(Boolean);
+
     // Substitui todos os participantes em uma transação
-    await prisma.$transaction([
+    const operacoes = [
       prisma.treinamentoParticipante.deleteMany({
         where: { idTreinamento: Number(id) },
       }),
@@ -548,7 +557,30 @@ exports.atualizarParticipantes = async (req, res) => {
           adicionadoPor: req.user.id,
         })),
       }),
-    ]);
+    ];
+
+    if (solicitacaoOrigem) {
+      operacoes.push(
+        prisma.solicitacaoTreinamentoParticipante.deleteMany({
+          where: { idSolicitacao: solicitacaoOrigem.idSolicitacao },
+        }),
+        prisma.solicitacaoTreinamentoParticipante.createMany({
+          data: opsIds.map((opsId) => ({
+            idSolicitacao: solicitacaoOrigem.idSolicitacao,
+            opsId,
+          })),
+          skipDuplicates: true,
+        }),
+        prisma.solicitacaoTreinamentoHistorico.create({
+          data: {
+            idSolicitacao: solicitacaoOrigem.idSolicitacao,
+            evento: `Participantes atualizados por ${req.user.name} (${opsIds.length} participante(s))`,
+          },
+        })
+      );
+    }
+
+    await prisma.$transaction(operacoes);
 
     const updated = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
