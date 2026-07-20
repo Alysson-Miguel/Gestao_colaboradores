@@ -16,6 +16,17 @@ function normalizeDateOnly(dateStr) {
   return new Date(y, m - 1, d, 12, 0, 0);
 }
 
+/**
+ * true se o treinamento pertence à estação do usuário logado
+ * (ou o usuário tem acesso global / a todas as estações).
+ */
+function pertenceAEstacaoDoUsuario(req, idEstacaoTreinamento) {
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId && idEstacaoTreinamento) {
+    return idEstacaoTreinamento === req.dbContext.estacaoId;
+  }
+  return true;
+}
+
 exports.createTreinamento = async (req, res) => {
   try {
 
@@ -170,13 +181,7 @@ exports.getTreinamento = async (req, res) => {
     }
 
     // Bloqueia acesso a treinamento de outra estação (não-admin/global)
-    const idEstacaoTreinamento = treinamento.liderResponsavel?.idEstacao;
-    if (
-      !req.dbContext?.isGlobal &&
-      req.dbContext?.estacaoId &&
-      idEstacaoTreinamento &&
-      idEstacaoTreinamento !== req.dbContext.estacaoId
-    ) {
+    if (!pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -306,9 +311,10 @@ exports.uploadAta = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -369,6 +375,15 @@ exports.finalizarTreinamento = async (req, res) => {
         success: false,
         message: "Documento PDF é obrigatório",
       });
+    }
+
+    const treinamentoAtual = await prisma.treinamento.findUnique({
+      where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
+    });
+
+    if (!treinamentoAtual || !pertenceAEstacaoDoUsuario(req, treinamentoAtual.liderResponsavel?.idEstacao)) {
+      return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
     const treinamento = await prisma.treinamento.update({
@@ -503,9 +518,10 @@ exports.atualizarParticipantes = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({
         success: false,
         message: "Treinamento não encontrado",
@@ -578,9 +594,10 @@ exports.presignDownloadAta = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -627,9 +644,10 @@ exports.cancelarTreinamento = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
