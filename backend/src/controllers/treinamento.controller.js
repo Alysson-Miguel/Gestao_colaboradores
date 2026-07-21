@@ -1,5 +1,6 @@
 const { prisma } = require("../config/database");
 const crypto = require("crypto");
+const XLSX = require("xlsx");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getR2Client } = require("../services/r2");
@@ -13,6 +14,17 @@ function normalizeDateOnly(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d, 12, 0, 0);
+}
+
+/**
+ * true se o treinamento pertence à estação do usuário logado
+ * (ou o usuário tem acesso global / a todas as estações).
+ */
+function pertenceAEstacaoDoUsuario(req, idEstacaoTreinamento) {
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId && idEstacaoTreinamento) {
+    return idEstacaoTreinamento === req.dbContext.estacaoId;
+  }
+  return true;
 }
 
 exports.createTreinamento = async (req, res) => {
@@ -144,7 +156,7 @@ exports.getTreinamento = async (req, res) => {
       where: { idTreinamento: Number(id) },
       include: {
         liderResponsavel: {
-          select: { nomeCompleto: true },
+          select: { nomeCompleto: true, idEstacao: true },
         },
         setores: {
           include: { setor: true },
@@ -165,6 +177,11 @@ exports.getTreinamento = async (req, res) => {
     });
 
     if (!treinamento) {
+      return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
+    }
+
+    // Bloqueia acesso a treinamento de outra estação (não-admin/global)
+    if (!pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -294,13 +311,14 @@ exports.uploadAta = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
-    if (treinamento.status !== "ABERTO") {
+    if (!["ABERTO", "RASCUNHO"].includes(treinamento.status)) {
       return res.status(400).json({ success: false, message: "Treinamento já finalizado" });
     }
 
@@ -357,6 +375,15 @@ exports.finalizarTreinamento = async (req, res) => {
         success: false,
         message: "Documento PDF é obrigatório",
       });
+    }
+
+    const treinamentoAtual = await prisma.treinamento.findUnique({
+      where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
+    });
+
+    if (!treinamentoAtual || !pertenceAEstacaoDoUsuario(req, treinamentoAtual.liderResponsavel?.idEstacao)) {
+      return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
     const treinamento = await prisma.treinamento.update({
@@ -491,24 +518,34 @@ exports.atualizarParticipantes = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({
         success: false,
         message: "Treinamento não encontrado",
       });
     }
 
-    if (treinamento.status !== "ABERTO") {
+    if (!["ABERTO", "RASCUNHO"].includes(treinamento.status)) {
       return res.status(400).json({
         success: false,
         message: "Não é possível editar participantes de um treinamento finalizado",
       });
     }
 
+    // Se este treinamento nasceu de uma Solicitação, mantém os participantes
+    // e o histórico da solicitação sincronizados com a edição.
+    const solicitacaoOrigem = await prisma.solicitacaoTreinamento.findUnique({
+      where: { idTreinamentoCriado: Number(id) },
+      select: { idSolicitacao: true },
+    });
+
+    const opsIds = participantes.map((p) => p.opsId).filter(Boolean);
+
     // Substitui todos os participantes em uma transação
-    await prisma.$transaction([
+    const operacoes = [
       prisma.treinamentoParticipante.deleteMany({
         where: { idTreinamento: Number(id) },
       }),
@@ -520,7 +557,30 @@ exports.atualizarParticipantes = async (req, res) => {
           adicionadoPor: req.user.id,
         })),
       }),
-    ]);
+    ];
+
+    if (solicitacaoOrigem) {
+      operacoes.push(
+        prisma.solicitacaoTreinamentoParticipante.deleteMany({
+          where: { idSolicitacao: solicitacaoOrigem.idSolicitacao },
+        }),
+        prisma.solicitacaoTreinamentoParticipante.createMany({
+          data: opsIds.map((opsId) => ({
+            idSolicitacao: solicitacaoOrigem.idSolicitacao,
+            opsId,
+          })),
+          skipDuplicates: true,
+        }),
+        prisma.solicitacaoTreinamentoHistorico.create({
+          data: {
+            idSolicitacao: solicitacaoOrigem.idSolicitacao,
+            evento: `Participantes atualizados por ${req.user.name} (${opsIds.length} participante(s))`,
+          },
+        })
+      );
+    }
+
+    await prisma.$transaction(operacoes);
 
     const updated = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
@@ -566,9 +626,10 @@ exports.presignDownloadAta = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -615,13 +676,14 @@ exports.cancelarTreinamento = async (req, res) => {
 
     const treinamento = await prisma.treinamento.findUnique({
       where: { idTreinamento: Number(id) },
+      include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento) {
+    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
-    if (treinamento.status !== "ABERTO") {
+    if (!["ABERTO", "RASCUNHO"].includes(treinamento.status)) {
       return res.status(400).json({
         success: false,
         message: "Apenas treinamentos em aberto podem ser cancelados",
@@ -642,5 +704,188 @@ exports.cancelarTreinamento = async (req, res) => {
   } catch (err) {
     console.error("❌ cancelarTreinamento:", err);
     return res.status(500).json({ success: false, message: "Erro ao cancelar treinamento" });
+  }
+};
+
+/* =====================================================
+   IMPORTAR TREINAMENTO VIA PLANILHA
+===================================================== */
+exports.importTreinamento = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Arquivo não enviado" });
+    }
+
+    const wb = XLSX.read(req.file.buffer, { type: "buffer", cellDates: true });
+
+    // ── Aba "Treinamento" ─────────────────────────────────────
+    const sheetT = wb.Sheets["Treinamento"];
+    if (!sheetT) {
+      return res.status(400).json({ success: false, message: 'Aba "Treinamento" não encontrada. Use o modelo padrão.' });
+    }
+
+    const headerRows = XLSX.utils.sheet_to_json(sheetT, { header: 1 });
+    const hm = {};
+    for (const row of headerRows) {
+      if (row[0]) hm[String(row[0]).toLowerCase().trim()] = row[1] ?? "";
+    }
+
+    const errors = [];
+
+    // Campos obrigatórios
+    if (!hm["data_treinamento"]) errors.push({ campo: "data_treinamento", mensagem: "Data do treinamento é obrigatória" });
+    if (!hm["processo"])         errors.push({ campo: "processo",         mensagem: "Processo é obrigatório" });
+    if (!hm["tema"])             errors.push({ campo: "tema",             mensagem: "Tema é obrigatório" });
+    if (!hm["soc"])              errors.push({ campo: "soc",              mensagem: "SOC é obrigatório" });
+    if (!hm["ops_id_instrutor"]) errors.push({ campo: "ops_id_instrutor", mensagem: "OpsId do instrutor é obrigatório" });
+
+    // Parse data
+    let dataDate = null;
+    if (hm["data_treinamento"]) {
+      const raw = hm["data_treinamento"];
+      if (raw instanceof Date) {
+        dataDate = new Date(raw.getFullYear(), raw.getMonth(), raw.getDate(), 12);
+      } else {
+        const str = String(raw).trim();
+        const matchBR = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        const matchISO = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (matchBR) {
+          dataDate = new Date(Number(matchBR[3]), Number(matchBR[2]) - 1, Number(matchBR[1]), 12);
+        } else if (matchISO) {
+          dataDate = new Date(Number(matchISO[1]), Number(matchISO[2]) - 1, Number(matchISO[3]), 12);
+        } else {
+          errors.push({ campo: "data_treinamento", mensagem: `Formato inválido: "${str}". Use DD/MM/YYYY` });
+        }
+      }
+    }
+
+    // ── Aba "Participantes" ───────────────────────────────────
+    const sheetP = wb.Sheets["Participantes"];
+    if (!sheetP) {
+      return res.status(400).json({ success: false, message: 'Aba "Participantes" não encontrada. Use o modelo padrão.' });
+    }
+
+    const partRows = XLSX.utils.sheet_to_json(sheetP, { defval: "" })
+      .filter((r) => {
+        const id = String(r["ops_id"] || "").trim();
+        return id && id !== "Ops00000"; // ignora linha de exemplo
+      });
+    if (!partRows.length) {
+      errors.push({ mensagem: 'Nenhum participante encontrado na aba "Participantes"' });
+    }
+
+    const opsIdsSeen = new Set();
+    const participantes = [];
+
+    for (let i = 0; i < partRows.length; i++) {
+      const row = partRows[i];
+      const linha = i + 2;
+      const opsId = String(row["ops_id"] || "").trim();
+      const cpf   = String(row["cpf"]    || "").trim() || null;
+
+      if (!opsId) {
+        errors.push({ linha, mensagem: "ops_id é obrigatório" });
+        continue;
+      }
+      if (opsIdsSeen.has(opsId)) {
+        errors.push({ linha, mensagem: `Participante duplicado: ${opsId}` });
+        continue;
+      }
+      opsIdsSeen.add(opsId);
+      const presencaRaw = String(row["presenca"] || "").trim().toLowerCase();
+      const presente = presencaRaw === "" || presencaRaw === "presente" || presencaRaw === "sim";
+      participantes.push({ opsId, cpf, presente });
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
+    }
+
+    const instrutorOpsId = String(hm["ops_id_instrutor"]).trim();
+
+    // Verificar instrutor no banco
+    const instrutor = await prisma.colaborador.findUnique({
+      where: { opsId: instrutorOpsId },
+      select: { opsId: true, nomeCompleto: true },
+    });
+    if (!instrutor) {
+      return res.status(400).json({
+        success: false,
+        errors: [{ campo: "ops_id_instrutor", mensagem: `Instrutor não encontrado: ${instrutorOpsId}` }],
+      });
+    }
+
+    // Verificar participantes no banco
+    const opsIdsArr = participantes.map((p) => p.opsId);
+    const colaboradoresDB = await prisma.colaborador.findMany({
+      where: { opsId: { in: opsIdsArr } },
+      select: { opsId: true, status: true, nomeCompleto: true },
+    });
+    const colabMap = new Map(colaboradoresDB.map((c) => [c.opsId, c]));
+
+    const dbErrors = [];
+    for (let i = 0; i < participantes.length; i++) {
+      const p = participantes[i];
+      const linha = i + 2;
+      const colab = colabMap.get(p.opsId);
+      if (!colab) {
+        dbErrors.push({ linha, mensagem: `Ops ID não encontrado: ${p.opsId}` });
+      }
+    }
+    if (dbErrors.length > 0) {
+      return res.status(400).json({ success: false, errors: dbErrors });
+    }
+
+    // ── Criar em transação ─────────────────────────────────────
+    const treinamento = await prisma.$transaction(async (tx) => {
+      return tx.treinamento.create({
+        data: {
+          dataTreinamento: dataDate,
+          processo:        String(hm["processo"]).trim(),
+          tema:            String(hm["tema"]).trim(),
+          soc:             String(hm["soc"]).trim(),
+          local:           hm["local"]           ? String(hm["local"]).trim().slice(0, 200) || null : null,
+          horarioInicio:   /^\d{2}:\d{2}$/.test(String(hm["horario_inicio"] || "").trim()) ? String(hm["horario_inicio"]).trim() : null,
+          horarioFim:      /^\d{2}:\d{2}$/.test(String(hm["horario_fim"]   || "").trim()) ? String(hm["horario_fim"]).trim()   : null,
+          status:          "RASCUNHO",
+          liderResponsavel: { connect: { opsId: instrutorOpsId } },
+          criadoPor:       req.user.id,
+          participantes: {
+            create: participantes.map((p) => ({
+              opsId:         p.opsId,
+              cpf:           p.cpf || null,
+              presente:      p.presente,
+              adicionadoPor: req.user.id,
+            })),
+          },
+        },
+        include: {
+          liderResponsavel: { select: { nomeCompleto: true } },
+          participantes: {
+            include: {
+              colaborador: {
+                select: {
+                  nomeCompleto: true,
+                  cargo:  { select: { nomeCargo: true } },
+                  setor:  { select: { nomeSetor: true } },
+                  turno:  { select: { nomeTurno: true } },
+                  empresa: { select: { razaoSocial: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Treinamento criado com ${participantes.length} participante(s)`,
+      data: treinamento,
+    });
+
+  } catch (err) {
+    console.error("❌ importTreinamento:", err);
+    return res.status(500).json({ success: false, message: "Erro ao importar treinamento" });
   }
 };

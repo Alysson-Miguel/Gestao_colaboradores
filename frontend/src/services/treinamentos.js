@@ -41,4 +41,14 @@ export const TreinamentosAPI = {
     const res = await api.post(`/treinamentos/${id}/cancelar`, { motivo });
     return res.data.data;
   },
+
+  importar: async (file, onProgress) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/treinamentos/import", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (e) => onProgress?.(Math.round((e.loaded * 100) / e.total)),
+    });
+    return res.data;
+  },
 };

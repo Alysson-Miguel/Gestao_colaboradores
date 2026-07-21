@@ -53,6 +53,8 @@ const desligamentoRoutes = require("./desligamentoDashboard.routes");
 const dashboardFaltasRoutes = require("./faltas.routes")
 const absenteismoRoutes     = require("./absenteismo.routes")
 const esteirasRoutes        = require("./esteiras.routes")
+const solicitacaoTreinamentoRoutes = require("./solicitacaoTreinamento.routes")
+const aprovadorTreinamentoRoutes   = require("./aprovadorTreinamento.routes")
 
 /* =========================
    HEALTH
@@ -219,5 +221,7 @@ router.use("/dashboard/desligamento", desligamentoRoutes)
 router.use("/dashboard/faltas",       reportLimiter, dashboardFaltasRoutes)
 router.use("/dashboard/absenteismo",  reportLimiter, absenteismoRoutes)
 router.use("/esteiras",               esteirasRoutes)
+router.use("/solicitacoes-treinamento", solicitacaoTreinamentoRoutes)
+router.use("/config/aprovadores-treinamento", aprovadorTreinamentoRoutes)
 
 module.exports = router;

@@ -1297,9 +1297,6 @@ const exportarPresencaSheets = async (req, res) => {
             "Auxiliar de Logística I",
             "Auxiliar de Logística II",
             "Auxiliar de Logística I - PCD",
-            "Auxiliar de Returns I",
-            "Auxilíar de Returns II",
-            "Fiscal de pátio"
           ]
         }
       },

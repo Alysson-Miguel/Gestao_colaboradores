@@ -73,7 +73,7 @@ export default function DetalhesTreinamento() {
   const abrirModal = async () => {
     try {
       const [colabRes, setoresRes, turnosRes] = await Promise.all([
-        api.get("/colaboradores", { params: { status: "ATIVO", limit: 5000 } }),
+        api.get("/colaboradores", { params: { status: "ATIVO", limit: 9999 }, _skipEstacao: true }),
         api.get("/setores"),
         api.get("/turnos"),
       ]);
@@ -262,7 +262,7 @@ export default function DetalhesTreinamento() {
                 <h3 className="text-sm text-muted">
                   Participantes ({treinamento.participantes.length})
                 </h3>
-                {treinamento.status === "ABERTO" && (
+                {["ABERTO", "RASCUNHO"].includes(treinamento.status) && (
                   <div className="flex items-center gap-2">
                     <button
                       onClick={abrirModal}
@@ -318,7 +318,7 @@ export default function DetalhesTreinamento() {
             </div>
 
             {/* FINALIZAÇÃO */}
-            {treinamento.status === "ABERTO" && (
+            {["ABERTO", "RASCUNHO"].includes(treinamento.status) && (
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-white/70">Finalizar Treinamento</h3>
 

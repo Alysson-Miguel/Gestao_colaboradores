@@ -361,26 +361,55 @@ export default function Sidebar({ isOpen, onClose }) {
                   ? "bg-surface-2 text-page"
                   : "text-muted hover:bg-surface-3"
               } ${isCollapsed ? "lg:justify-center" : ""}`}
-              title={isCollapsed ? "Gestão & Desenvolvimento" : ""}
+              title={isCollapsed ? "Gestão & Treinamento" : ""}
             >
               <div className="flex items-center gap-3">
                 <Layers size={18} />
-                <span className={`${labelCls} whitespace-nowrap`}>Gestão & Desenvolvimento</span>
+                <span className={`${labelCls} whitespace-nowrap`}>Gestão & Treinamento</span>
               </div>
               <ChevronDown size={16} className={chevronCls(gestaoOpen)} />
             </button>
 
             <div
               className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                gestaoOpen && !isCollapsed ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
+                gestaoOpen && !isCollapsed ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
               }`}
             >
               <div className="ml-8 mt-1 space-y-1">
                 <SidebarSubItem
                   label="Treinamentos"
-                  active={isActive("/treinamentos")}
+                  active={
+                    isActive("/treinamentos") &&
+                    !["/importar", "/solicitacoes", "/calendario", "/aprovadores"].some((sub) =>
+                      location.pathname.startsWith(`/treinamentos${sub}`)
+                    )
+                  }
                   onClick={() => go("/treinamentos")}
                 />
+                <SidebarSubItem
+                  label="Solicitações de Treinamento"
+                  active={location.pathname.startsWith("/treinamentos/solicitacoes")}
+                  onClick={() => go("/treinamentos/solicitacoes")}
+                />
+                <SidebarSubItem
+                  label="Calendário"
+                  active={location.pathname === "/treinamentos/calendario"}
+                  onClick={() => go("/treinamentos/calendario")}
+                />
+                {isGlobal && (
+                  <SidebarSubItem
+                    label="Importar Treinamento"
+                    active={location.pathname === "/treinamentos/importar"}
+                    onClick={() => go("/treinamentos/importar")}
+                  />
+                )}
+                {isGlobal && (
+                  <SidebarSubItem
+                    label="Aprovadores"
+                    active={location.pathname === "/treinamentos/aprovadores"}
+                    onClick={() => go("/treinamentos/aprovadores")}
+                  />
+                )}
               </div>
             </div>
           </div>

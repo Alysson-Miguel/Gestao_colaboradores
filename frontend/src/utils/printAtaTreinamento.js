@@ -147,13 +147,23 @@ export function printAtaTreinamento(treinamento) {
     </div>
 
     <div class="box">
+      <div class="label">Local</div>
+      <div class="value">${treinamento.local || "-"}</div>
+    </div>
+
+    <div class="box">
+      <div class="label">Horário</div>
+      <div class="value">${treinamento.horarioInicio || "-"}${treinamento.horarioFim ? ` – ${treinamento.horarioFim}` : ""}</div>
+    </div>
+
+    <div class="box">
       <div class="label">Setores</div>
       <div class="value">${setores || "-"}</div>
     </div>
 
     <div class="box">
-      <div class="label">Status</div>
-      <div class="value">${treinamento.status}</div>
+      <div class="label">Processo / SOC</div>
+      <div class="value">${treinamento.processo} / ${treinamento.soc}</div>
     </div>
   </div>
 
