@@ -4,7 +4,7 @@
    - Gera HTML A4, abre nova aba, chama window.print()
 ===================================================== */
 
-import logoShopeeXpress from "../assets/shopee-xpress-logo.png";
+import logoShopeeXpress from "../assets/spx-logo-orange.png";
 
 /**
  * Formata uma data-only (string "YYYY-MM-DD" ou ISO timestamp) para "DD/MM/AAAA"
@@ -89,10 +89,12 @@ export function printAtaTreinamento(treinamento) {
 
 <style>
   @page { size: A4; margin: 12mm; }
+  html { color-scheme: light only; background: #fff; }
   * { box-sizing: border-box; }
   body {
     font-family: Arial, Helvetica, sans-serif;
     color: #111;
+    background: #fff;
     font-size: 12px;
     margin: 0;
   }
