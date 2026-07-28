@@ -12,6 +12,7 @@ const { iniciarJobsProducao } = require('./jobs/salvarProducaoHistorico.job');
 const { iniciarJobDSRFuturo } = require('./jobs/gerarDSRFuturo.job');
 const { iniciarJobExportColaboradores } = require('./jobs/exportColaboradores.job');
 const { iniciarJobVarrerFaltas } = require('./jobs/detectarFaltasAutomatico.job');
+const { iniciarJobExportDailyWorks } = require('./jobs/exportDailyWorks.job');
 
 
 // =====================================================
@@ -49,6 +50,9 @@ const startServer = async () => {
 
       // Inicia varredura automática de faltas (invalida sugestões cujo F virou AM)
       iniciarJobVarrerFaltas();
+
+      // Inicia exportação automática do Daily Works para o Google Sheets
+      iniciarJobExportDailyWorks();
     });
 
     // Tratamento de erros não capturados

@@ -16,7 +16,7 @@ const EMPRESAS_FIXAS = {
 
 const IDS_EMPRESAS_FIXAS = Object.keys(EMPRESAS_FIXAS).map(Number);
 
-const buscarDwLista = async ({ data, idTurno, idEmpresa, idEstacao }) => {
+const buscarDwLista = async ({ data, dataInicio, dataFim, idTurno, idEmpresa, idEstacao }) => {
   const turnosDB = await prisma.turno.findMany({ select: { idTurno: true, nomeTurno: true } });
   const turnoMap = Object.fromEntries(turnosDB.map((t) => [t.idTurno, t.nomeTurno]));
 
@@ -29,7 +29,13 @@ const buscarDwLista = async ({ data, idTurno, idEmpresa, idEstacao }) => {
     andConditions.push({ idEmpresa: { in: IDS_EMPRESAS_FIXAS } });
   }
 
-  if (data) {
+  if (dataInicio || dataFim) {
+    // Intervalo de datas (ex: mês inteiro)
+    const condData = {};
+    if (dataInicio) condData.gte = new Date(dataInicio);
+    if (dataFim) condData.lte = new Date(dataFim);
+    andConditions.push({ data: condData });
+  } else if (data) {
     andConditions.push({ data: new Date(data) });
   } else {
     // Sem data: limita aos últimos 30 dias para evitar sobrecarga
