@@ -786,12 +786,19 @@ const getControlePresenca = async (req, res) => {
 
         /* ===============================
            ATESTADO MÉDICO TEM PRIORIDADE MÁXIMA
-           (exceto quando o dia é DSR)
+           (exceto quando o dia é DSR ou já passou do desligamento —
+           depois de desligado o colaborador não estava mais disponível
+           pra ser considerado em atestado, então prevalece o DV)
         =============================== */
         const diasDsrAtestado = getDiasDsrNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.diasDsr || []);
         const diaDSR = isDiaDSRSync(dataCalendario, diasDsrAtestado);
 
-        const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
+        const diaAposDesligamento =
+          c.status === "INATIVO" &&
+          c.dataDesligamento &&
+          dataCalendario >= startOfDay(c.dataDesligamento);
+
+        const atestadoDia = !diaDSR && !diaAposDesligamento && c.atestadosMedicos?.find(
           (a) =>
             dataCalendario >= startOfDay(a.dataInicio) &&
             dataCalendario <= startOfDay(a.dataFim)

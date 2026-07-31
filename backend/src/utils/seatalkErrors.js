@@ -36,6 +36,7 @@ const SEATALK_ERROR_CODES = {
   602: "App has no permission",
   
   7000: "Invalid request - check group_id, message format, or bot permissions",
+  7001: "Invalid request (mesma família do 7000) - normalmente indica que o bot ainda não foi adicionado como membro do grupo, ou que o group_id não corresponde a esse grupo",
 }
 
 /**
@@ -134,6 +135,7 @@ function getSolution(code) {
     602: "App não tem permissão. Habilite 'Send Message to Group Chat'.",
     
     7000: "Requisição inválida. Verifique: 1) Bot está no grupo? 2) Group ID correto? 3) Formato da mensagem está correto?",
+    7001: "Mesma causa do 7000 — o mais comum é o bot ainda não ter sido adicionado como membro do grupo (comum em grupos recém-criados). Adicione o bot ao grupo e tente novamente.",
   }
   
   return solutions[code] || "Consulte a documentação do Seatalk."
