@@ -1435,8 +1435,13 @@ const exportarPresencaSheets = async (req, res) => {
         const diasDsrDiaCtrl = getDiasDsrNoDia(c.opsId, dataCalendario, historicoMap, c.escala?.diasDsr || []);
         const diaDSR = isDiaDSRSync(dataCalendario, diasDsrDiaCtrl);
 
-        // Atestado médico tem prioridade máxima (exceto em dias de DSR)
-        const atestadoDia = !diaDSR && c.atestadosMedicos?.find(
+        // Atestado médico tem prioridade máxima (exceto em dias de DSR ou já desligado)
+        const diaAposDesligamentoCtrl =
+          c.status === "INATIVO" &&
+          c.dataDesligamento &&
+          dataCalendario >= startOfDay(c.dataDesligamento);
+
+        const atestadoDia = !diaDSR && !diaAposDesligamentoCtrl && c.atestadosMedicos?.find(
           (a) =>
             dataCalendario >= startOfDay(a.dataInicio) &&
             dataCalendario <= startOfDay(a.dataFim)
