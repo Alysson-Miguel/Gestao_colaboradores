@@ -32,6 +32,8 @@ export default function PresencaToolbar({
   lideres = [],
   cargo = "TODOS",
   cargos = [],
+  empresa = "TODOS",
+  empresas = [],
   status = "TODOS",
   onMesChange,
   onTurnoChange,
@@ -39,6 +41,7 @@ export default function PresencaToolbar({
   onBuscaChange,
   onLiderChange,
   onCargoChange,
+  onEmpresaChange,
   onStatusChange,
   onExportarSheets,
   onExportarCsv,
@@ -50,6 +53,7 @@ export default function PresencaToolbar({
     escala !== "TODOS" ||
     lider !== "TODOS" ||
     cargo !== "TODOS" ||
+    empresa !== "TODOS" ||
     status !== "TODOS" ||
     busca.trim() !== "";
 
@@ -58,6 +62,7 @@ export default function PresencaToolbar({
     onEscalaChange("TODOS");
     onLiderChange("TODOS");
     onCargoChange("TODOS");
+    onEmpresaChange("TODOS");
     onStatusChange("TODOS");
     onBuscaChange("");
   }
@@ -145,6 +150,23 @@ export default function PresencaToolbar({
             {cargos.map((c) => (
               <option key={c.idCargo} value={c.idCargo}>
                 {c.nomeCargo}
+              </option>
+            ))}
+          </select>
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted text-xs">▾</span>
+        </div>
+
+        {/* Empresa */}
+        <div className="relative">
+          <select
+            value={empresa}
+            onChange={(e) => onEmpresaChange(e.target.value)}
+            className={selectCls + " pr-7"}
+          >
+            <option value="TODOS">Empresa • Todas</option>
+            {empresas.map((e) => (
+              <option key={e.idEmpresa} value={e.idEmpresa}>
+                {e.razaoSocial}
               </option>
             ))}
           </select>

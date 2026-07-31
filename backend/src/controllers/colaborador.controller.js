@@ -1675,7 +1675,7 @@ const listarFiltrosEstacao = async (req, res) => {
 
     const whereColab = estacaoId ? { idEstacao: estacaoId } : {};
 
-    const [escalas, turnos, setores, cargos] = await Promise.all([
+    const [escalas, turnos, setores, cargos, empresas] = await Promise.all([
       prisma.escala.findMany({
         where: estacaoId
           ? { colaboradores: { some: whereColab } }
@@ -1704,9 +1704,16 @@ const listarFiltrosEstacao = async (req, res) => {
         select: { idCargo: true, nomeCargo: true },
         orderBy: { nomeCargo: "asc" },
       }),
+      prisma.empresa.findMany({
+        where: estacaoId
+          ? { colaboradores: { some: whereColab } }
+          : undefined,
+        select: { idEmpresa: true, razaoSocial: true },
+        orderBy: { razaoSocial: "asc" },
+      }),
     ]);
 
-    return successResponse(res, { escalas, turnos, setores, cargos });
+    return successResponse(res, { escalas, turnos, setores, cargos, empresas });
   } catch (err) {
     console.error("❌ ERRO FILTROS ESTACAO:", err);
     return errorResponse(res, "Erro ao carregar filtros", 500);

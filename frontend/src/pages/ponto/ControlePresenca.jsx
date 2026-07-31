@@ -28,6 +28,8 @@ export default function ControlePresenca() {
   const [statusFiltro, setStatusFiltro] = useState("TODOS");
   const [cargo, setCargo] = useState("TODOS");
   const [cargos, setCargos] = useState([]);
+  const [empresa, setEmpresa] = useState("TODOS");
+  const [empresas, setEmpresas] = useState([]);
 
   const pendenciaSaida  = statusFiltro === "PENDENCIA_SAIDA";
   const pendentesHoje   = statusFiltro === "PENDENTES_HOJE";
@@ -131,6 +133,7 @@ export default function ControlePresenca() {
         ...(escala !== "TODOS" ? { escala } : {}),
         ...(lider !== "TODOS" ? { lider } : {}),
         ...(cargo !== "TODOS" ? { idCargo: cargo } : {}),
+        ...(empresa !== "TODOS" ? { empresa } : {}),
         ...(pendenciaSaida ? { pendenciaSaida: "true" } : {}),
         ...(pendentesHoje ? { pendentesHoje: "true" } : {}),
       };
@@ -154,7 +157,7 @@ export default function ControlePresenca() {
     } finally {
       setLoading(false);
     }
-  }, [mes, turno, escala, lider, cargo, pendenciaSaida, pendentesHoje]);
+  }, [mes, turno, escala, lider, cargo, empresa, pendenciaSaida, pendentesHoje]);
 
   /* ================== FILTROS LOCAIS ================== */
   const colaboradores = useMemo(() => {
@@ -266,9 +269,11 @@ export default function ControlePresenca() {
       try {
         const res = await api.get("/colaboradores/filtros");
         setCargos(res.data?.data?.cargos || []);
+        setEmpresas(res.data?.data?.empresas || []);
       } catch (err) {
         console.error("Erro ao carregar cargos", err);
         setCargos([]);
+        setEmpresas([]);
       }
     }
     loadCargos();
@@ -303,6 +308,8 @@ export default function ControlePresenca() {
             lideres={lideres}
             cargo={cargo}
             cargos={cargos}
+            empresa={empresa}
+            empresas={empresas}
             status={statusFiltro}
             onStatusChange={setStatusFiltro}
             onMesChange={setMes}
@@ -311,6 +318,7 @@ export default function ControlePresenca() {
             onBuscaChange={setBusca}
             onLiderChange={setLider}
             onCargoChange={setCargo}
+            onEmpresaChange={setEmpresa}
             onExportarSheets={exportarSheets}
             onExportarCsv={exportarCsv}
             isAdmin={isAdmin}

@@ -509,6 +509,7 @@ const getControlePresenca = async (req, res) => {
       escala,
       search,
       lider,
+      empresa,
       pendenciaSaida,
       pendentesHoje,
     } = req.query;
@@ -584,6 +585,9 @@ const getControlePresenca = async (req, res) => {
         : {}),
       ...(lider && lider !== "TODOS"
         ? { idLider: lider }
+        : {}),
+      ...(empresa && empresa !== "TODOS"
+        ? { idEmpresa: Number(empresa) }
         : {}),
       ...(search
         ? { nomeCompleto: { contains: String(search), mode: "insensitive" } }
