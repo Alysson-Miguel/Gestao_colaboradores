@@ -125,6 +125,8 @@ model User {
   folgasDominicaisCriadas          FolgaDominical[]
   solicitacoesTreinamentoCriadas   SolicitacaoTreinamento[] @relation("SolicitacaoTreinamentoSolicitante")
   solicitacoesTreinamentoDecididas SolicitacaoTreinamento[] @relation("SolicitacaoTreinamentoDecisor")
+  solicitacoesOperacionaisCriadas   SolicitacaoOperacional[] @relation("SolicitacaoOperacionalSolicitante")
+  solicitacoesOperacionaisDecididas SolicitacaoOperacional[] @relation("SolicitacaoOperacionalDecisor")
 
   @@index([opsId], map: "idx_users_ops_id")
   @@index([idEstacao], map: "idx_users_id_estacao")
@@ -208,6 +210,7 @@ model Estacao {
   dwReais                DwReal[]
   regional               Regional?              @relation(fields: [idRegional], references: [idRegional], onUpdate: NoAction, map: "fk_estacao_regional")
   aprovadoresTreinamento AprovadorTreinamento[]
+  aprovadoresOperacionais AprovadorOperacional[]
 
   @@index([idRegional], map: "idx_estacao_id_regional")
   @@map("estacao")
@@ -321,6 +324,8 @@ model Colaborador {
   folgasDominicais                  FolgaDominical[]
   sugestoesMedidaDisciplinar        SugestaoMedidaDisciplinar[]
   solicitacoesTreinamentoParticipou SolicitacaoTreinamentoParticipante[]
+  solicitacoesOperacionais          SolicitacaoOperacional[]             @relation("SolicitacaoOperacionalColaborador1")
+  solicitacoesOperacionaisPar       SolicitacaoOperacional[]             @relation("SolicitacaoOperacionalColaborador2")
 
   @@index([matricula])
   @@index([status])
@@ -698,6 +703,88 @@ model SolicitacaoTreinamentoHistorico {
   @@map("solicitacao_treinamento_historico")
 }
 
+// =====================================================
+// SOLICITAÇÕES OPERACIONAIS
+// (Folga, Banco de Horas, Sinergia, Troca de DSR)
+// =====================================================
+
+model AprovadorOperacional {
+  idAprovador     Int      @id @default(autoincrement()) @map("id_aprovador")
+  nome            String   @db.VarChar(150)
+  email           String   @unique @db.VarChar(200)
+  ativo           Boolean  @default(true)
+  // null = aprovador válido em todas as estações (somente Admin pode definir)
+  idEstacao       Int?     @map("id_estacao")
+  dataCriacao     DateTime @default(now()) @map("data_criacao") @db.Timestamp(6)
+  dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
+
+  estacao Estacao? @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_aprovador_operacional_estacao")
+
+  @@index([ativo], map: "idx_aprovador_operacional_ativo")
+  @@index([idEstacao], map: "idx_aprovador_operacional_estacao")
+  @@map("aprovador_operacional")
+}
+
+model SolicitacaoOperacional {
+  idSolicitacao Int                           @id @default(autoincrement()) @map("id_solicitacao")
+  tipo          TipoSolicitacaoOperacional
+  status        StatusSolicitacaoOperacional  @default(PENDENTE)
+
+  // Colaborador principal (todos os tipos). Para TROCA_DSR = colaborador 1.
+  opsId String   @map("ops_id") @db.VarChar(50)
+  // Data de referência: folga / BH / sinergia, ou nova data de DSR do colaborador 1
+  data  DateTime @db.Date
+  motivo String  @db.VarChar(500)
+
+  // Banco de Horas
+  bhDiaCompleto     Boolean? @map("bh_dia_completo")
+  bhQuantidadeHoras Decimal? @map("bh_quantidade_horas") @db.Decimal(4, 2)
+  bhHoraEntrada     String?  @map("bh_hora_entrada") @db.VarChar(10)
+
+  // Sinergia
+  sinergiaDestino DestinoSinergia? @map("sinergia_destino")
+
+  // Troca de DSR — colaborador 2 e as 4 datas envolvidas na inversão
+  opsId2        String?   @map("ops_id_2") @db.VarChar(50)
+  dsrDataAtual1 DateTime? @map("dsr_data_atual_1") @db.Date
+  dsrDataNova1  DateTime? @map("dsr_data_nova_1") @db.Date
+  dsrDataAtual2 DateTime? @map("dsr_data_atual_2") @db.Date
+  dsrDataNova2  DateTime? @map("dsr_data_nova_2") @db.Date
+
+  solicitanteUserId String    @map("solicitante_user_id")
+  decididoPorUserId String?   @map("decidido_por_user_id")
+  decididoEm        DateTime? @map("decidido_em") @db.Timestamp(6)
+  motivoReprovacao  String?   @map("motivo_reprovacao") @db.VarChar(500)
+
+  dataCriacao     DateTime @default(now()) @map("data_criacao") @db.Timestamp(6)
+  dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
+
+  colaborador  Colaborador                       @relation("SolicitacaoOperacionalColaborador1", fields: [opsId], references: [opsId], map: "fk_solop_colaborador1")
+  colaborador2 Colaborador?                      @relation("SolicitacaoOperacionalColaborador2", fields: [opsId2], references: [opsId], map: "fk_solop_colaborador2")
+  solicitante  User                              @relation("SolicitacaoOperacionalSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solop_solicitante")
+  decididoPor  User?                             @relation("SolicitacaoOperacionalDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solop_decisor")
+  historico    SolicitacaoOperacionalHistorico[]
+
+  @@index([tipo], map: "idx_solop_tipo")
+  @@index([status], map: "idx_solop_status")
+  @@index([data], map: "idx_solop_data")
+  @@index([opsId], map: "idx_solop_ops_id")
+  @@index([opsId2], map: "idx_solop_ops_id_2")
+  @@index([solicitanteUserId], map: "idx_solop_solicitante")
+  @@map("solicitacao_operacional")
+}
+
+model SolicitacaoOperacionalHistorico {
+  idHistorico   Int                    @id @default(autoincrement()) @map("id_historico")
+  idSolicitacao Int                    @map("id_solicitacao")
+  evento        String                 @db.VarChar(500)
+  criadoEm      DateTime               @default(now()) @map("criado_em") @db.Timestamp(6)
+  solicitacao   SolicitacaoOperacional @relation(fields: [idSolicitacao], references: [idSolicitacao], onDelete: Cascade, map: "fk_soh_solicitacao")
+
+  @@index([idSolicitacao], map: "idx_soh_solicitacao")
+  @@map("solicitacao_operacional_historico")
+}
+
 model DwPlanejado {
   id         Int       @id @default(autoincrement())
   data       DateTime  @map("data") @db.Date
@@ -952,6 +1039,25 @@ enum StatusSolicitacaoTreinamento {
   PENDENTE
   APROVADA
   NEGADA
+}
+
+enum TipoSolicitacaoOperacional {
+  FOLGA
+  BANCO_HORAS
+  SINERGIA
+  TROCA_DSR
+}
+
+enum StatusSolicitacaoOperacional {
+  PENDENTE
+  APROVADA
+  REPROVADA
+}
+
+enum DestinoSinergia {
+  FULL
+  TRATATIVAS
+  OUTRA_OPERACAO
 }
 
 enum StatusAcidente {

@@ -65,6 +65,12 @@ import DetalhesSolicitacaoTreinamento from "./pages/treinamentos/solicitacoes/de
 import CalendarioTreinamentos from "./pages/treinamentos/calendario";
 import AprovadoresTreinamentoPage from "./pages/treinamentos/aprovadores";
 
+/* ============ SOLICITAÇÕES OPERACIONAIS ============ */
+import SolicitacoesOperacionaisPage from "./pages/solicitacoes-operacionais";
+import NovaSolicitacaoOperacional from "./pages/solicitacoes-operacionais/nova";
+import DetalhesSolicitacaoOperacional from "./pages/solicitacoes-operacionais/detalhes";
+import AgendaSolicitacoesOperacionais from "./pages/solicitacoes-operacionais/agenda";
+
 /* ================= DW ============================*/
 import DwListPage from "./pages/DailyWorks/dwList";
 import DwNovoPage from "./pages/DailyWorks/dwNovo";
@@ -387,6 +393,43 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/solicitacoes-operacionais"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <SolicitacoesOperacionaisPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/solicitacoes-operacionais/nova"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <NovaSolicitacaoOperacional />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/solicitacoes-operacionais/agenda"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <AgendaSolicitacoesOperacionais />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/solicitacoes-operacionais/:id"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <DetalhesSolicitacaoOperacional />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/dw"
         element={

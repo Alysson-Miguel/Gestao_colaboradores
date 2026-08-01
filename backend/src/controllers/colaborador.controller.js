@@ -20,6 +20,7 @@ const {
   gerarOnboardingColaborador,
   gerarFrequenciaDesligamento,
   gerarFrequenciaAfastamento,
+  gerarFrequenciaFerias,
   gerarNcPreAdmissao,
 } = require("../services/dsrBackfill.service");
 
@@ -835,6 +836,7 @@ const updateColaborador = async (req, res) => {
     let nomeEscalaParaDSR = null;
     let payloadDesligamento = null; // { dataDesligamento, tipoDesligamento }
     let payloadAfastamento  = null; // { dataInicio, dataFim }
+    let payloadFerias       = null; // { dataInicio, dataFim }
 
     const colaborador = await prisma.$transaction(async (tx) => {
       const hoje = startOfDayBR();
@@ -936,6 +938,13 @@ const updateColaborador = async (req, res) => {
 
         if (virouAfastado) {
           payloadAfastamento = {
+            dataInicio: atualizado.dataInicioStatus,
+            dataFim:    atualizado.dataFimStatus,
+          };
+        }
+
+        if (virouFerias) {
+          payloadFerias = {
             dataInicio: atualizado.dataInicioStatus,
             dataFim:    atualizado.dataFimStatus,
           };
@@ -1049,6 +1058,19 @@ const updateColaborador = async (req, res) => {
         console.log(`✅ Frequência afastamento gerada para ${opsId}`);
       } catch (e) {
         console.error(`❌ Erro ao gerar frequência afastamento para ${opsId}:`, e.message);
+      }
+    }
+
+    if (payloadFerias) {
+      try {
+        await gerarFrequenciaFerias({
+          opsId,
+          dataInicio: payloadFerias.dataInicio,
+          dataFim:    payloadFerias.dataFim,
+        });
+        console.log(`✅ Frequência férias gerada para ${opsId}`);
+      } catch (e) {
+        console.error(`❌ Erro ao gerar frequência férias para ${opsId}:`, e.message);
       }
     }
 

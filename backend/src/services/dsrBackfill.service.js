@@ -194,6 +194,89 @@ async function gerarFrequenciaDesligamento({ opsId, dataDesligamento, tipoDeslig
 }
 
 /**
+ * Preenche o período de férias com FE na tabela frequencia.
+ */
+async function gerarFrequenciaFerias({ opsId, dataInicio, dataFim, tx = prisma }) {
+  if (!opsId || !dataInicio || !dataFim) return;
+
+  const tipoAus = await tx.tipoAusencia.findFirst({
+    where: { codigo: "FE" },
+    select: { idTipoAusencia: true },
+  });
+  if (!tipoAus) return;
+
+  const di = new Date(dataInicio);
+  const df = new Date(dataFim);
+  const inicio = new Date(Date.UTC(di.getUTCFullYear(), di.getUTCMonth(), di.getUTCDate()));
+  const fim    = new Date(Date.UTC(df.getUTCFullYear(), df.getUTCMonth(), df.getUTCDate()));
+
+  for (
+    let cur = new Date(inicio);
+    cur.getTime() <= fim.getTime();
+    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate() + 1))
+  ) {
+    const dataRef = new Date(cur);
+    await tx.frequencia.upsert({
+      where: { opsId_dataReferencia: { opsId, dataReferencia: dataRef } },
+      update: {
+        idTipoAusencia: tipoAus.idTipoAusencia,
+        justificativa: "AUTO_FERIAS",
+        manual: false,
+        validado: true,
+      },
+      create: {
+        opsId,
+        dataReferencia: dataRef,
+        idTipoAusencia: tipoAus.idTipoAusencia,
+        justificativa: "AUTO_FERIAS",
+        manual: false,
+        validado: true,
+      },
+    });
+  }
+}
+
+/**
+ * Preenche um período qualquer de ausência (férias, afastamento, ou outro
+ * tipo cadastrado no módulo de Ausências) na tabela frequencia, usando
+ * diretamente o idTipoAusencia informado — usado pelo CRUD genérico de
+ * Ausências, que não passa pelo fluxo de status do colaborador.
+ */
+async function gerarFrequenciaAusencia({ opsId, idTipoAusencia, dataInicio, dataFim, tx = prisma }) {
+  if (!opsId || !idTipoAusencia || !dataInicio || !dataFim) return;
+
+  const di = new Date(dataInicio);
+  const df = new Date(dataFim);
+  const inicio = new Date(Date.UTC(di.getUTCFullYear(), di.getUTCMonth(), di.getUTCDate()));
+  const fim    = new Date(Date.UTC(df.getUTCFullYear(), df.getUTCMonth(), df.getUTCDate()));
+
+  for (
+    let cur = new Date(inicio);
+    cur.getTime() <= fim.getTime();
+    cur = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth(), cur.getUTCDate() + 1))
+  ) {
+    const dataRef = new Date(cur);
+    await tx.frequencia.upsert({
+      where: { opsId_dataReferencia: { opsId, dataReferencia: dataRef } },
+      update: {
+        idTipoAusencia,
+        justificativa: "AUTO_AUSENCIA",
+        manual: false,
+        validado: true,
+      },
+      create: {
+        opsId,
+        dataReferencia: dataRef,
+        idTipoAusencia,
+        justificativa: "AUTO_AUSENCIA",
+        manual: false,
+        validado: true,
+      },
+    });
+  }
+}
+
+/**
  * Preenche o período de afastamento com AFA na tabela frequencia.
  */
 async function gerarFrequenciaAfastamento({ opsId, dataInicio, dataFim, tx = prisma }) {
@@ -285,4 +368,6 @@ module.exports = {
   gerarFrequenciaDesligamento,
   gerarNcPreAdmissao,
   gerarFrequenciaAfastamento,
+  gerarFrequenciaFerias,
+  gerarFrequenciaAusencia,
 };

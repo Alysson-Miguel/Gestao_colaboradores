@@ -73,7 +73,11 @@ export default function Sidebar({ isOpen, onClose }) {
       location.pathname.startsWith(p)
     )
   );
-  const [dwOpen, setDwOpen] = useState(location.pathname.startsWith("/dw"));
+  const [dwOpen, setDwOpen] = useState(
+    location.pathname.startsWith("/dw") ||
+      location.pathname.startsWith("/folga-dominical") ||
+      location.pathname.startsWith("/solicitacoes-operacionais")
+  );
   const [pontoOpen, setPontoOpen] = useState(location.pathname.startsWith("/ponto"));
   const [medidasOpen, setMedidasOpen] = useState(location.pathname.startsWith("/medidas-disciplinares"));
   const [gestaoOpen, setGestaoOpen] = useState(location.pathname.startsWith("/treinamentos"));
@@ -419,7 +423,9 @@ export default function Sidebar({ isOpen, onClose }) {
             <button
               onClick={() => setDwOpen(!dwOpen)}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition ${
-                location.pathname.startsWith("/dw")
+                location.pathname.startsWith("/dw") ||
+                location.pathname.startsWith("/folga-dominical") ||
+                location.pathname.startsWith("/solicitacoes-operacionais")
                   ? "bg-surface-2 text-page"
                   : "text-muted hover:bg-surface-3"
               } ${isCollapsed ? "lg:justify-center" : ""}`}
@@ -434,7 +440,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
             <div
               className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                dwOpen && !isCollapsed ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
+                dwOpen && !isCollapsed ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
               }`}
             >
               <div className="ml-8 mt-1 space-y-1">
@@ -447,6 +453,20 @@ export default function Sidebar({ isOpen, onClose }) {
                   label="Planejamento de Folgas"
                   active={isActive("folga-dominical")}
                   onClick={() => go("/folga-dominical")}
+                />
+
+                <div className="pt-2 pb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted/70">
+                  Solicitações Operacionais
+                </div>
+                <SidebarSubItem
+                  label="Solicitações"
+                  active={location.pathname === "/solicitacoes-operacionais"}
+                  onClick={() => go("/solicitacoes-operacionais")}
+                />
+                <SidebarSubItem
+                  label="Agenda"
+                  active={location.pathname === "/solicitacoes-operacionais/agenda"}
+                  onClick={() => go("/solicitacoes-operacionais/agenda")}
                 />
               </div>
             </div>

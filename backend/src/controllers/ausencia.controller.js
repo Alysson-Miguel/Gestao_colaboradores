@@ -5,6 +5,7 @@
 
 const { prisma } = require('../config/database');
 const { successResponse, createdResponse, deletedResponse, notFoundResponse, paginatedResponse } = require('../utils/response');
+const { gerarFrequenciaAusencia } = require('../services/dsrBackfill.service');
 
 const getAllAusencias = async (req, res) => {
   const { page = 1, limit = 10, opsId, status, idTipoAusencia } = req.query;
@@ -86,6 +87,17 @@ const createAusencia = async (req, res) => {
     include: { colaborador: true, tipoAusencia: true },
   });
 
+  try {
+    await gerarFrequenciaAusencia({
+      opsId: ausencia.opsId,
+      idTipoAusencia: ausencia.idTipoAusencia,
+      dataInicio: ausencia.dataInicio,
+      dataFim: ausencia.dataFim,
+    });
+  } catch (e) {
+    console.error(`❌ Erro ao gerar frequência da ausência ${ausencia.idAusencia}:`, e.message);
+  }
+
   return createdResponse(res, ausencia, 'Ausência registrada com sucesso');
 };
 
@@ -105,6 +117,17 @@ const updateAusencia = async (req, res) => {
     data: updateData,
     include: { colaborador: true, tipoAusencia: true },
   });
+
+  try {
+    await gerarFrequenciaAusencia({
+      opsId: ausencia.opsId,
+      idTipoAusencia: ausencia.idTipoAusencia,
+      dataInicio: ausencia.dataInicio,
+      dataFim: ausencia.dataFim,
+    });
+  } catch (e) {
+    console.error(`❌ Erro ao gerar frequência da ausência ${ausencia.idAusencia}:`, e.message);
+  }
 
   return successResponse(res, ausencia, 'Ausência atualizada com sucesso');
 };

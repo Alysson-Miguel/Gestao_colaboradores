@@ -56,6 +56,8 @@ const absenteismoRoutes     = require("./absenteismo.routes")
 const esteirasRoutes        = require("./esteiras.routes")
 const solicitacaoTreinamentoRoutes = require("./solicitacaoTreinamento.routes")
 const aprovadorTreinamentoRoutes   = require("./aprovadorTreinamento.routes")
+const solicitacaoOperacionalRoutes = require("./solicitacaoOperacional.routes")
+const aprovadorOperacionalRoutes   = require("./aprovadorOperacional.routes")
 
 /* =========================
    HEALTH
@@ -225,5 +227,7 @@ router.use("/dashboard/absenteismo",  reportLimiter, absenteismoRoutes)
 router.use("/esteiras",               esteirasRoutes)
 router.use("/solicitacoes-treinamento", solicitacaoTreinamentoRoutes)
 router.use("/config/aprovadores-treinamento", aprovadorTreinamentoRoutes)
+router.use("/solicitacoes-operacionais", solicitacaoOperacionalRoutes)
+router.use("/config/aprovadores-operacionais", aprovadorOperacionalRoutes)
 
 module.exports = router;
