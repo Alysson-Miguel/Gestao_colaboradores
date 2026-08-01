@@ -5,7 +5,8 @@
   Download,
   CheckCircle,
   XCircle,
-  FileWarning
+  FileWarning,
+  UserRound,
 } from "lucide-react";
 
 import { Badge, Button } from "./UIComponents";
@@ -123,11 +124,19 @@ export default function AtestadoCard({
 
       {/* ================= FOOTER ================= */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-[#2C2C2F]">
-        
-        <div className="text-[11px] sm:text-xs text-[#9CA3AF]">
-          {isFinalizado && "Atestado Finalizado"}
-          {isCancelado && "Atestado cancelado"}
-          {isAtivo && "Atestado Ativo"}
+
+        <div className="text-[11px] sm:text-xs text-[#9CA3AF] space-y-1">
+          <div>
+            {isFinalizado && "Atestado Finalizado"}
+            {isCancelado && "Atestado cancelado"}
+            {isAtivo && "Atestado Ativo"}
+          </div>
+          {atestado.registradoPorNome && (
+            <div className="flex items-center gap-1.5">
+              <UserRound size={12} className="text-[#9CA3AF]" />
+              Lançado por {atestado.registradoPorNome}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">

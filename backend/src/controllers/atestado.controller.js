@@ -66,6 +66,16 @@ const getAtestadoById = async (req, res) => {
       return notFoundResponse(res, "Atestado não encontrado");
     }
 
+    if (atestado.registradoPor) {
+      const usuario = await prisma.user.findUnique({
+        where: { id: atestado.registradoPor },
+        select: { name: true },
+      });
+      atestado.registradoPorNome = usuario?.name || null;
+    } else {
+      atestado.registradoPorNome = null;
+    }
+
     return successResponse(res, atestado);
   } catch (err) {
     console.error("❌ GET ATESTADO BY ID:", err);
@@ -256,6 +266,9 @@ const createAtestado = async (req, res) => {
           observacao: observacao || null,
           documentoAnexo: documentoKey,
           status: "ATIVO",
+          // Só vem preenchido quando lançado por alguém logado (ex: RH/admin);
+          // no totem público (autoatendimento por CPF) fica nulo.
+          registradoPor: req.user?.id || null,
         },
       });
 
@@ -396,6 +409,19 @@ const getAllAtestados = async (req, res) => {
       }),
       prisma.atestadoMedico.count({ where }),
     ]);
+
+    // Resolve registradoPor (id do usuário) → nome, para exibição
+    const userIds = [...new Set(atestados.map((a) => a.registradoPor).filter(Boolean))];
+    if (userIds.length > 0) {
+      const usuarios = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true },
+      });
+      const nomeMap = Object.fromEntries(usuarios.map((u) => [u.id, u.name]));
+      for (const a of atestados) {
+        a.registradoPorNome = a.registradoPor ? (nomeMap[a.registradoPor] || null) : null;
+      }
+    }
 
     return paginatedResponse(res, atestados, { page: pageNum, limit: limitNum, total });
   } catch (err) {

@@ -347,6 +347,7 @@ model AtestadoMedico {
   documentoAnexo  String?        @map("documento_anexo") @db.VarChar(500)
   status          StatusAtestado @default(ATIVO)
   dataRegistro    DateTime       @default(now()) @map("data_registro")
+  registradoPor   String?        @map("registrado_por") @db.VarChar(50)
   colaborador     Colaborador    @relation(fields: [opsId], references: [opsId])
 
   @@index([opsId])

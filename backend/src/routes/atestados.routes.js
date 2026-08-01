@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const controller = require("../controllers/atestado.controller");
-const { authenticate } = require("../middlewares/auth.middleware");
+const { authenticate, optionalAuthenticate } = require("../middlewares/auth.middleware");
 const { injectDbContext } = require("../middlewares/dbContext.middleware");
 const { asyncHandler } = require("../middlewares/error.middleware");
 
@@ -14,7 +14,7 @@ router.post("/presign-upload", asyncHandler(controller.presignUpload));
 router.get("/:id/presign-download", authenticate, asyncHandler(controller.presignDownload));
 
 // ================= CRUD =================
-router.post("/", asyncHandler(controller.createAtestado));
+router.post("/", optionalAuthenticate, asyncHandler(controller.createAtestado));
 router.get("/", authenticate, injectDbContext, asyncHandler(controller.getAllAtestados));
 router.get("/:id", authenticate, asyncHandler(controller.getAtestadoById));
 router.put("/:id", authenticate, injectDbContext, asyncHandler(controller.updateAtestado));
