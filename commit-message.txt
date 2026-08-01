@@ -1,0 +1,8 @@
+fix(solicitacoes-operacionais): corrige corte no modal de Aprovadores
+
+- Modal alargado de max-w-2xl para max-w-3xl.
+- Tabela usa overflow-x-auto em vez de overflow-hidden, entao rola
+  horizontalmente em vez de cortar o conteudo quando o nome da estacao
+  e longo.
+- Colunas com whitespace-nowrap para nao quebrar linha e desalinhar as
+  linhas da tabela.

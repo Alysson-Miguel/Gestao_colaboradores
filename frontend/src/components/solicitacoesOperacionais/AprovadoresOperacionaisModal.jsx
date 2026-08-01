@@ -108,7 +108,7 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="bg-surface rounded-2xl w-full max-w-2xl border border-default shadow-2xl max-h-[85vh] flex flex-col"
+        className="bg-surface rounded-2xl w-full max-w-3xl border border-default shadow-2xl max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-default shrink-0">
@@ -134,15 +134,15 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
             </button>
           </div>
 
-          <div className="border border-default rounded-xl overflow-hidden">
+          <div className="border border-default rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-surface-2 border-b border-default">
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide">Nome</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide">Email</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide">Estação</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide">Status</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted uppercase tracking-wide">Ações</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">Nome</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">Email</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">Estação</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">Status</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,7 +160,7 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
                   const podeGerenciar = isAdmin || a.idEstacao != null;
                   return (
                     <tr key={a.idAprovador} className="border-t border-default hover:bg-surface-2/50 transition-colors">
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-full bg-[#FA4C00]/10 text-[#FA4C00] flex items-center justify-center text-[11px] font-semibold shrink-0">
                             {iniciais(a.nome) || "?"}
@@ -168,8 +168,8 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
                           <span className="font-medium">{a.nome}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-muted">{a.email}</td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2.5 text-muted whitespace-nowrap">{a.email}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         {a.estacao?.nomeEstacao ? (
                           <span className="text-muted text-xs">{a.estacao.nomeEstacao}</span>
                         ) : (
@@ -178,13 +178,13 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium ${a.ativo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-surface-2 text-muted"}`}>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: a.ativo ? "#34C759" : "#71717A" }} />
                           {a.ativo ? "Ativo" : "Inativo"}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-right">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => podeGerenciar && abrirEditar(a)}
