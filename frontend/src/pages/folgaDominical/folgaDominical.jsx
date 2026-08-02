@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useContext, useMemo } from "react";
 import {
   CalendarDays, RefreshCcw, Trash2, Play,
   AlertTriangle, CheckCircle2, Users, Calendar,
-  Filter, X, ChevronRight, Clock, Sun,
+  Filter, X, ChevronRight, Clock, Sun, Download,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -457,6 +457,45 @@ export default function FolgaDominicalPage() {
   }, [previewData, previewTurno, previewDomingo]);
 
   const hasActiveFilter = domingoSelecionado || turnoSelecionado || escalaSelecionada || liderSelecionado;
+
+  /* -- csv export -------------------------------- */
+  function baixarCsv() {
+    const cabecalho = ["OPS ID", "Nome", "Turno", "Escala", "Líder", "Setor", "Domingo", "Última Folga", "Dias sem DSR"];
+    const linhas = colaboradoresFiltrados.map((colab) => [
+      colab.opsId,
+      colab.nome,
+      colab.turno || "",
+      colab.escala || "",
+      colab.lider || "",
+      colab.setor || "",
+      colab.dataDomingo ? formatDateBR(colab.dataDomingo) : "",
+      colab.ultimoDSR ? formatDateBR(colab.ultimoDSR) : "",
+      colab.diasSemDSR ?? "",
+    ]);
+
+    const csvContent = [cabecalho, ...linhas]
+      .map((cols) =>
+        cols
+          .map((v) => {
+            const s = String(v ?? "");
+            return s.includes(",") || s.includes('"') || s.includes("\n")
+              ? `"${s.replace(/"/g, '""')}"`
+              : s;
+          })
+          .join(",")
+      )
+      .join("\r\n");
+
+    const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    const sufixoDomingo = domingoSelecionado ? `_${domingoSelecionado}` : "";
+    link.download = `folgas_dominicais_${ano}-${String(mes).padStart(2, "0")}${sufixoDomingo}.csv`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   /* ---------------------------------------------- */
   return (
@@ -940,6 +979,23 @@ export default function FolgaDominicalPage() {
                         <X size={12} /> Limpar filtros
                       </button>
                     )}
+
+                    <button
+                      onClick={baixarCsv}
+                      disabled={colaboradoresFiltrados.length === 0}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
+                        borderRadius: 8, background: `${BRAND}18`, border: `1px solid ${BRAND}40`,
+                        color: BRAND, fontSize: 12, fontWeight: 700,
+                        cursor: colaboradoresFiltrados.length === 0 ? "not-allowed" : "pointer",
+                        opacity: colaboradoresFiltrados.length === 0 ? 0.5 : 1,
+                        transition: "background 0.2s",
+                      }}
+                      onMouseEnter={(e) => colaboradoresFiltrados.length > 0 && (e.currentTarget.style.background = `${BRAND}30`)}
+                      onMouseLeave={(e) => colaboradoresFiltrados.length > 0 && (e.currentTarget.style.background = `${BRAND}18`)}
+                    >
+                      <Download size={13} /> Baixar CSV
+                    </button>
                   </div>
                 </div>
 

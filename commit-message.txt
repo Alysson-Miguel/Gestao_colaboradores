@@ -1,8 +1,10 @@
-fix(solicitacoes-operacionais): corrige corte no modal de Aprovadores
+feat(folga-dominical): adiciona botao de exportar CSV na tabela de planejamento
 
-- Modal alargado de max-w-2xl para max-w-3xl.
-- Tabela usa overflow-x-auto em vez de overflow-hidden, entao rola
-  horizontalmente em vez de cortar o conteudo quando o nome da estacao
-  e longo.
-- Colunas com whitespace-nowrap para nao quebrar linha e desalinhar as
-  linhas da tabela.
+- Novo botao "Baixar CSV" no cabecalho da tabela de Colaboradores no
+  Planejamento (Projecao de Folgas Dominicais).
+- Usa a mesma lista ja filtrada exibida na tela (colaboradoresFiltrados),
+  entao baixa exatamente o que esta sendo mostrado - respeitando filtros
+  de domingo, turno, escala e lider - ou tudo quando nao ha filtro ativo.
+- Colunas: OPS ID, Nome, Turno, Escala, Lider, Setor, Domingo, Ultima
+  Folga e Dias sem DSR, na mesma ordem da tabela.
+- Nome do arquivo inclui ano/mes e o domingo filtrado, quando houver.
