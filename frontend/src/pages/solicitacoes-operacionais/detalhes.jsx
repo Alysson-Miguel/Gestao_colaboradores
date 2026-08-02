@@ -9,7 +9,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
-import { StatusOperacionalBadge, TipoBadge, DESTINO_SINERGIA_LABEL, formatDateOnly } from "./shared";
+import { StatusOperacionalBadge, TipoBadge, DESTINO_SINERGIA_LABEL, TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL, formatDateOnly } from "./shared";
 
 function ColaboradorCard({ titulo, colaborador }) {
   if (!colaborador) return null;
@@ -140,7 +140,7 @@ export default function DetalhesSolicitacaoOperacional() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                {solicitacao.tipo !== "TROCA_DSR" && (
+                {!["TROCA_DSR", "TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"].includes(solicitacao.tipo) && (
                   <div><span className="text-muted">Data</span><p className="font-medium">{formatDateOnly(solicitacao.data)}</p></div>
                 )}
 
@@ -158,6 +158,41 @@ export default function DetalhesSolicitacaoOperacional() {
 
                 {solicitacao.tipo === "SINERGIA" && (
                   <div><span className="text-muted">Destino</span><p>{DESTINO_SINERGIA_LABEL[solicitacao.sinergiaDestino] || solicitacao.sinergiaDestino}</p></div>
+                )}
+
+                {solicitacao.tipo === "HORA_EXTRA" && (
+                  <>
+                    <div><span className="text-muted">Hora de Entrada</span><p>{solicitacao.heHoraEntrada}</p></div>
+                    <div><span className="text-muted">Hora de Saída</span><p>{solicitacao.heHoraSaida}</p></div>
+                  </>
+                )}
+
+                {solicitacao.tipo === "TROCA_GESTAO" && (
+                  <div className="md:col-span-2">
+                    <span className="text-muted">Novo Líder</span>
+                    <p className="font-medium">
+                      {solicitacao.novoLider?.nomeCompleto || "—"}
+                      {solicitacao.novoLider?.cargo?.nomeCargo ? ` — ${solicitacao.novoLider.cargo.nomeCargo}` : ""}
+                    </p>
+                  </div>
+                )}
+
+                {solicitacao.tipo === "TROCA_ESCALA" && (
+                  <div className="md:col-span-2">
+                    <span className="text-muted">Nova Escala</span>
+                    <p className="font-medium">
+                      {solicitacao.novaEscala?.nomeEscala || "—"}
+                      {solicitacao.novaEscala?.descricao ? ` — ${solicitacao.novaEscala.descricao}` : ""}
+                    </p>
+                  </div>
+                )}
+
+                {solicitacao.tipo === "DESLIGAMENTO" && (
+                  <>
+                    <div><span className="text-muted">Data de Desligamento</span><p className="font-medium">{formatDateOnly(solicitacao.dataDesligamentoSolicitada)}</p></div>
+                    <div><span className="text-muted">Tipo de Desligamento</span><p>{TIPO_DESLIGAMENTO_LABEL[solicitacao.tipoDesligamentoSolicitado] || solicitacao.tipoDesligamentoSolicitado}</p></div>
+                    <div className="md:col-span-2"><span className="text-muted">Motivo do Desligamento</span><p>{MOTIVO_DESLIGAMENTO_LABEL[solicitacao.motivoDesligamentoSolicitado] || solicitacao.motivoDesligamentoSolicitado}</p></div>
+                  </>
                 )}
 
                 <div><span className="text-muted">Solicitante</span><p>{solicitacao.solicitante?.name}</p></div>
@@ -179,7 +214,11 @@ export default function DetalhesSolicitacaoOperacional() {
 
               {solicitacao.status === "APROVADA" && (
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                  <p className="text-sm text-emerald-400 font-medium">Sua solicitação foi aprovada e o Controle de Presença já foi atualizado automaticamente.</p>
+                  <p className="text-sm text-emerald-400 font-medium">
+                    {["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"].includes(solicitacao.tipo)
+                      ? "Sua solicitação foi aprovada e o cadastro do colaborador já foi atualizado automaticamente."
+                      : "Sua solicitação foi aprovada e o Controle de Presença já foi atualizado automaticamente."}
+                  </p>
                 </div>
               )}
 

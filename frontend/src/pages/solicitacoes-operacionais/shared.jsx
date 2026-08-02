@@ -5,12 +5,36 @@ export const TIPO_LABEL = {
   BANCO_HORAS: "Banco de Horas",
   SINERGIA: "Sinergia",
   TROCA_DSR: "Troca de DSR",
+  HORA_EXTRA: "Hora Extra",
+  TROCA_GESTAO: "Troca de Gestão",
+  TROCA_ESCALA: "Troca de Escala",
+  DESLIGAMENTO: "Desligamento",
 };
 
 export const DESTINO_SINERGIA_LABEL = {
   FULL: "FULL",
   TRATATIVAS: "Tratativas",
   OUTRA_OPERACAO: "Outra Operação",
+};
+
+export const TIPO_DESLIGAMENTO_LABEL = {
+  DV: "DV: Desligamento Voluntário",
+  DF: "DF: Desligamento Forçado",
+  DP: "DP: Desligamento Planejado",
+};
+
+export const MOTIVO_DESLIGAMENTO_LABEL = {
+  COMPLIANCE: "Compliance",
+  ALTO_INDICE_ABS: "Alto índice de ABS",
+  ABANDONO: "Abandono",
+  DESEMPENHO_BAIXO: "Desempenho baixo",
+  DESVIO_COMPORTAMENTAL: "Desvio comportamental",
+  TERMINO_CONTRATO: "Término de contrato",
+  NO_SHOW: "No Show",
+  DECLINIO: "Declínio",
+  NAO_CONFORMIDADE: "Não conformidade",
+  PEDIDO_DEMISSAO: "Pedido de demissão",
+  REDUCAO_QUADRO: "Redução de quadro",
 };
 
 export const STATUS_COLOR = {

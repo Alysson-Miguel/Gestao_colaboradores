@@ -230,6 +230,7 @@ model Escala {
   estacao          Estacao?                     @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_escala_estacao")
   colaboradores    Colaborador[]
   historicoEscalas ColaboradorEscalaHistorico[]
+  solicitacoesOperacionais SolicitacaoOperacional[]
 
   @@unique([nomeEscala, idEstacao], map: "uq_escala_nome_estacao")
   @@index([idEstacao], map: "idx_escala_id_estacao")
@@ -326,6 +327,7 @@ model Colaborador {
   solicitacoesTreinamentoParticipou SolicitacaoTreinamentoParticipante[]
   solicitacoesOperacionais          SolicitacaoOperacional[]             @relation("SolicitacaoOperacionalColaborador1")
   solicitacoesOperacionaisPar       SolicitacaoOperacional[]             @relation("SolicitacaoOperacionalColaborador2")
+  solicitacoesOperacionaisComoNovoLider SolicitacaoOperacional[]         @relation("SolicitacaoOperacionalNovoLider")
 
   @@index([matricula])
   @@index([status])
@@ -751,6 +753,21 @@ model SolicitacaoOperacional {
   dsrDataAtual2 DateTime? @map("dsr_data_atual_2") @db.Date
   dsrDataNova2  DateTime? @map("dsr_data_nova_2") @db.Date
 
+  // Hora Extra em dia de DSR
+  heHoraEntrada String? @map("he_hora_entrada") @db.VarChar(10)
+  heHoraSaida   String? @map("he_hora_saida") @db.VarChar(10)
+
+  // Troca de Gestão (Liderança)
+  novoLiderOpsId String? @map("novo_lider_ops_id") @db.VarChar(50)
+
+  // Troca de Escala
+  novaIdEscala Int? @map("nova_id_escala")
+
+  // Desligamento
+  dataDesligamentoSolicitada   DateTime?            @map("data_desligamento_solicitada") @db.Date
+  motivoDesligamentoSolicitado MotivoDesligamento?  @map("motivo_desligamento_solicitado")
+  tipoDesligamentoSolicitado   TipoDesligamento?    @map("tipo_desligamento_solicitado")
+
   solicitanteUserId String    @map("solicitante_user_id")
   decididoPorUserId String?   @map("decidido_por_user_id")
   decididoEm        DateTime? @map("decidido_em") @db.Timestamp(6)
@@ -761,6 +778,8 @@ model SolicitacaoOperacional {
 
   colaborador  Colaborador                       @relation("SolicitacaoOperacionalColaborador1", fields: [opsId], references: [opsId], map: "fk_solop_colaborador1")
   colaborador2 Colaborador?                      @relation("SolicitacaoOperacionalColaborador2", fields: [opsId2], references: [opsId], map: "fk_solop_colaborador2")
+  novoLider    Colaborador?                      @relation("SolicitacaoOperacionalNovoLider", fields: [novoLiderOpsId], references: [opsId], map: "fk_solop_novo_lider")
+  novaEscala   Escala?                           @relation(fields: [novaIdEscala], references: [idEscala], onUpdate: NoAction, map: "fk_solop_nova_escala")
   solicitante  User                              @relation("SolicitacaoOperacionalSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solop_solicitante")
   decididoPor  User?                             @relation("SolicitacaoOperacionalDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solop_decisor")
   historico    SolicitacaoOperacionalHistorico[]
@@ -770,6 +789,8 @@ model SolicitacaoOperacional {
   @@index([data], map: "idx_solop_data")
   @@index([opsId], map: "idx_solop_ops_id")
   @@index([opsId2], map: "idx_solop_ops_id_2")
+  @@index([novoLiderOpsId], map: "idx_solop_novo_lider")
+  @@index([novaIdEscala], map: "idx_solop_nova_escala")
   @@index([solicitanteUserId], map: "idx_solop_solicitante")
   @@map("solicitacao_operacional")
 }
@@ -1046,6 +1067,10 @@ enum TipoSolicitacaoOperacional {
   BANCO_HORAS
   SINERGIA
   TROCA_DSR
+  HORA_EXTRA
+  TROCA_GESTAO
+  TROCA_ESCALA
+  DESLIGAMENTO
 }
 
 enum StatusSolicitacaoOperacional {

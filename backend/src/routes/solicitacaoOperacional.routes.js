@@ -9,6 +9,9 @@ const roles = ["ADMIN", "ALTA_GESTAO", "LIDERANCA"];
 /* BUSCA INTELIGENTE POR CPF (autofill dos formulários) */
 router.get("/colaborador", authenticate, authorize(...roles), solicitacaoController.buscarColaboradorPorCpf);
 
+/* ESCALAS ATIVAS DA ESTAÇÃO (formulário de Troca de Escala) */
+router.get("/escalas", authenticate, authorize(...roles), solicitacaoController.listarEscalasAtivas);
+
 /* CALENDÁRIO */
 router.get("/calendario", authenticate, authorize(...roles), solicitacaoController.listarCalendario);
 

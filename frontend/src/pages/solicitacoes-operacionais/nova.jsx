@@ -1,22 +1,31 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/MainLayout";
 import {
   ArrowLeft, CalendarOff, Clock3, Share2, ArrowLeftRight, Send, AlertTriangle,
+  Hourglass, UserCog, CalendarClock, UserX,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import { AuthContext } from "../../context/AuthContext";
+import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { BuscaColaboradorPorCpf } from "../../components/solicitacoesOperacionais/BuscaColaboradorPorCpf";
+import { TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL } from "./shared";
 
 const TIPOS = [
   { key: "FOLGA", label: "Folga", desc: "Solicitar folga para um colaborador em uma data específica", icon: CalendarOff },
   { key: "BANCO_HORAS", label: "Banco de Horas", desc: "Dia completo ou horas parciais, com hora de entrada", icon: Clock3 },
   { key: "SINERGIA", label: "Sinergia", desc: "Envio para FULL, tratativas ou outra operação", icon: Share2 },
   { key: "TROCA_DSR", label: "Troca de DSR", desc: "Inversão do DSR entre dois colaboradores", icon: ArrowLeftRight },
+  { key: "HORA_EXTRA", label: "Hora Extra", desc: "Trabalho em dia de DSR, com hora de entrada e saída", icon: Hourglass },
+  { key: "TROCA_GESTAO", label: "Troca de Gestão", desc: "Alterar o líder responsável pelo colaborador", icon: UserCog },
+  { key: "TROCA_ESCALA", label: "Troca de Escala", desc: "Alterar a escala de trabalho do colaborador", icon: CalendarClock },
+  { key: "DESLIGAMENTO", label: "Desligamento", desc: "Solicitar o desligamento de um colaborador ativo", icon: UserX },
 ];
+
+const TIPOS_COM_DATA_GENERICA = ["FOLGA", "BANCO_HORAS", "SINERGIA", "HORA_EXTRA"];
 
 function fieldCls() {
   return "w-full px-3 py-2.5 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all";
@@ -59,11 +68,34 @@ export default function NovaSolicitacaoOperacional() {
   const [dsrDataAtual2, setDsrDataAtual2] = useState("");
   const [dsrDataNova2, setDsrDataNova2] = useState("");
 
+  /* hora extra */
+  const [heHoraEntrada, setHeHoraEntrada] = useState("");
+  const [heHoraSaida, setHeHoraSaida] = useState("");
+
+  /* troca de gestão */
+  const [novoLiderOpsId, setNovoLiderOpsId] = useState("");
+  const [lideres, setLideres] = useState([]);
+  const [carregandoLideres, setCarregandoLideres] = useState(false);
+
+  /* troca de escala */
+  const [novaIdEscala, setNovaIdEscala] = useState("");
+  const [escalas, setEscalas] = useState([]);
+  const [carregandoEscalas, setCarregandoEscalas] = useState(false);
+
+  /* desligamento */
+  const [dataDesligamentoSolicitada, setDataDesligamentoSolicitada] = useState("");
+  const [motivoDesligamentoSolicitado, setMotivoDesligamentoSolicitado] = useState("");
+  const [tipoDesligamentoSolicitado, setTipoDesligamentoSolicitado] = useState("");
+
   const resetForm = () => {
     setColaborador(null); setData(""); setMotivo("");
     setBhDiaCompleto(true); setBhQuantidadeHoras(""); setBhHoraEntrada("");
     setSinergiaDestino("");
     setColaborador2(null); setDsrDataAtual1(""); setDsrDataNova1(""); setDsrDataAtual2(""); setDsrDataNova2("");
+    setHeHoraEntrada(""); setHeHoraSaida("");
+    setNovoLiderOpsId(""); setLideres([]);
+    setNovaIdEscala(""); setEscalas([]);
+    setDataDesligamentoSolicitada(""); setMotivoDesligamentoSolicitado(""); setTipoDesligamentoSolicitado("");
     setErro(null);
   };
 
@@ -71,6 +103,26 @@ export default function NovaSolicitacaoOperacional() {
     resetForm();
     setTipo(t);
   };
+
+  /* carrega líderes elegíveis quando o colaborador é definido (Troca de Gestão) */
+  useEffect(() => {
+    if (tipo !== "TROCA_GESTAO" || !colaborador?.opsId) return;
+    setCarregandoLideres(true);
+    api.get("/colaboradores/lideres")
+      .then((res) => setLideres((res.data?.data || res.data || []).filter((l) => l.opsId !== colaborador.opsId)))
+      .catch(() => setLideres([]))
+      .finally(() => setCarregandoLideres(false));
+  }, [tipo, colaborador?.opsId]);
+
+  /* carrega escalas ativas da estação quando o colaborador é definido (Troca de Escala) */
+  useEffect(() => {
+    if (tipo !== "TROCA_ESCALA" || !colaborador?.opsId) return;
+    setCarregandoEscalas(true);
+    SolicitacoesOperacionaisAPI.listarEscalasAtivas(colaborador.opsId)
+      .then((lista) => setEscalas((lista || []).filter((e) => e.idEscala !== colaborador.idEscala)))
+      .catch(() => setEscalas([]))
+      .finally(() => setCarregandoEscalas(false));
+  }, [tipo, colaborador?.opsId, colaborador?.idEscala]);
 
   const inversaoValida = dsrDataAtual1 && dsrDataNova1 && dsrDataAtual2 && dsrDataNova2
     ? dsrDataAtual1 === dsrDataNova2 && dsrDataAtual2 === dsrDataNova1
@@ -84,10 +136,20 @@ export default function NovaSolicitacaoOperacional() {
       if (!dsrDataAtual1 || !dsrDataNova1 || !dsrDataAtual2 || !dsrDataNova2) return false;
       return inversaoValida;
     }
-    if (!colaborador || !data) return false;
-    if (tipo === "BANCO_HORAS" && !bhDiaCompleto && (!bhQuantidadeHoras || !bhHoraEntrada)) return false;
-    if (tipo === "SINERGIA" && !sinergiaDestino) return false;
-    return true;
+    if (!colaborador) return false;
+    if (TIPOS_COM_DATA_GENERICA.includes(tipo)) {
+      if (!data) return false;
+      if (tipo === "BANCO_HORAS" && !bhDiaCompleto && (!bhQuantidadeHoras || !bhHoraEntrada)) return false;
+      if (tipo === "SINERGIA" && !sinergiaDestino) return false;
+      if (tipo === "HORA_EXTRA" && (!heHoraEntrada || !heHoraSaida || heHoraSaida <= heHoraEntrada)) return false;
+      return true;
+    }
+    if (tipo === "TROCA_GESTAO") return !!novoLiderOpsId;
+    if (tipo === "TROCA_ESCALA") return !!novaIdEscala;
+    if (tipo === "DESLIGAMENTO") {
+      return !!dataDesligamentoSolicitada && !!motivoDesligamentoSolicitado && !!tipoDesligamentoSolicitado;
+    }
+    return false;
   })();
 
   const enviar = async () => {
@@ -104,7 +166,7 @@ export default function NovaSolicitacaoOperacional() {
         payload.dsrDataNova1 = dsrDataNova1;
         payload.dsrDataAtual2 = dsrDataAtual2;
         payload.dsrDataNova2 = dsrDataNova2;
-      } else {
+      } else if (TIPOS_COM_DATA_GENERICA.includes(tipo)) {
         payload.opsId = colaborador.opsId;
         payload.data = data;
         if (tipo === "BANCO_HORAS") {
@@ -117,6 +179,21 @@ export default function NovaSolicitacaoOperacional() {
         if (tipo === "SINERGIA") {
           payload.sinergiaDestino = sinergiaDestino;
         }
+        if (tipo === "HORA_EXTRA") {
+          payload.heHoraEntrada = heHoraEntrada;
+          payload.heHoraSaida = heHoraSaida;
+        }
+      } else if (tipo === "TROCA_GESTAO") {
+        payload.opsId = colaborador.opsId;
+        payload.novoLiderOpsId = novoLiderOpsId;
+      } else if (tipo === "TROCA_ESCALA") {
+        payload.opsId = colaborador.opsId;
+        payload.novaIdEscala = Number(novaIdEscala);
+      } else if (tipo === "DESLIGAMENTO") {
+        payload.opsId = colaborador.opsId;
+        payload.dataDesligamentoSolicitada = dataDesligamentoSolicitada;
+        payload.motivoDesligamentoSolicitado = motivoDesligamentoSolicitado;
+        payload.tipoDesligamentoSolicitado = tipoDesligamentoSolicitado;
       }
 
       const criada = await SolicitacoesOperacionaisAPI.criar(payload);
@@ -224,9 +301,11 @@ export default function NovaSolicitacaoOperacional() {
                 <>
                   <BuscaColaboradorPorCpf onFound={setColaborador} onClear={() => setColaborador(null)} />
 
-                  <Field label="Data">
-                    <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={fieldCls()} />
-                  </Field>
+                  {TIPOS_COM_DATA_GENERICA.includes(tipo) && (
+                    <Field label={tipo === "HORA_EXTRA" ? "Data (dia de DSR)" : "Data"}>
+                      <input type="date" value={data} onChange={(e) => setData(e.target.value)} className={fieldCls()} />
+                    </Field>
+                  )}
 
                   {tipo === "BANCO_HORAS" && (
                     <>
@@ -262,10 +341,106 @@ export default function NovaSolicitacaoOperacional() {
                       </select>
                     </Field>
                   )}
+
+                  {tipo === "HORA_EXTRA" && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field label="Hora de entrada">
+                          <input type="time" value={heHoraEntrada} onChange={(e) => setHeHoraEntrada(e.target.value)} className={fieldCls()} />
+                        </Field>
+                        <Field label="Hora de saída">
+                          <input type="time" value={heHoraSaida} onChange={(e) => setHeHoraSaida(e.target.value)} className={fieldCls()} />
+                        </Field>
+                      </div>
+                      <p className="text-xs text-muted bg-surface-2 rounded-xl px-3 py-2.5">
+                        Só é possível solicitar hora extra em um dia que seja DSR do colaborador. Após aprovada, o dia deixa de aparecer como DSR e passa a mostrar o horário trabalhado.
+                      </p>
+                      {heHoraEntrada && heHoraSaida && heHoraSaida <= heHoraEntrada && (
+                        <div className="flex gap-2.5 rounded-xl border border-[#FF453A]/30 bg-[#FF453A]/5 p-3">
+                          <AlertTriangle size={15} className="text-[#FF453A] shrink-0 mt-0.5" />
+                          <p className="text-xs text-[#FF453A]">A hora de saída deve ser depois da hora de entrada.</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {tipo === "TROCA_GESTAO" && (
+                    <Field label="Novo líder">
+                      <select
+                        value={novoLiderOpsId}
+                        onChange={(e) => setNovoLiderOpsId(e.target.value)}
+                        disabled={!colaborador || carregandoLideres}
+                        className={`${fieldCls()} appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60`}
+                      >
+                        <option value="" disabled>
+                          {!colaborador ? "Informe o CPF do colaborador primeiro" : carregandoLideres ? "Carregando líderes..." : "Selecione o novo líder"}
+                        </option>
+                        {lideres.map((l) => (
+                          <option key={l.opsId} value={l.opsId}>
+                            {l.nomeCompleto}{l.cargo?.nomeCargo ? ` — ${l.cargo.nomeCargo}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {colaborador && !carregandoLideres && lideres.length === 0 && (
+                        <p className="text-xs text-muted mt-1">Nenhum líder ativo encontrado na estação do colaborador.</p>
+                      )}
+                    </Field>
+                  )}
+
+                  {tipo === "TROCA_ESCALA" && (
+                    <Field label="Nova escala">
+                      <select
+                        value={novaIdEscala}
+                        onChange={(e) => setNovaIdEscala(e.target.value)}
+                        disabled={!colaborador || carregandoEscalas}
+                        className={`${fieldCls()} appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60`}
+                      >
+                        <option value="" disabled>
+                          {!colaborador ? "Informe o CPF do colaborador primeiro" : carregandoEscalas ? "Carregando escalas..." : "Selecione a nova escala"}
+                        </option>
+                        {escalas.map((e) => (
+                          <option key={e.idEscala} value={e.idEscala}>
+                            {e.nomeEscala}{e.descricao ? ` — ${e.descricao}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {colaborador && !carregandoEscalas && escalas.length === 0 && (
+                        <p className="text-xs text-muted mt-1">Nenhuma outra escala ativa disponível para a estação do colaborador.</p>
+                      )}
+                    </Field>
+                  )}
+
+                  {tipo === "DESLIGAMENTO" && (
+                    <>
+                      <Field label="Data de desligamento">
+                        <input type="date" value={dataDesligamentoSolicitada} onChange={(e) => setDataDesligamentoSolicitada(e.target.value)} className={fieldCls()} />
+                      </Field>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Field label="Tipo de desligamento">
+                          <select value={tipoDesligamentoSolicitado} onChange={(e) => setTipoDesligamentoSolicitado(e.target.value)} className={`${fieldCls()} appearance-none cursor-pointer`}>
+                            <option value="" disabled>Selecione</option>
+                            {Object.entries(TIPO_DESLIGAMENTO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Motivo do desligamento">
+                          <select value={motivoDesligamentoSolicitado} onChange={(e) => setMotivoDesligamentoSolicitado(e.target.value)} className={`${fieldCls()} appearance-none cursor-pointer`}>
+                            <option value="" disabled>Selecione</option>
+                            {Object.entries(MOTIVO_DESLIGAMENTO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                      <div className="flex gap-2.5 rounded-xl border border-[#FF453A]/30 bg-[#FF453A]/5 p-3">
+                        <AlertTriangle size={15} className="text-[#FF453A] shrink-0 mt-0.5" />
+                        <p className="text-xs text-[#FF453A]">
+                          Ao ser aprovada, o colaborador é desligado automaticamente: status muda para Inativo e os dias restantes do mês são preenchidos no Controle de Presença.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
-              <Field label="Motivo">
+              <Field label="Motivo da solicitação">
                 <textarea
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}

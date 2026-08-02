@@ -1,10 +1,21 @@
-feat(folga-dominical): adiciona botao de exportar CSV na tabela de planejamento
+feat(solicitacoes-operacionais): adiciona Hora Extra, Troca de Gestao, Troca de Escala e Desligamento
 
-- Novo botao "Baixar CSV" no cabecalho da tabela de Colaboradores no
-  Planejamento (Projecao de Folgas Dominicais).
-- Usa a mesma lista ja filtrada exibida na tela (colaboradoresFiltrados),
-  entao baixa exatamente o que esta sendo mostrado - respeitando filtros
-  de domingo, turno, escala e lider - ou tudo quando nao ha filtro ativo.
-- Colunas: OPS ID, Nome, Turno, Escala, Lider, Setor, Domingo, Ultima
-  Folga e Dias sem DSR, na mesma ordem da tabela.
-- Nome do arquivo inclui ano/mes e o domingo filtrado, quando houver.
+- Hora Extra: so pode ser solicitada em dia que seja DSR real do
+  colaborador (mesma checagem que considera registros manuais do
+  Planejamento de Folgas Dominicais, nao so o padrao da escala).
+  Exige hora de entrada/saida; ao aprovar, o dia sai de DSR e vira
+  presenca com horario e horas trabalhadas registrados em frequencia.
+- Troca de Gestao: so aceita lideres ativos da mesma estacao do
+  colaborador; ao aprovar, atualiza o lider direto no cadastro.
+- Troca de Escala: so aceita escalas ativas disponiveis na estacao
+  (inclui escalas globais); bloqueia se for a mesma escala atual;
+  ao aprovar, atualiza a escala, ajusta o historico de escala e
+  regenera o cronograma futuro de DSR automaticamente.
+- Desligamento: so para colaboradores ativos; exige data, motivo e
+  tipo de desligamento (mesmas opcoes da tela de editar colaborador);
+  ao aprovar, marca o colaborador como Inativo, cria o registro de
+  desligamento e preenche o Controle de Presenca ate o fim do mes.
+- Novo endpoint de escalas ativas por estacao e reaproveitamento do
+  endpoint de lideres existente para os seletores do formulario.
+- Testado ponta a ponta contra o backend real (criacao, validacoes
+  de bloqueio, aprovacao e efeitos em cada colaborador).

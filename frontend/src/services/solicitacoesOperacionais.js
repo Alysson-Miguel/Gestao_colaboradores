@@ -40,6 +40,11 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data;
   },
 
+  listarEscalasAtivas: async (opsId) => {
+    const res = await api.get("/solicitacoes-operacionais/escalas", { params: { opsId } });
+    return res.data.data;
+  },
+
   criar: async (payload) => {
     const res = await api.post("/solicitacoes-operacionais", payload);
     return res.data.data;

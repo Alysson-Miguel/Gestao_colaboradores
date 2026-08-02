@@ -11,6 +11,18 @@ const {
   sendSolicitacaoOperacionalEmail,
   sendDecisaoOperacionalEmail,
 } = require("../reports/email");
+const {
+  gerarFrequenciaDesligamento,
+  gerarDSRFuturoColaborador,
+  gerarDSRBackfillColaborador,
+} = require("../services/dsrBackfill.service");
+
+const TIPOS_DESLIGAMENTO_VALIDOS = ["DV", "DF", "DP"];
+const MOTIVOS_DESLIGAMENTO_VALIDOS = [
+  "COMPLIANCE", "ALTO_INDICE_ABS", "ABANDONO", "DESEMPENHO_BAIXO",
+  "DESVIO_COMPORTAMENTAL", "TERMINO_CONTRATO", "NO_SHOW", "DECLINIO",
+  "NAO_CONFORMIDADE", "PEDIDO_DEMISSAO", "REDUCAO_QUADRO",
+];
 
 class HttpError extends Error {
   constructor(message, statusCode) {
@@ -26,6 +38,17 @@ function normalizeDateOnly(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = String(dateStr).split("-").map(Number);
   return new Date(y, m - 1, d, 12, 0, 0);
+}
+
+function agoraBrasil() {
+  const now = new Date();
+  return new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+}
+
+function startOfDayBR(date) {
+  const d = date ? new Date(date) : agoraBrasil();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function ymd(date) {
@@ -132,6 +155,42 @@ async function isDiaDSRReal(opsId, data, nomeEscala) {
   }
   return isDiaDSR(data, nomeEscala);
 }
+
+/* =====================================================
+   LISTAR ESCALAS ATIVAS (formulário de Troca de Escala)
+   Escopadas pela estação do colaborador informado, incluindo
+   escalas globais (idEstacao null).
+===================================================== */
+exports.listarEscalasAtivas = async (req, res) => {
+  try {
+    const { opsId } = req.query;
+    if (!opsId) {
+      return errorResponse(res, "opsId é obrigatório", 400);
+    }
+
+    const colaborador = await prisma.colaborador.findUnique({
+      where: { opsId },
+      select: { idEstacao: true },
+    });
+    if (!colaborador) {
+      return notFoundResponse(res, "Colaborador não encontrado");
+    }
+
+    const escalas = await prisma.escala.findMany({
+      where: {
+        ativo: true,
+        OR: [{ idEstacao: colaborador.idEstacao }, { idEstacao: null }],
+      },
+      select: { idEscala: true, nomeEscala: true, descricao: true },
+      orderBy: { nomeEscala: "asc" },
+    });
+
+    return successResponse(res, escalas);
+  } catch (err) {
+    console.error("❌ listarEscalasAtivas:", err);
+    return errorResponse(res, "Erro ao listar escalas", 500);
+  }
+};
 
 /* =====================================================
    BUSCAR COLABORADOR POR CPF (autofill dos formulários)
@@ -310,6 +369,8 @@ exports.getSolicitacao = async (req, res) => {
             lider: { select: { nomeCompleto: true } },
           },
         },
+        novoLider: { select: { nomeCompleto: true, cargo: { select: { nomeCargo: true } } } },
+        novaEscala: { select: { nomeEscala: true, descricao: true } },
         solicitante: { select: { name: true, email: true, opsId: true } },
         decididoPor: { select: { name: true, email: true } },
         historico: { orderBy: { criadoEm: "asc" } },
@@ -360,8 +421,15 @@ exports.listarCalendario = async (req, res) => {
         motivo: true,
         sinergiaDestino: true,
         bhDiaCompleto: true,
+        heHoraEntrada: true,
+        heHoraSaida: true,
+        dataDesligamentoSolicitada: true,
+        motivoDesligamentoSolicitado: true,
+        tipoDesligamentoSolicitado: true,
         colaborador: { select: { nomeCompleto: true, cpf: true, setor: { select: { nomeSetor: true } }, turno: { select: { nomeTurno: true } } } },
         colaborador2: { select: { nomeCompleto: true } },
+        novoLider: { select: { nomeCompleto: true } },
+        novaEscala: { select: { nomeEscala: true } },
         decididoPor: { select: { name: true } },
       },
       orderBy: { data: "asc" },
@@ -470,6 +538,102 @@ exports.createSolicitacao = async (req, res) => {
       dadosBase.dsrDataNova1 = normalizeDateOnly(dsrDataNova1);
       dadosBase.dsrDataAtual2 = normalizeDateOnly(dsrDataAtual2);
       dadosBase.dsrDataNova2 = normalizeDateOnly(dsrDataNova2);
+    } else if (tipo === "HORA_EXTRA") {
+      const { data, heHoraEntrada, heHoraSaida } = req.body;
+      if (!data || !heHoraEntrada || !heHoraSaida) {
+        return errorResponse(res, "Data, hora de entrada e hora de saída são obrigatórias", 400);
+      }
+      if (heHoraSaida <= heHoraEntrada) {
+        return errorResponse(res, "A hora de saída deve ser depois da hora de entrada", 400);
+      }
+
+      const colaborador = await validarColaboradorDisponivel(opsId, data);
+
+      const ehDiaDeDSR = await isDiaDSRReal(opsId, normalizeDateOnly(data), colaborador.escala?.nomeEscala);
+      if (!ehDiaDeDSR) {
+        return errorResponse(res, `${data} não é dia de DSR para ${colaborador.nomeCompleto}. Hora extra só pode ser solicitada em dia de DSR.`, 400);
+      }
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = normalizeDateOnly(data);
+      dadosBase.heHoraEntrada = heHoraEntrada;
+      dadosBase.heHoraSaida = heHoraSaida;
+    } else if (tipo === "TROCA_GESTAO") {
+      const { novoLiderOpsId } = req.body;
+      if (!novoLiderOpsId) {
+        return errorResponse(res, "Selecione o novo líder", 400);
+      }
+      if (novoLiderOpsId === opsId) {
+        return errorResponse(res, "O colaborador não pode ser líder de si mesmo", 400);
+      }
+
+      const colaborador = await validarColaboradorDisponivel(opsId, ymd(startOfDayBR()));
+
+      const novoLider = await prisma.colaborador.findUnique({
+        where: { opsId: novoLiderOpsId },
+        select: { opsId: true, nomeCompleto: true, status: true, idEstacao: true },
+      });
+      if (!novoLider) {
+        return errorResponse(res, "Novo líder não encontrado", 400);
+      }
+      if (novoLider.status !== "ATIVO") {
+        return errorResponse(res, `${novoLider.nomeCompleto} não está ativo`, 400);
+      }
+      if (novoLider.idEstacao !== colaborador.idEstacao) {
+        return errorResponse(res, `${novoLider.nomeCompleto} não pertence à mesma estação do colaborador`, 400);
+      }
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = startOfDayBR();
+      dadosBase.novoLiderOpsId = novoLiderOpsId;
+    } else if (tipo === "TROCA_ESCALA") {
+      const { novaIdEscala } = req.body;
+      if (!novaIdEscala) {
+        return errorResponse(res, "Selecione a nova escala", 400);
+      }
+
+      const colaborador = await validarColaboradorDisponivel(opsId, ymd(startOfDayBR()));
+
+      if (Number(novaIdEscala) === Number(colaborador.idEscala)) {
+        return errorResponse(res, `${colaborador.nomeCompleto} já está nessa escala`, 400);
+      }
+
+      const novaEscala = await prisma.escala.findUnique({
+        where: { idEscala: Number(novaIdEscala) },
+        select: { idEscala: true, nomeEscala: true, ativo: true, idEstacao: true },
+      });
+      if (!novaEscala) {
+        return errorResponse(res, "Escala não encontrada", 400);
+      }
+      if (!novaEscala.ativo) {
+        return errorResponse(res, `Escala ${novaEscala.nomeEscala} não está ativa`, 400);
+      }
+      if (novaEscala.idEstacao !== null && novaEscala.idEstacao !== colaborador.idEstacao) {
+        return errorResponse(res, `Escala ${novaEscala.nomeEscala} não está disponível para a estação do colaborador`, 400);
+      }
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = startOfDayBR();
+      dadosBase.novaIdEscala = Number(novaIdEscala);
+    } else if (tipo === "DESLIGAMENTO") {
+      const { dataDesligamentoSolicitada, motivoDesligamentoSolicitado, tipoDesligamentoSolicitado } = req.body;
+      if (!dataDesligamentoSolicitada || !motivoDesligamentoSolicitado || !tipoDesligamentoSolicitado) {
+        return errorResponse(res, "Data, motivo e tipo de desligamento são obrigatórios", 400);
+      }
+      if (!TIPOS_DESLIGAMENTO_VALIDOS.includes(tipoDesligamentoSolicitado)) {
+        return errorResponse(res, "Tipo de desligamento inválido", 400);
+      }
+      if (!MOTIVOS_DESLIGAMENTO_VALIDOS.includes(motivoDesligamentoSolicitado)) {
+        return errorResponse(res, "Motivo de desligamento inválido", 400);
+      }
+
+      await validarColaboradorDisponivel(opsId, dataDesligamentoSolicitada);
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = normalizeDateOnly(dataDesligamentoSolicitada);
+      dadosBase.dataDesligamentoSolicitada = normalizeDateOnly(dataDesligamentoSolicitada);
+      dadosBase.motivoDesligamentoSolicitado = motivoDesligamentoSolicitado;
+      dadosBase.tipoDesligamentoSolicitado = tipoDesligamentoSolicitado;
     } else {
       return errorResponse(res, "Tipo de solicitação inválido", 400);
     }
@@ -581,7 +745,121 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
     // Colaborador 2: espelho
     await upsertFrequencia(solicitacao.opsId2, solicitacao.dsrDataNova2, idPorCodigo.DSR);
     await upsertFrequencia(solicitacao.opsId2, solicitacao.dsrDataAtual2, null);
+  } else if (solicitacao.tipo === "HORA_EXTRA") {
+    // Dia era DSR e o colaborador trabalhou: sai de DSR, vira presença com horário registrado
+    const [hE, mE] = solicitacao.heHoraEntrada.split(":").map(Number);
+    const [hS, mS] = solicitacao.heHoraSaida.split(":").map(Number);
+    const horaEntrada = new Date(`1970-01-01T${solicitacao.heHoraEntrada}:00Z`);
+    const horaSaida = new Date(`1970-01-01T${solicitacao.heHoraSaida}:00Z`);
+    const horasTrabalhadas = (hS + mS / 60) - (hE + mE / 60);
+
+    await upsertFrequencia(solicitacao.opsId, solicitacao.data, null, {
+      horaEntrada,
+      horaSaida,
+      horasTrabalhadas,
+      justificativa: "HORA_EXTRA_DSR",
+    });
   }
+}
+
+/* =====================================================
+   APLICAR MUDANÇA CADASTRAL (Troca de Gestão, Troca de Escala,
+   Desligamento) — altera o próprio registro do colaborador.
+   Retorna dados necessários para regenerar DSR fora da transação
+   (troca de escala), quando aplicável.
+===================================================== */
+async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
+  if (solicitacao.tipo === "TROCA_GESTAO") {
+    await tx.colaborador.update({
+      where: { opsId: solicitacao.opsId },
+      data: { lider: { connect: { opsId: solicitacao.novoLiderOpsId } } },
+    });
+    return null;
+  }
+
+  if (solicitacao.tipo === "TROCA_ESCALA") {
+    const hoje = startOfDayBR();
+
+    const atual = await tx.colaborador.findUnique({
+      where: { opsId: solicitacao.opsId },
+      select: { idEstacao: true },
+    });
+
+    // Fecha o histórico de escala aberto e abre um novo a partir de hoje
+    await tx.colaboradorEscalaHistorico.updateMany({
+      where: { opsId: solicitacao.opsId, dataFim: null },
+      data: { dataFim: new Date(hoje.getTime() - 86400000) },
+    });
+
+    const historicoHoje = await tx.colaboradorEscalaHistorico.findFirst({
+      where: { opsId: solicitacao.opsId, dataInicio: hoje },
+    });
+    if (historicoHoje) {
+      await tx.colaboradorEscalaHistorico.update({
+        where: { id: historicoHoje.id },
+        data: { idEscala: solicitacao.novaIdEscala, dataFim: null },
+      });
+    } else {
+      await tx.colaboradorEscalaHistorico.create({
+        data: { opsId: solicitacao.opsId, idEscala: solicitacao.novaIdEscala, dataInicio: hoje },
+      });
+    }
+
+    // Remove DSR futuro gerado automaticamente pela escala antiga
+    const tipoDSR = await tx.tipoAusencia.findFirst({ where: { codigo: "DSR" }, select: { idTipoAusencia: true } });
+    if (tipoDSR) {
+      await tx.frequencia.deleteMany({
+        where: { opsId: solicitacao.opsId, dataReferencia: { gte: hoje }, idTipoAusencia: tipoDSR.idTipoAusencia, manual: false },
+      });
+    }
+
+    await tx.colaborador.update({
+      where: { opsId: solicitacao.opsId },
+      data: { escala: { connect: { idEscala: solicitacao.novaIdEscala } } },
+    });
+
+    const novaEscala = await tx.escala.findUnique({ where: { idEscala: solicitacao.novaIdEscala }, select: { nomeEscala: true } });
+    return { nomeEscalaParaDSR: novaEscala?.nomeEscala ?? null, idEstacao: atual?.idEstacao ?? null };
+  }
+
+  if (solicitacao.tipo === "DESLIGAMENTO") {
+    const atual = await tx.colaborador.findUnique({
+      where: { opsId: solicitacao.opsId },
+      select: { idEmpresa: true, idEstacao: true },
+    });
+
+    await tx.colaborador.update({
+      where: { opsId: solicitacao.opsId },
+      data: {
+        status: "INATIVO",
+        dataDesligamento: solicitacao.dataDesligamentoSolicitada,
+        motivoDesligamento: solicitacao.motivoDesligamentoSolicitado,
+        tipoDesligamento: solicitacao.tipoDesligamentoSolicitado,
+      },
+    });
+
+    const jaExiste = await tx.desligamento.findFirst({
+      where: { opsId: solicitacao.opsId, dataDesligamento: solicitacao.dataDesligamentoSolicitada },
+    });
+    if (!jaExiste) {
+      await tx.desligamento.create({
+        data: {
+          opsId: solicitacao.opsId,
+          idEmpresa: atual?.idEmpresa ?? null,
+          idEstacao: atual?.idEstacao ?? null,
+          dataDesligamento: solicitacao.dataDesligamentoSolicitada,
+          tipo: solicitacao.tipoDesligamentoSolicitado,
+          motivo: solicitacao.motivoDesligamentoSolicitado,
+          observacao: "Gerado via Solicitação Operacional",
+          registradoPor,
+        },
+      });
+    }
+
+    return null;
+  }
+
+  return null;
 }
 
 /* =====================================================
@@ -608,6 +886,17 @@ exports.aprovarSolicitacao = async (req, res) => {
       return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
     }
 
+    const TIPOS_CADASTRAIS = ["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"];
+    const EVENTO_POS_APROVACAO = {
+      TROCA_GESTAO: "Líder do colaborador atualizado automaticamente",
+      TROCA_ESCALA: "Escala do colaborador atualizada automaticamente",
+      DESLIGAMENTO: "Colaborador desligado automaticamente",
+    };
+
+    let regenDSR = null;
+    let tipoAprovado = null;
+    let solicitacaoAprovada = null;
+
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.solicitacaoOperacional.updateMany({
         where: { idSolicitacao, status: "PENDENTE" },
@@ -619,16 +908,45 @@ exports.aprovarSolicitacao = async (req, res) => {
       }
 
       const solicitacao = await tx.solicitacaoOperacional.findUnique({ where: { idSolicitacao } });
+      tipoAprovado = solicitacao.tipo;
+      solicitacaoAprovada = solicitacao;
 
-      await aplicarNaFrequencia(tx, solicitacao, req.user.id);
+      if (TIPOS_CADASTRAIS.includes(solicitacao.tipo)) {
+        regenDSR = await aplicarMudancaCadastral(tx, solicitacao, req.user.id);
+      } else {
+        await aplicarNaFrequencia(tx, solicitacao, req.user.id);
+      }
 
       await tx.solicitacaoOperacionalHistorico.createMany({
         data: [
           { idSolicitacao, evento: `Solicitação aprovada por ${req.user.name}` },
-          { idSolicitacao, evento: "Controle de Presença atualizado automaticamente" },
+          { idSolicitacao, evento: EVENTO_POS_APROVACAO[solicitacao.tipo] || "Controle de Presença atualizado automaticamente" },
         ],
       });
     });
+
+    // Regeneração de DSR fora da transação (evita timeout em backfills longos)
+    if (regenDSR?.nomeEscalaParaDSR) {
+      try {
+        await gerarDSRFuturoColaborador({ opsId: solicitacaoAprovada.opsId, nomeEscala: regenDSR.nomeEscalaParaDSR, idEstacao: regenDSR.idEstacao });
+        await gerarDSRBackfillColaborador({ opsId: solicitacaoAprovada.opsId, nomeEscala: regenDSR.nomeEscalaParaDSR, idEstacao: regenDSR.idEstacao });
+      } catch (e) {
+        console.error(`❌ Erro ao regenerar DSR após troca de escala (${idSolicitacao}):`, e.message);
+      }
+    }
+
+    // Frequência de desligamento fora da transação — best-effort
+    if (tipoAprovado === "DESLIGAMENTO") {
+      try {
+        await gerarFrequenciaDesligamento({
+          opsId: solicitacaoAprovada.opsId,
+          dataDesligamento: solicitacaoAprovada.dataDesligamentoSolicitada,
+          tipoDesligamento: solicitacaoAprovada.tipoDesligamentoSolicitado,
+        });
+      } catch (e) {
+        console.error(`❌ Erro ao gerar frequência de desligamento (${idSolicitacao}):`, e.message);
+      }
+    }
 
     // E-mail ao solicitante — best-effort
     try {
@@ -650,7 +968,10 @@ exports.aprovarSolicitacao = async (req, res) => {
       console.error("⚠️ Falha ao enviar email de decisão (aprovação):", emailErr.message);
     }
 
-    return successResponse(res, null, "Solicitação aprovada e Controle de Presença atualizado");
+    const mensagemSucesso = TIPOS_CADASTRAIS.includes(tipoAprovado)
+      ? "Solicitação aprovada e cadastro do colaborador atualizado"
+      : "Solicitação aprovada e Controle de Presença atualizado";
+    return successResponse(res, null, mensagemSucesso);
   } catch (err) {
     if (err instanceof HttpError) {
       return errorResponse(res, err.message, err.statusCode);

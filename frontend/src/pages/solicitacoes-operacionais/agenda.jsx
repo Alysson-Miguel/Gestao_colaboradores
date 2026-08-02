@@ -354,7 +354,9 @@ export default function AgendaSolicitacoesOperacionais() {
 
             <div className="grid grid-cols-2 gap-2.5">
               <InfoTile icon={<User size={15} />} label="Colaborador" value={selecionada.colaborador?.nomeCompleto} />
-              <InfoTile icon={<CalendarDays size={15} />} label="Data" value={formatDateOnly(selecionada.data)} />
+              {!["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"].includes(selecionada.tipo) && (
+                <InfoTile icon={<CalendarDays size={15} />} label="Data" value={formatDateOnly(selecionada.data)} />
+              )}
               <InfoTile icon={<Building2 size={15} />} label="Setor" value={selecionada.colaborador?.setor?.nomeSetor} />
               <InfoTile icon={<Briefcase size={15} />} label="Turno" value={selecionada.colaborador?.turno?.nomeTurno} />
               {selecionada.tipo === "SINERGIA" && (
@@ -362,6 +364,18 @@ export default function AgendaSolicitacoesOperacionais() {
               )}
               {selecionada.tipo === "BANCO_HORAS" && (
                 <InfoTile icon={<Clock size={15} />} label="Modalidade" value={selecionada.bhDiaCompleto ? "Dia completo" : "Horas parciais"} />
+              )}
+              {selecionada.tipo === "HORA_EXTRA" && (
+                <InfoTile icon={<Clock size={15} />} label="Horário" value={`${selecionada.heHoraEntrada || "—"} às ${selecionada.heHoraSaida || "—"}`} />
+              )}
+              {selecionada.tipo === "TROCA_GESTAO" && (
+                <InfoTile icon={<User size={15} />} label="Novo Líder" value={selecionada.novoLider?.nomeCompleto} />
+              )}
+              {selecionada.tipo === "TROCA_ESCALA" && (
+                <InfoTile icon={<CalendarDays size={15} />} label="Nova Escala" value={selecionada.novaEscala?.nomeEscala} />
+              )}
+              {selecionada.tipo === "DESLIGAMENTO" && (
+                <InfoTile icon={<CalendarDays size={15} />} label="Data de Desligamento" value={formatDateOnly(selecionada.dataDesligamentoSolicitada)} />
               )}
             </div>
 
