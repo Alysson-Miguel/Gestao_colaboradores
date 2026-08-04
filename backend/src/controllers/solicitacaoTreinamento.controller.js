@@ -7,6 +7,17 @@ const {
   paginatedResponse,
 } = require("../utils/response");
 const { sendSolicitacaoTreinamentoEmail } = require("../reports/email");
+const { sendSolicitacaoNotification } = require("../services/seatalkSolicitacoes.service");
+
+function formatDataBR(date) {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("pt-BR");
+}
+
+function linkSolicitacaoTreinamento(idSolicitacao) {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  return `${frontendUrl}/treinamentos/solicitacoes/${idSolicitacao}`;
+}
 
 class HttpError extends Error {
   constructor(message, statusCode) {
@@ -518,20 +529,22 @@ exports.createSolicitacao = async (req, res) => {
       return nova;
     });
 
+    // Busca setor + aprovadores uma vez só, reaproveitado pelo e-mail e pelo SeaTalk
+    const setor = await prisma.setor.findUnique({
+      where: { idSetor: Number(idSetor) },
+      select: { nomeSetor: true, idEstacao: true },
+    });
+
+    // Só aprovadores da mesma estação do setor (+ aprovadores globais)
+    const aprovadoresAtivos = await prisma.aprovadorTreinamento.findMany({
+      where: {
+        ativo: true,
+        OR: [{ idEstacao: setor?.idEstacao ?? null }, { idEstacao: null }],
+      },
+    });
+
     // Notificação por e-mail — não bloqueia a criação da solicitação em caso de falha
     try {
-      const setor = await prisma.setor.findUnique({
-        where: { idSetor: Number(idSetor) },
-        select: { nomeSetor: true, idEstacao: true },
-      });
-
-      // Só aprovadores da mesma estação do setor (+ aprovadores globais)
-      const aprovadoresAtivos = await prisma.aprovadorTreinamento.findMany({
-        where: {
-          ativo: true,
-          OR: [{ idEstacao: setor?.idEstacao ?? null }, { idEstacao: null }],
-        },
-      });
       if (aprovadoresAtivos.length > 0) {
         await sendSolicitacaoTreinamentoEmail({
           to: aprovadoresAtivos.map((a) => a.email),
@@ -554,6 +567,22 @@ exports.createSolicitacao = async (req, res) => {
       }
     } catch (emailErr) {
       console.error("⚠️ Falha ao enviar email de solicitação de treinamento:", emailErr.message);
+    }
+
+    try {
+      await sendSolicitacaoNotification(
+        `# 📋 Nova Solicitação de Treinamento\n\n` +
+          `- **Tema:** ${tema}\n` +
+          `- **Processo:** ${processo}\n` +
+          `- **Setor:** ${setor?.nomeSetor || "N/A"}\n` +
+          `- **Data:** ${formatDataBR(dataNormalizada)}\n` +
+          `- **Solicitante:** ${req.user.name}\n\n` +
+          `---\n\n` +
+          `[Ver solicitação completa](${linkSolicitacaoTreinamento(solicitacao.idSolicitacao)})`,
+        { mentionEmails: aprovadoresAtivos.map((a) => a.email) }
+      );
+    } catch (seatalkErr) {
+      console.error("⚠️ Falha ao enviar notificação SeaTalk de solicitação de treinamento:", seatalkErr.message);
     }
 
     return createdResponse(res, { ...solicitacao, avisos }, "Solicitação criada com sucesso");
@@ -587,6 +616,8 @@ exports.aprovarSolicitacao = async (req, res) => {
       return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
     }
 
+    let notifTreinamento = null;
+
     const novoTreinamento = await prisma.$transaction(async (tx) => {
       const claimed = await tx.solicitacaoTreinamento.updateMany({
         where: { idSolicitacao, status: "PENDENTE" },
@@ -602,9 +633,16 @@ exports.aprovarSolicitacao = async (req, res) => {
         include: {
           participantes: true,
           setor: { select: { nomeSetor: true, estacao: { select: { nomeEstacao: true } } } },
-          solicitante: { select: { opsId: true, name: true } },
+          solicitante: { select: { opsId: true, name: true, email: true } },
         },
       });
+
+      notifTreinamento = {
+        tema: solicitacao.tema,
+        processo: solicitacao.processo,
+        setorNome: solicitacao.setor?.nomeSetor,
+        solicitanteEmail: solicitacao.solicitante?.email,
+      };
 
       if (!solicitacao.solicitante?.opsId) {
         throw new HttpError(
@@ -648,6 +686,21 @@ exports.aprovarSolicitacao = async (req, res) => {
       return treinamento;
     });
 
+    try {
+      await sendSolicitacaoNotification(
+        `# ✅ Solicitação de Treinamento Aprovada\n\n` +
+          `- **Tema:** ${notifTreinamento?.tema}\n` +
+          `- **Processo:** ${notifTreinamento?.processo}\n` +
+          `- **Setor:** ${notifTreinamento?.setorNome || "N/A"}\n` +
+          `- **Aprovado por:** ${req.user.name}\n\n` +
+          `---\n\n` +
+          `[Ver solicitação completa](${linkSolicitacaoTreinamento(idSolicitacao)})`,
+        { mentionEmails: [notifTreinamento?.solicitanteEmail] }
+      );
+    } catch (seatalkErr) {
+      console.error("⚠️ Falha ao enviar notificação SeaTalk de aprovação de treinamento:", seatalkErr.message);
+    }
+
     return successResponse(
       res,
       { idTreinamento: novoTreinamento.idTreinamento },
@@ -676,7 +729,12 @@ exports.negarSolicitacao = async (req, res) => {
 
     const solicitacaoAtual = await prisma.solicitacaoTreinamento.findUnique({
       where: { idSolicitacao },
-      select: { setor: { select: { idEstacao: true } } },
+      select: {
+        tema: true,
+        processo: true,
+        setor: { select: { idEstacao: true, nomeSetor: true } },
+        solicitante: { select: { email: true } },
+      },
     });
 
     if (!solicitacaoAtual || !pertenceAEstacaoDoUsuario(req, solicitacaoAtual.setor?.idEstacao)) {
@@ -710,6 +768,22 @@ exports.negarSolicitacao = async (req, res) => {
         },
       });
     });
+
+    try {
+      await sendSolicitacaoNotification(
+        `# ❌ Solicitação de Treinamento Reprovada\n\n` +
+          `- **Tema:** ${solicitacaoAtual.tema}\n` +
+          `- **Processo:** ${solicitacaoAtual.processo}\n` +
+          `- **Setor:** ${solicitacaoAtual.setor?.nomeSetor || "N/A"}\n` +
+          `- **Reprovado por:** ${req.user.name}\n\n` +
+          `> Motivo: **${motivo.trim()}**\n\n` +
+          `---\n\n` +
+          `[Ver solicitação completa](${linkSolicitacaoTreinamento(idSolicitacao)})`,
+        { mentionEmails: [solicitacaoAtual.solicitante?.email] }
+      );
+    } catch (seatalkErr) {
+      console.error("⚠️ Falha ao enviar notificação SeaTalk de reprovação de treinamento:", seatalkErr.message);
+    }
 
     return successResponse(res, null, "Solicitação negada");
   } catch (err) {

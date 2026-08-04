@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/MainLayout";
 import {
   ArrowLeft, CalendarOff, Clock3, Share2, ArrowLeftRight, Send, AlertTriangle,
-  Hourglass, UserCog, CalendarClock, UserX,
+  Hourglass, UserCog, CalendarClock, UserX, CheckCircle2, Upload,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -12,6 +12,7 @@ import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { BuscaColaboradorPorCpf } from "../../components/solicitacoesOperacionais/BuscaColaboradorPorCpf";
+import { ImportarSinergiaModal } from "../../components/solicitacoesOperacionais/ImportarSinergiaModal";
 import { TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL } from "./shared";
 
 const TIPOS = [
@@ -45,6 +46,9 @@ export default function NovaSolicitacaoOperacional() {
   const [tipo, setTipo] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState(null);
+  const [sucessoMsg, setSucessoMsg] = useState(null);
+  const [formKey, setFormKey] = useState(0);
+  const [importarAberto, setImportarAberto] = useState(false);
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
 
@@ -97,7 +101,14 @@ export default function NovaSolicitacaoOperacional() {
     setNovaIdEscala(""); setEscalas([]);
     setDataDesligamentoSolicitada(""); setMotivoDesligamentoSolicitado(""); setTipoDesligamentoSolicitado("");
     setErro(null);
+    setSucessoMsg(null);
   };
+
+  useEffect(() => {
+    if (!sucessoMsg) return;
+    const t = setTimeout(() => setSucessoMsg(null), 5000);
+    return () => clearTimeout(t);
+  }, [sucessoMsg]);
 
   const escolherTipo = (t) => {
     resetForm();
@@ -197,7 +208,19 @@ export default function NovaSolicitacaoOperacional() {
       }
 
       const criada = await SolicitacoesOperacionaisAPI.criar(payload);
-      navigate(`/solicitacoes-operacionais/${criada.idSolicitacao}`);
+
+      if (tipo === "SINERGIA") {
+        // Sinergia costuma ser lançada em sequência para vários colaboradores —
+        // em vez de navegar pro detalhe, mantém a tela pronta pra próxima.
+        setSucessoMsg(`Solicitação Nº ${criada.idSolicitacao} criada com sucesso para ${colaborador?.nomeCompleto || "o colaborador"}.`);
+        setColaborador(null);
+        setData("");
+        setSinergiaDestino("");
+        setMotivo("");
+        setFormKey((k) => k + 1);
+      } else {
+        navigate(`/solicitacoes-operacionais/${criada.idSolicitacao}`);
+      }
     } catch (e) {
       if (e.response?.status === 401) { logout(); navigate("/login"); return; }
       setErro(e.response?.data?.message || "Erro ao criar solicitação");
@@ -299,7 +322,7 @@ export default function NovaSolicitacaoOperacional() {
                 </>
               ) : (
                 <>
-                  <BuscaColaboradorPorCpf onFound={setColaborador} onClear={() => setColaborador(null)} />
+                  <BuscaColaboradorPorCpf key={formKey} onFound={setColaborador} onClear={() => setColaborador(null)} />
 
                   {TIPOS_COM_DATA_GENERICA.includes(tipo) && (
                     <Field label={tipo === "HORA_EXTRA" ? "Data (dia de DSR)" : "Data"}>
@@ -338,6 +361,8 @@ export default function NovaSolicitacaoOperacional() {
                         <option value="FULL">FULL</option>
                         <option value="TRATATIVAS">Tratativas</option>
                         <option value="OUTRA_OPERACAO">Outra Operação</option>
+                        <option value="ALMOXARIFADO">Almoxarifado</option>
+                        <option value="MEIO_AMBIENTE">Meio Ambiente</option>
                       </select>
                     </Field>
                   )}
@@ -457,21 +482,42 @@ export default function NovaSolicitacaoOperacional() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => escolherTipo(null)} className="px-5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-sm transition-colors cursor-pointer">
-                  Voltar
-                </button>
-                <button
-                  onClick={enviar}
-                  disabled={!podeEnviar || enviando}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
-                    !podeEnviar || enviando ? "bg-[#FA4C00]/40 text-white/60 cursor-not-allowed" : "bg-[#FA4C00] hover:bg-[#D84300] text-white"
-                  }`}
-                >
-                  <Send size={15} /> {enviando ? "Enviando..." : "Enviar Solicitação"}
-                </button>
+              {sucessoMsg && (
+                <div className="flex gap-2.5 rounded-xl border border-[#34C759]/30 bg-[#34C759]/5 p-3">
+                  <CheckCircle2 size={15} className="text-[#34C759] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#34C759]">{sucessoMsg}</p>
+                </div>
+              )}
+
+              <div className={`flex items-center pt-2 ${tipo === "SINERGIA" ? "justify-between" : "justify-end"}`}>
+                {tipo === "SINERGIA" && (
+                  <button
+                    onClick={() => setImportarAberto(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-sm text-muted hover:text-page transition-colors cursor-pointer"
+                  >
+                    <Upload size={15} /> Importar em massa
+                  </button>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={() => escolherTipo(null)} className="px-5 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-sm transition-colors cursor-pointer">
+                    Voltar
+                  </button>
+                  <button
+                    onClick={enviar}
+                    disabled={!podeEnviar || enviando}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                      !podeEnviar || enviando ? "bg-[#FA4C00]/40 text-white/60 cursor-not-allowed" : "bg-[#FA4C00] hover:bg-[#D84300] text-white"
+                    }`}
+                  >
+                    <Send size={15} /> {enviando ? "Enviando..." : "Enviar Solicitação"}
+                  </button>
+                </div>
               </div>
             </div>
+          )}
+
+          {importarAberto && (
+            <ImportarSinergiaModal onClose={() => setImportarAberto(false)} />
           )}
         </main>
       </MainLayout>

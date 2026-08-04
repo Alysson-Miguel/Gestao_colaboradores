@@ -16,6 +16,31 @@ const {
   gerarDSRFuturoColaborador,
   gerarDSRBackfillColaborador,
 } = require("../services/dsrBackfill.service");
+const { sendSolicitacaoNotification } = require("../services/seatalkSolicitacoes.service");
+const csv = require("csvtojson");
+
+const TIPO_LABEL_SEATALK = {
+  FOLGA: "Folga",
+  BANCO_HORAS: "Banco de Horas",
+  SINERGIA: "Sinergia",
+  TROCA_DSR: "Troca de DSR",
+  HORA_EXTRA: "Hora Extra",
+  TROCA_GESTAO: "Troca de Gestão",
+  TROCA_ESCALA: "Troca de Escala",
+  DESLIGAMENTO: "Desligamento",
+};
+
+function formatDataBR(date) {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString("pt-BR");
+}
+
+function linkSolicitacaoOperacional(idSolicitacao) {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  return `${frontendUrl}/solicitacoes-operacionais/${idSolicitacao}`;
+}
+
+const DESTINOS_SINERGIA_VALIDOS = ["FULL", "TRATATIVAS", "OUTRA_OPERACAO", "ALMOXARIFADO", "MEIO_AMBIENTE"];
 
 const TIPOS_DESLIGAMENTO_VALIDOS = ["DV", "DF", "DP"];
 const MOTIVOS_DESLIGAMENTO_VALIDOS = [
@@ -155,6 +180,186 @@ async function isDiaDSRReal(opsId, data, nomeEscala) {
   }
   return isDiaDSR(data, nomeEscala);
 }
+
+/**
+ * Normaliza o texto de destino vindo de um CSV (acentos, maiúsculas,
+ * espaços em vez de underscore) para uma das chaves válidas do enum
+ * DestinoSinergia. Retorna null se não bater com nenhuma.
+ */
+function normalizarDestinoSinergia(raw) {
+  const normalizado = String(raw || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  return DESTINOS_SINERGIA_VALIDOS.includes(normalizado) ? normalizado : null;
+}
+
+/**
+ * Aceita data em ISO (aaaa-mm-dd) ou no formato brasileiro (dd/mm/aaaa),
+ * sempre devolvendo ISO (o formato que normalizeDateOnly espera). Retorna
+ * null se não reconhecer o formato.
+ */
+function parseDataFlexivel(raw) {
+  const texto = String(raw || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+  const br = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return null;
+}
+
+/** Normaliza as chaves de uma linha de CSV (trim + lowercase) pra busca tolerante a maiúsculas/acentos de cabeçalho. */
+function normalizarLinhaCsv(row) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    out[String(k).trim().toLowerCase()] = typeof v === "string" ? v.trim() : v;
+  }
+  return out;
+}
+
+/* =====================================================
+   IMPORTAR SINERGIA EM LOTE (CSV)
+   Cada linha é validada e criada isoladamente — uma linha inválida
+   não derruba as demais. Notificações (e-mail/SeaTalk) são enviadas
+   uma única vez, resumindo o lote, em vez de uma por solicitação.
+===================================================== */
+exports.importarSinergiaLote = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return errorResponse(res, "Usuário não autenticado", 401);
+    }
+    if (!req.file) {
+      return errorResponse(res, "Nenhum arquivo enviado", 400);
+    }
+
+    const csvString = req.file.buffer.toString("utf-8");
+    const rows = await csv({ delimiter: "," }).fromString(csvString);
+
+    if (!rows.length) {
+      return errorResponse(res, "Arquivo CSV vazio", 400);
+    }
+    if (rows.length > 500) {
+      return errorResponse(res, "Máximo de 500 linhas por importação", 400);
+    }
+
+    const criadas = [];
+    const erros = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const linha = i + 2; // +2: linha 1 é o cabeçalho
+      const raw = normalizarLinhaCsv(rows[i]);
+      const cpfOriginal = raw.cpf || "";
+
+      try {
+        const cpfDigits = String(cpfOriginal).replace(/\D/g, "");
+        if (cpfDigits.length !== 11) {
+          throw new HttpError(`CPF inválido: "${cpfOriginal}"`, 400);
+        }
+
+        const motivoLinha = String(raw.motivo || "").trim();
+        if (!motivoLinha) {
+          throw new HttpError("Motivo é obrigatório", 400);
+        }
+
+        const destino = normalizarDestinoSinergia(raw.destino);
+        if (!destino) {
+          throw new HttpError(
+            `Destino inválido: "${raw.destino || ""}". Use FULL, TRATATIVAS, OUTRA_OPERACAO, ALMOXARIFADO ou MEIO_AMBIENTE`,
+            400
+          );
+        }
+
+        const dataIso = parseDataFlexivel(raw.data);
+        if (!dataIso) {
+          throw new HttpError(`Data inválida: "${raw.data || ""}". Use o formato dd/mm/aaaa`, 400);
+        }
+
+        const colaborador = await prisma.colaborador.findFirst({
+          where: { cpf: cpfDigits },
+          select: { opsId: true, nomeCompleto: true, idEstacao: true, cpf: true },
+        });
+        if (!colaborador || !pertenceAEstacaoDoUsuario(req, colaborador.idEstacao)) {
+          throw new HttpError(`Colaborador não encontrado para o CPF ${cpfOriginal}`, 400);
+        }
+
+        await validarColaboradorDisponivel(colaborador.opsId, dataIso);
+
+        const solicitacao = await prisma.$transaction(async (tx) => {
+          const nova = await tx.solicitacaoOperacional.create({
+            data: {
+              tipo: "SINERGIA",
+              opsId: colaborador.opsId,
+              data: normalizeDateOnly(dataIso),
+              sinergiaDestino: destino,
+              motivo: motivoLinha,
+              solicitanteUserId: req.user.id,
+            },
+          });
+          await tx.solicitacaoOperacionalHistorico.create({
+            data: {
+              idSolicitacao: nova.idSolicitacao,
+              evento: `Solicitação criada por ${req.user.name} (importação em lote)`,
+            },
+          });
+          return nova;
+        });
+
+        criadas.push({
+          linha,
+          idSolicitacao: solicitacao.idSolicitacao,
+          colaboradorNome: colaborador.nomeCompleto,
+          idEstacao: colaborador.idEstacao,
+        });
+      } catch (err) {
+        const mensagem = err instanceof HttpError ? err.message : err.message || "Erro desconhecido";
+        erros.push({ linha, cpf: cpfOriginal, motivo: mensagem });
+      }
+    }
+
+    // Notificações resumidas do lote — best-effort, não bloqueia a resposta
+    if (criadas.length > 0) {
+      try {
+        const idsEstacao = [...new Set(criadas.map((c) => c.idEstacao).filter((v) => v != null))];
+        const aprovadoresAtivos = await prisma.aprovadorOperacional.findMany({
+          where: {
+            ativo: true,
+            OR: [...idsEstacao.map((id) => ({ idEstacao: id })), { idEstacao: null }],
+          },
+        });
+
+        if (aprovadoresAtivos.length > 0) {
+          const emails = [...new Set(aprovadoresAtivos.map((a) => a.email))];
+          const listaColaboradores = criadas
+            .slice(0, 15)
+            .map((c) => `- ${c.colaboradorNome} (Nº ${c.idSolicitacao})`)
+            .join("\n");
+          const resto = criadas.length > 15 ? `\n- ...e mais ${criadas.length - 15}` : "";
+
+          await sendSolicitacaoNotification(
+            `# 📋 Sinergia — Importação em Lote\n\n` +
+              `- **Solicitações criadas:** ${criadas.length}\n` +
+              `- **Solicitante:** ${req.user.name}\n\n` +
+              `---\n\n${listaColaboradores}${resto}\n\n` +
+              `[Ver todas as solicitações](${(process.env.FRONTEND_URL || "http://localhost:5173")}/solicitacoes-operacionais/lista)`,
+            { mentionEmails: emails }
+          );
+        }
+      } catch (notifErr) {
+        console.error("⚠️ Falha ao notificar importação em lote de sinergia:", notifErr.message);
+      }
+    }
+
+    return successResponse(
+      res,
+      { criadas: criadas.length, totalLinhas: rows.length, erros },
+      `${criadas.length} solicitação(ões) criada(s), ${erros.length} erro(s)`
+    );
+  } catch (err) {
+    console.error("❌ importarSinergiaLote:", err);
+    return errorResponse(res, "Erro ao importar solicitações de sinergia", 500);
+  }
+};
 
 /* =====================================================
    LISTAR ESCALAS ATIVAS (formulário de Troca de Escala)
@@ -493,7 +698,7 @@ exports.createSolicitacao = async (req, res) => {
       if (!data || !sinergiaDestino) {
         return errorResponse(res, "Data e destino da sinergia são obrigatórios", 400);
       }
-      if (!["FULL", "TRATATIVAS", "OUTRA_OPERACAO"].includes(sinergiaDestino)) {
+      if (!DESTINOS_SINERGIA_VALIDOS.includes(sinergiaDestino)) {
         return errorResponse(res, "Destino de sinergia inválido", 400);
       }
 
@@ -648,28 +853,29 @@ exports.createSolicitacao = async (req, res) => {
       return nova;
     });
 
+    // Busca colaborador + aprovadores uma vez só, reaproveitado pelo e-mail e pelo SeaTalk
+    const colaborador = await prisma.colaborador.findUnique({
+      where: { opsId },
+      select: {
+        nomeCompleto: true,
+        cpf: true,
+        idEstacao: true,
+        cargo: { select: { nomeCargo: true } },
+        setor: { select: { nomeSetor: true } },
+        turno: { select: { nomeTurno: true } },
+        lider: { select: { nomeCompleto: true } },
+      },
+    });
+
+    const aprovadoresAtivos = await prisma.aprovadorOperacional.findMany({
+      where: {
+        ativo: true,
+        OR: [{ idEstacao: colaborador?.idEstacao ?? null }, { idEstacao: null }],
+      },
+    });
+
     // Notificação por e-mail — não bloqueia a criação em caso de falha
     try {
-      const colaborador = await prisma.colaborador.findUnique({
-        where: { opsId },
-        select: {
-          nomeCompleto: true,
-          cpf: true,
-          idEstacao: true,
-          cargo: { select: { nomeCargo: true } },
-          setor: { select: { nomeSetor: true } },
-          turno: { select: { nomeTurno: true } },
-          lider: { select: { nomeCompleto: true } },
-        },
-      });
-
-      const aprovadoresAtivos = await prisma.aprovadorOperacional.findMany({
-        where: {
-          ativo: true,
-          OR: [{ idEstacao: colaborador?.idEstacao ?? null }, { idEstacao: null }],
-        },
-      });
-
       if (aprovadoresAtivos.length > 0) {
         await sendSolicitacaoOperacionalEmail({
           to: aprovadoresAtivos.map((a) => a.email),
@@ -694,6 +900,23 @@ exports.createSolicitacao = async (req, res) => {
       }
     } catch (emailErr) {
       console.error("⚠️ Falha ao enviar email de solicitação operacional:", emailErr.message);
+    }
+
+    try {
+      await sendSolicitacaoNotification(
+        `# 📋 Nova Solicitação Operacional\n\n` +
+          `- **Tipo:** ${TIPO_LABEL_SEATALK[tipo] || tipo}\n` +
+          `- **Colaborador:** ${colaborador?.nomeCompleto || "N/A"}\n` +
+          `- **CPF:** \`${colaborador?.cpf || "N/A"}\`\n` +
+          `- **Setor:** ${colaborador?.setor?.nomeSetor || "N/A"}\n` +
+          `- **Data:** ${formatDataBR(solicitacao.data)}\n` +
+          `- **Solicitante:** ${req.user.name}\n\n` +
+          `---\n\n` +
+          `[Ver solicitação completa](${linkSolicitacaoOperacional(solicitacao.idSolicitacao)})`,
+        { mentionEmails: aprovadoresAtivos.map((a) => a.email) }
+      );
+    } catch (seatalkErr) {
+      console.error("⚠️ Falha ao enviar notificação SeaTalk de solicitação operacional:", seatalkErr.message);
     }
 
     return createdResponse(res, solicitacao, "Solicitação criada com sucesso");
@@ -968,6 +1191,28 @@ exports.aprovarSolicitacao = async (req, res) => {
       console.error("⚠️ Falha ao enviar email de decisão (aprovação):", emailErr.message);
     }
 
+    try {
+      const colaborador = await prisma.colaborador.findUnique({
+        where: { opsId: solicitacaoAprovada.opsId },
+        select: { nomeCompleto: true },
+      });
+      const solicitante = await prisma.user.findUnique({
+        where: { id: solicitacaoAprovada.solicitanteUserId },
+        select: { email: true },
+      });
+      await sendSolicitacaoNotification(
+        `# ✅ Solicitação Operacional Aprovada\n\n` +
+          `- **Tipo:** ${TIPO_LABEL_SEATALK[tipoAprovado] || tipoAprovado}\n` +
+          `- **Colaborador:** ${colaborador?.nomeCompleto || "N/A"}\n` +
+          `- **Aprovado por:** ${req.user.name}\n\n` +
+          `---\n\n` +
+          `[Ver solicitação completa](${linkSolicitacaoOperacional(idSolicitacao)})`,
+        { mentionEmails: [solicitante?.email] }
+      );
+    } catch (seatalkErr) {
+      console.error("⚠️ Falha ao enviar notificação SeaTalk de aprovação operacional:", seatalkErr.message);
+    }
+
     const mensagemSucesso = TIPOS_CADASTRAIS.includes(tipoAprovado)
       ? "Solicitação aprovada e cadastro do colaborador atualizado"
       : "Solicitação aprovada e Controle de Presença atualizado";
@@ -1048,6 +1293,29 @@ exports.reprovarSolicitacao = async (req, res) => {
       }
     } catch (emailErr) {
       console.error("⚠️ Falha ao enviar email de decisão (reprovação):", emailErr.message);
+    }
+
+    try {
+      const solicitacao = await prisma.solicitacaoOperacional.findUnique({
+        where: { idSolicitacao },
+        select: {
+          tipo: true,
+          colaborador: { select: { nomeCompleto: true } },
+          solicitante: { select: { email: true } },
+        },
+      });
+      await sendSolicitacaoNotification(
+        `# ❌ Solicitação Operacional Reprovada\n\n` +
+          `- **Tipo:** ${TIPO_LABEL_SEATALK[solicitacao?.tipo] || solicitacao?.tipo}\n` +
+          `- **Colaborador:** ${solicitacao?.colaborador?.nomeCompleto || "N/A"}\n` +
+          `- **Reprovado por:** ${req.user.name}\n\n` +
+          `> Motivo: **${motivo.trim()}**\n\n` +
+          `---\n\n` +
+          `[Ver solicitação completa](${linkSolicitacaoOperacional(idSolicitacao)})`,
+        { mentionEmails: [solicitacao?.solicitante?.email] }
+      );
+    } catch (seatalkErr) {
+      console.error("⚠️ Falha ao enviar notificação SeaTalk de reprovação operacional:", seatalkErr.message);
     }
 
     return successResponse(res, null, "Solicitação reprovada");

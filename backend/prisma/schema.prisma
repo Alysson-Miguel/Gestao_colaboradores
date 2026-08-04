@@ -1083,6 +1083,8 @@ enum DestinoSinergia {
   FULL
   TRATATIVAS
   OUTRA_OPERACAO
+  ALMOXARIFADO
+  MEIO_AMBIENTE
 }
 
 enum StatusAcidente {

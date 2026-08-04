@@ -981,6 +981,17 @@ const ajusteManualPresenca = async (req, res) => {
       );
     }
 
+    // Liderança não lança mais Folga, Banco de Horas e Sinergia diretamente
+    // no Controle de Presença — precisa passar pelo fluxo de aprovação de
+    // Solicitações Operacionais. ADMIN e ALTA_GESTAO continuam liberados.
+    const CODIGOS_SOMENTE_SOLICITACAO = ["FO", "BH", "S1"];
+    if (req.user?.role === "LIDERANCA" && CODIGOS_SOMENTE_SOLICITACAO.includes(status)) {
+      return forbiddenResponse(
+        res,
+        "Folga, Banco de Horas e Sinergia agora são feitas por Solicitação Operacional."
+      );
+    }
+
     const JUSTIFICATIVAS_PERMITIDAS = [
       "ESQUECIMENTO_MARCACAO",
       "ALTERACAO_PONTO",

@@ -15,6 +15,8 @@ export const DESTINO_SINERGIA_LABEL = {
   FULL: "FULL",
   TRATATIVAS: "Tratativas",
   OUTRA_OPERACAO: "Outra Operação",
+  ALMOXARIFADO: "Almoxarifado",
+  MEIO_AMBIENTE: "Meio Ambiente",
 };
 
 export const TIPO_DESLIGAMENTO_LABEL = {

@@ -1,21 +1,23 @@
-feat(solicitacoes-operacionais): adiciona Hora Extra, Troca de Gestao, Troca de Escala e Desligamento
+feat(solicitacoes-operacionais): notificacoes no SeaTalk, importacao em massa de Sinergia e restringe lancamento manual para Lideranca
 
-- Hora Extra: so pode ser solicitada em dia que seja DSR real do
-  colaborador (mesma checagem que considera registros manuais do
-  Planejamento de Folgas Dominicais, nao so o padrao da escala).
-  Exige hora de entrada/saida; ao aprovar, o dia sai de DSR e vira
-  presenca com horario e horas trabalhadas registrados em frequencia.
-- Troca de Gestao: so aceita lideres ativos da mesma estacao do
-  colaborador; ao aprovar, atualiza o lider direto no cadastro.
-- Troca de Escala: so aceita escalas ativas disponiveis na estacao
-  (inclui escalas globais); bloqueia se for a mesma escala atual;
-  ao aprovar, atualiza a escala, ajusta o historico de escala e
-  regenera o cronograma futuro de DSR automaticamente.
-- Desligamento: so para colaboradores ativos; exige data, motivo e
-  tipo de desligamento (mesmas opcoes da tela de editar colaborador);
-  ao aprovar, marca o colaborador como Inativo, cria o registro de
-  desligamento e preenche o Controle de Presenca ate o fim do mes.
-- Novo endpoint de escalas ativas por estacao e reaproveitamento do
-  endpoint de lideres existente para os seletores do formulario.
-- Testado ponta a ponta contra o backend real (criacao, validacoes
-  de bloqueio, aprovacao e efeitos em cada colaborador).
+- SeaTalk: novo bot dedicado (backend/src/services/seatalkSolicitacoes.service.js)
+  reporta automaticamente toda solicitacao de Treinamento e Operacional
+  (criacao, aprovacao e reprovacao) no grupo configurado. Mensagens em
+  markdown (titulo, lista, divisor, citacao do motivo e link direto pra
+  solicitacao), com @mencao dos aprovadores na criacao e do solicitante
+  na decisao.
+- Sinergia: adiciona os destinos Almoxarifado e Meio Ambiente (migration
+  no enum DestinoSinergia); ao enviar uma solicitacao de Sinergia o
+  formulario agora permanece na tela (reseta os campos) em vez de navegar
+  pro detalhe, ja que costuma ser lancada em sequencia pra varios
+  colaboradores; novo botao "Importar em massa" (somente Sinergia) com
+  modelo de CSV pra download, upload com drag-and-drop e validacao/erro
+  por linha sem travar o restante do lote.
+- Controle de Presenca: perfil Lideranca nao pode mais lancar Folga,
+  Banco de Horas ou Sinergia diretamente na grade — precisa passar pelo
+  fluxo de aprovacao de Solicitacoes Operacionais. Bloqueio no backend
+  (ajusteManualPresenca) e opcoes ocultas no formulario pra esse perfil;
+  ADMIN e ALTA_GESTAO continuam com lancamento manual liberado.
+- Testado ponta a ponta contra o backend real e no navegador (ambos os
+  perfis, criacao/aprovacao/reprovacao, importacao em lote e bloqueio
+  de role), com limpeza dos dados de teste.

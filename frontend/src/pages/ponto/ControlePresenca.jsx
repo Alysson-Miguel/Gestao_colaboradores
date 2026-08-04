@@ -354,6 +354,7 @@ export default function ControlePresenca() {
       <PresencaModal
         open={modalOpen}
         isAdmin={isAdmin}
+        isLideranca={!!permissions?.isLideranca}
         colaborador={modalData?.colaborador}
         dia={modalData?.dia}
         registro={modalData?.registro}

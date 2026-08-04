@@ -7,24 +7,28 @@ import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenc
 ============================= */
 const STATUS_OPTIONS = [
   { code: "AFA", label: "Afastamento" },
-  { code: "BH", label: "Banco de horas" },
+  { code: "BH", label: "Banco de horas", hideForLideranca: true },
   { code: "DSR", label: "DSR", adminOnly: true },
   { code: "DF", label: "Desligamento Forçado"},
   { code: "DV", label: "Desligamento Voluntario"},
   { code: "FE", label: "Férias" },
-  { code: "FO", label: "Folga" },
+  { code: "FO", label: "Folga", hideForLideranca: true },
   { code: "F", label: "Falta não justificada" },
   { code: "LM", label: "Licença maternidade" },
   { code: "LP", label: "Licença paternidade" },
   { code: "NC", label: "Não contratado"},
   { code: "P", label: "Presente", adminOnly: true },
-  { code: "S1", label: "Sinergia enviada" },
+  { code: "S1", label: "Sinergia enviada", hideForLideranca: true },
   { code: "SU", label: "Suspensão" },
   { code: "TR", label: "Transferido" },
   { code: "ON", label: "Onboarding" },
   { code: "AB", label: "Licença - Atestado de Óbito" },
   { code: "JE", label: "Licença - Justiça Eleitoral" },
 ];
+
+// Códigos que a Liderança não pode mais lançar manualmente — precisam
+// passar pelo fluxo de aprovação de Solicitações Operacionais.
+const CODIGOS_SOMENTE_SOLICITACAO = STATUS_OPTIONS.filter((s) => s.hideForLideranca).map((s) => s.code);
 
 /* =============================
    JUSTIFICATIVAS PADRÃO
@@ -75,6 +79,7 @@ export default function EditarPresencaModal({
   dia,
   registro,
   isAdmin = false,
+  isLideranca = false,
   onSuccess,
   onDelete,
 }) {
@@ -152,6 +157,11 @@ export default function EditarPresencaModal({
 
     if (!justificativa && !isFolga && !isSuspensao && !isAbonado) {
       alert("Justificativa é obrigatória");
+      return;
+    }
+
+    if (isLideranca && CODIGOS_SOMENTE_SOLICITACAO.includes(status)) {
+      alert("Folga, Banco de Horas e Sinergia agora são feitas por Solicitação Operacional.");
       return;
     }
 
@@ -249,12 +259,17 @@ export default function EditarPresencaModal({
             className="w-full bg-surface-2 border border-default rounded-xl px-4 py-2"
           >
             <option value="">Selecione um status</option>
-            {STATUS_OPTIONS.filter((s) => !s.adminOnly || isAdmin).map((s) => (
+            {STATUS_OPTIONS.filter((s) => (!s.adminOnly || isAdmin) && (!s.hideForLideranca || !isLideranca)).map((s) => (
               <option key={s.code} value={s.code}>
                 {s.label}
               </option>
             ))}
           </select>
+          {isLideranca && (
+            <p className="text-[11px] text-muted mt-1">
+              Folga, Banco de Horas e Sinergia agora são feitas por Solicitação Operacional.
+            </p>
+          )}
         </div>
 
         {/* HORÁRIOS — oculto para BH e S1 */}

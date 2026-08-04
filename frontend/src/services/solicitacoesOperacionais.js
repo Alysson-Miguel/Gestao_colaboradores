@@ -50,6 +50,15 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data;
   },
 
+  importarSinergiaLote: async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/solicitacoes-operacionais/sinergia/importar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.data; // { criadas, totalLinhas, erros }
+  },
+
   aprovar: async (id) => {
     const res = await api.post(`/solicitacoes-operacionais/${id}/aprovar`);
     return res.data.data;

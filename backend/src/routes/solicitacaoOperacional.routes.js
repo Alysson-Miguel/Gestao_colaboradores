@@ -3,6 +3,7 @@ const router = express.Router();
 
 const solicitacaoController = require("../controllers/solicitacaoOperacional.controller");
 const { authenticate, authorize } = require("../middlewares/auth.middleware");
+const { upload, handleMulterError } = require("../middlewares/uploadCsv.middleware");
 
 const roles = ["ADMIN", "ALTA_GESTAO", "LIDERANCA"];
 
@@ -17,6 +18,16 @@ router.get("/calendario", authenticate, authorize(...roles), solicitacaoControll
 
 /* STATS (CARDS) */
 router.get("/stats", authenticate, authorize(...roles), solicitacaoController.statsSolicitacoes);
+
+/* IMPORTAR SINERGIA EM LOTE (CSV) */
+router.post(
+  "/sinergia/importar",
+  authenticate,
+  authorize(...roles),
+  upload.single("file"),
+  handleMulterError,
+  solicitacaoController.importarSinergiaLote
+);
 
 /* CRIAR SOLICITAÇÃO */
 router.post("/", authenticate, authorize(...roles), solicitacaoController.createSolicitacao);
