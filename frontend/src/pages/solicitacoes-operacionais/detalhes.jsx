@@ -89,8 +89,10 @@ export default function DetalhesSolicitacaoOperacional() {
   }
   if (!solicitacao) return null;
 
-  const podeDecidir = solicitacao.status === "PENDENTE" && solicitacao.podeDecidir;
-  const jaDecidido = solicitacao.status !== "PENDENTE";
+  const emAndamento = ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"].includes(solicitacao.status);
+  const podeDecidir = emAndamento && solicitacao.podeDecidir;
+  const jaDecidido = !emAndamento;
+  const naSegundaEtapa = solicitacao.status === "AGUARDANDO_SEGUNDA_APROVACAO";
 
   return (
     <>
@@ -197,6 +199,12 @@ export default function DetalhesSolicitacaoOperacional() {
 
                 <div><span className="text-muted">Solicitante</span><p>{solicitacao.solicitante?.name}</p></div>
                 <div><span className="text-muted">Data da Solicitação</span><p>{formatDateOnly(solicitacao.dataCriacao)}</p></div>
+                {solicitacao.primeiraAprovacaoPor && (
+                  <>
+                    <div><span className="text-muted">Primeira Aprovação</span><p>{solicitacao.primeiraAprovacaoPor?.name}</p></div>
+                    <div><span className="text-muted">Data da Primeira Aprovação</span><p>{formatDateOnly(solicitacao.primeiraAprovacaoEm)}</p></div>
+                  </>
+                )}
                 {solicitacao.decididoPor && (
                   <>
                     <div><span className="text-muted">Responsável pela Decisão</span><p>{solicitacao.decididoPor?.name}</p></div>
@@ -222,12 +230,23 @@ export default function DetalhesSolicitacaoOperacional() {
                 </div>
               )}
 
+              {naSegundaEtapa && (
+                <div className="rounded-xl border border-[#0A84FF]/20 bg-[#0A84FF]/5 p-4">
+                  <p className="text-sm text-[#0A84FF] font-medium">
+                    Primeira aprovação feita{solicitacao.primeiraAprovacaoPor?.name ? ` por ${solicitacao.primeiraAprovacaoPor.name}` : ""} —
+                    {" "}aguardando confirmação do {solicitacao.segundaAprovacaoLabel}.
+                  </p>
+                </div>
+              )}
+
               {/* AÇÕES DE APROVAÇÃO */}
-              {solicitacao.status === "PENDENTE" && (
+              {emAndamento && (
                 <div className="space-y-2">
                   {!podeDecidir && (
                     <p className="text-xs text-muted bg-surface-2 rounded-xl px-4 py-3">
-                      Você não está cadastrado como aprovador ativo. Apenas os responsáveis cadastrados podem aprovar ou reprovar esta solicitação.
+                      {naSegundaEtapa
+                        ? `Você não está cadastrado como aprovador ativo (${solicitacao.segundaAprovacaoLabel}) desta etapa. Apenas os responsáveis cadastrados podem confirmar ou reprovar esta solicitação.`
+                        : "Você não está cadastrado como aprovador ativo. Apenas os responsáveis cadastrados podem aprovar ou reprovar esta solicitação."}
                     </p>
                   )}
                   <div className="flex flex-wrap gap-3">
@@ -236,7 +255,7 @@ export default function DetalhesSolicitacaoOperacional() {
                       disabled={!podeDecidir || processando}
                       className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors ${!podeDecidir || processando ? "bg-surface-2 text-muted cursor-not-allowed" : "bg-[#34C759] hover:bg-[#2AA34C] text-white"}`}
                     >
-                      <CheckCircle size={16} /> Aprovar
+                      <CheckCircle size={16} /> {naSegundaEtapa ? `Confirmar (${solicitacao.segundaAprovacaoLabel})` : "Aprovar"}
                     </button>
                     <button
                       onClick={() => { setMotivoReprovacao(""); setReprovarModalOpen(true); }}

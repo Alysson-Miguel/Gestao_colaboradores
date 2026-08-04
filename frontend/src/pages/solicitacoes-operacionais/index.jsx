@@ -243,6 +243,7 @@ export default function SolicitacoesOperacionaisPage() {
                 <select value={filtroStatus} onChange={(e) => { setFiltroStatus(e.target.value); setPage(1); }} className="px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all appearance-none">
                   <option value="">Todos</option>
                   <option value="PENDENTE">Pendente</option>
+                  <option value="AGUARDANDO_SEGUNDA_APROVACAO">Aguardando 2ª Aprovação</option>
                   <option value="APROVADA">Aprovada</option>
                   <option value="REPROVADA">Reprovada</option>
                 </select>

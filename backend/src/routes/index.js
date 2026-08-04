@@ -58,6 +58,7 @@ const solicitacaoTreinamentoRoutes = require("./solicitacaoTreinamento.routes")
 const aprovadorTreinamentoRoutes   = require("./aprovadorTreinamento.routes")
 const solicitacaoOperacionalRoutes = require("./solicitacaoOperacional.routes")
 const aprovadorOperacionalRoutes   = require("./aprovadorOperacional.routes")
+const segundoAprovadorOperacionalRoutes = require("./segundoAprovadorOperacional.routes")
 
 /* =========================
    HEALTH
@@ -229,5 +230,6 @@ router.use("/solicitacoes-treinamento", solicitacaoTreinamentoRoutes)
 router.use("/config/aprovadores-treinamento", aprovadorTreinamentoRoutes)
 router.use("/solicitacoes-operacionais", solicitacaoOperacionalRoutes)
 router.use("/config/aprovadores-operacionais", aprovadorOperacionalRoutes)
+router.use("/config/segunda-aprovacao-operacional", segundoAprovadorOperacionalRoutes)
 
 module.exports = router;

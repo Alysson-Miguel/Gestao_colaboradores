@@ -127,6 +127,7 @@ model User {
   solicitacoesTreinamentoDecididas SolicitacaoTreinamento[] @relation("SolicitacaoTreinamentoDecisor")
   solicitacoesOperacionaisCriadas   SolicitacaoOperacional[] @relation("SolicitacaoOperacionalSolicitante")
   solicitacoesOperacionaisDecididas SolicitacaoOperacional[] @relation("SolicitacaoOperacionalDecisor")
+  solicitacoesOperacionaisPrimeiraAprovacao SolicitacaoOperacional[] @relation("SolicitacaoOperacionalPrimeiraAprovacao")
 
   @@index([opsId], map: "idx_users_ops_id")
   @@index([idEstacao], map: "idx_users_id_estacao")
@@ -211,6 +212,7 @@ model Estacao {
   regional               Regional?              @relation(fields: [idRegional], references: [idRegional], onUpdate: NoAction, map: "fk_estacao_regional")
   aprovadoresTreinamento AprovadorTreinamento[]
   aprovadoresOperacionais AprovadorOperacional[]
+  segundosAprovadoresOperacionais SegundoAprovadorOperacional[]
 
   @@index([idRegional], map: "idx_estacao_id_regional")
   @@map("estacao")
@@ -727,6 +729,29 @@ model AprovadorOperacional {
   @@map("aprovador_operacional")
 }
 
+// Segunda etapa de aprovação: RH confirma Troca de Escala e Troca de DSR;
+// Coordenador confirma Folga, Banco de Horas, Hora Extra, Troca de Gestão
+// e Desligamento. Sinergia não tem segunda etapa. E-mail cadastrado
+// manualmente (não é derivado do cargo do colaborador).
+model SegundoAprovadorOperacional {
+  idAprovador     Int                  @id @default(autoincrement()) @map("id_aprovador")
+  tipo            TipoSegundoAprovador
+  nome            String               @db.VarChar(150)
+  email           String               @db.VarChar(200)
+  ativo           Boolean              @default(true)
+  // null = aprovador válido em todas as estações (somente Admin pode definir)
+  idEstacao       Int?                 @map("id_estacao")
+  dataCriacao     DateTime             @default(now()) @map("data_criacao") @db.Timestamp(6)
+  dataAtualizacao DateTime             @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
+
+  estacao Estacao? @relation(fields: [idEstacao], references: [idEstacao], onUpdate: NoAction, map: "fk_segundo_aprovador_operacional_estacao")
+
+  @@index([ativo], map: "idx_segundo_aprovador_operacional_ativo")
+  @@index([idEstacao], map: "idx_segundo_aprovador_operacional_estacao")
+  @@index([tipo], map: "idx_segundo_aprovador_operacional_tipo")
+  @@map("segundo_aprovador_operacional")
+}
+
 model SolicitacaoOperacional {
   idSolicitacao Int                           @id @default(autoincrement()) @map("id_solicitacao")
   tipo          TipoSolicitacaoOperacional
@@ -773,15 +798,23 @@ model SolicitacaoOperacional {
   decididoEm        DateTime? @map("decidido_em") @db.Timestamp(6)
   motivoReprovacao  String?   @map("motivo_reprovacao") @db.VarChar(500)
 
+  // Primeira etapa de aprovação (aprovador padrão da estação). Para os
+  // tipos que exigem segunda etapa (RH ou Coordenador), a solicitação
+  // fica em AGUARDANDO_SEGUNDA_APROVACAO entre a primeira e a segunda —
+  // decididoPor/decididoEm só são preenchidos na decisão final.
+  primeiraAprovacaoPorUserId String?   @map("primeira_aprovacao_por_user_id")
+  primeiraAprovacaoEm        DateTime? @map("primeira_aprovacao_em") @db.Timestamp(6)
+
   dataCriacao     DateTime @default(now()) @map("data_criacao") @db.Timestamp(6)
   dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
 
-  colaborador  Colaborador                       @relation("SolicitacaoOperacionalColaborador1", fields: [opsId], references: [opsId], map: "fk_solop_colaborador1")
-  colaborador2 Colaborador?                      @relation("SolicitacaoOperacionalColaborador2", fields: [opsId2], references: [opsId], map: "fk_solop_colaborador2")
-  novoLider    Colaborador?                      @relation("SolicitacaoOperacionalNovoLider", fields: [novoLiderOpsId], references: [opsId], map: "fk_solop_novo_lider")
-  novaEscala   Escala?                           @relation(fields: [novaIdEscala], references: [idEscala], onUpdate: NoAction, map: "fk_solop_nova_escala")
-  solicitante  User                              @relation("SolicitacaoOperacionalSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solop_solicitante")
-  decididoPor  User?                             @relation("SolicitacaoOperacionalDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solop_decisor")
+  colaborador       Colaborador                       @relation("SolicitacaoOperacionalColaborador1", fields: [opsId], references: [opsId], map: "fk_solop_colaborador1")
+  colaborador2      Colaborador?                      @relation("SolicitacaoOperacionalColaborador2", fields: [opsId2], references: [opsId], map: "fk_solop_colaborador2")
+  novoLider         Colaborador?                      @relation("SolicitacaoOperacionalNovoLider", fields: [novoLiderOpsId], references: [opsId], map: "fk_solop_novo_lider")
+  novaEscala        Escala?                           @relation(fields: [novaIdEscala], references: [idEscala], onUpdate: NoAction, map: "fk_solop_nova_escala")
+  solicitante       User                              @relation("SolicitacaoOperacionalSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solop_solicitante")
+  decididoPor       User?                             @relation("SolicitacaoOperacionalDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solop_decisor")
+  primeiraAprovacaoPor User?                           @relation("SolicitacaoOperacionalPrimeiraAprovacao", fields: [primeiraAprovacaoPorUserId], references: [id], map: "fk_solop_primeira_aprovacao")
   historico    SolicitacaoOperacionalHistorico[]
 
   @@index([tipo], map: "idx_solop_tipo")
@@ -1075,8 +1108,14 @@ enum TipoSolicitacaoOperacional {
 
 enum StatusSolicitacaoOperacional {
   PENDENTE
+  AGUARDANDO_SEGUNDA_APROVACAO
   APROVADA
   REPROVADA
+}
+
+enum TipoSegundoAprovador {
+  RH
+  COORDENADOR
 }
 
 enum DestinoSinergia {

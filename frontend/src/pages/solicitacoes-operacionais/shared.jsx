@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, XCircle } from "lucide-react";
+import { CheckCircle, Clock, XCircle, Hourglass } from "lucide-react";
 
 export const TIPO_LABEL = {
   FOLGA: "Folga",
@@ -41,15 +41,19 @@ export const MOTIVO_DESLIGAMENTO_LABEL = {
 
 export const STATUS_COLOR = {
   PENDENTE: "#FF9F0A",
+  AGUARDANDO_SEGUNDA_APROVACAO: "#0A84FF",
   APROVADA: "#34C759",
   REPROVADA: "#FF453A",
 };
 
 export const STATUS_LABEL = {
   PENDENTE: "Pendente",
+  AGUARDANDO_SEGUNDA_APROVACAO: "Aguardando 2ª Aprovação",
   APROVADA: "Aprovada",
   REPROVADA: "Reprovada",
 };
+
+export const SEGUNDO_APROVADOR_LABEL = { RH: "RH", COORDENADOR: "Coordenador" };
 
 export function StatusOperacionalBadge({ status }) {
   if (status === "APROVADA")
@@ -62,6 +66,12 @@ export function StatusOperacionalBadge({ status }) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF453A]/10 text-[#FF453A] border border-[#FF453A]/20">
         <XCircle size={11} /> Reprovada
+      </span>
+    );
+  if (status === "AGUARDANDO_SEGUNDA_APROVACAO")
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#0A84FF]/10 text-[#0A84FF] border border-[#0A84FF]/20">
+        <Hourglass size={11} /> Aguardando 2ª Aprovação
       </span>
     );
   return (

@@ -30,6 +30,22 @@ const TIPO_LABEL_SEATALK = {
   DESLIGAMENTO: "Desligamento",
 };
 
+// Segunda etapa de aprovação por tipo — RH confirma Troca de Escala e Troca
+// de DSR; Coordenador confirma Folga, Banco de Horas, Hora Extra, Troca de
+// Gestão e Desligamento. Sinergia não tem entrada aqui — continua com
+// aprovação única, como antes.
+const SEGUNDA_APROVACAO_POR_TIPO = {
+  FOLGA: "COORDENADOR",
+  BANCO_HORAS: "COORDENADOR",
+  HORA_EXTRA: "COORDENADOR",
+  TROCA_GESTAO: "COORDENADOR",
+  DESLIGAMENTO: "COORDENADOR",
+  TROCA_ESCALA: "RH",
+  TROCA_DSR: "RH",
+};
+
+const SEGUNDO_APROVADOR_LABEL = { RH: "RH", COORDENADOR: "Coordenador" };
+
 function formatDataBR(date) {
   if (!date) return "N/A";
   return new Date(date).toLocaleDateString("pt-BR");
@@ -104,6 +120,23 @@ async function isAprovadorAtivo(email, idEstacaoSolicitacao) {
   if (!email) return false;
   const aprovador = await prisma.aprovadorOperacional.findFirst({
     where: {
+      email: email.trim().toLowerCase(),
+      ativo: true,
+      OR: [{ idEstacao: idEstacaoSolicitacao ?? null }, { idEstacao: null }],
+    },
+  });
+  return !!aprovador;
+}
+
+/**
+ * Segunda etapa: RH ou Coordenador, dependendo do tipo da solicitação.
+ * Mesma regra de escopo por estação do primeiro aprovador.
+ */
+async function isSegundoAprovadorAtivo(email, tipoSegundo, idEstacaoSolicitacao) {
+  if (!email || !tipoSegundo) return false;
+  const aprovador = await prisma.segundoAprovadorOperacional.findFirst({
+    where: {
+      tipo: tipoSegundo,
       email: email.trim().toLowerCase(),
       ativo: true,
       OR: [{ idEstacao: idEstacaoSolicitacao ?? null }, { idEstacao: null }],
@@ -526,7 +559,7 @@ exports.statsSolicitacoes = async (req, res) => {
     const fimMes = new Date(inicioMes.getFullYear(), inicioMes.getMonth() + 1, 0, 23, 59, 59);
 
     const [pendentes, aprovadas, reprovadas, doMes] = await Promise.all([
-      prisma.solicitacaoOperacional.count({ where: { ...estacaoWhere, status: "PENDENTE" } }),
+      prisma.solicitacaoOperacional.count({ where: { ...estacaoWhere, status: { in: ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"] } } }),
       prisma.solicitacaoOperacional.count({ where: { ...estacaoWhere, status: "APROVADA" } }),
       prisma.solicitacaoOperacional.count({ where: { ...estacaoWhere, status: "REPROVADA" } }),
       prisma.solicitacaoOperacional.count({
@@ -578,6 +611,7 @@ exports.getSolicitacao = async (req, res) => {
         novaEscala: { select: { nomeEscala: true, descricao: true } },
         solicitante: { select: { name: true, email: true, opsId: true } },
         decididoPor: { select: { name: true, email: true } },
+        primeiraAprovacaoPor: { select: { name: true, email: true } },
         historico: { orderBy: { criadoEm: "asc" } },
       },
     });
@@ -586,11 +620,25 @@ exports.getSolicitacao = async (req, res) => {
       return notFoundResponse(res, "Solicitação não encontrada");
     }
 
-    const podeDecidir =
-      solicitacao.status === "PENDENTE" &&
-      (await isAprovadorAtivo(req.user.email, solicitacao.colaborador?.idEstacao));
+    const segundaAprovacaoTipo = SEGUNDA_APROVACAO_POR_TIPO[solicitacao.tipo] || null;
 
-    return successResponse(res, { ...solicitacao, podeDecidir });
+    let podeDecidir = false;
+    let etapaAtual = null;
+    if (solicitacao.status === "PENDENTE") {
+      etapaAtual = "PRIMEIRA";
+      podeDecidir = await isAprovadorAtivo(req.user.email, solicitacao.colaborador?.idEstacao);
+    } else if (solicitacao.status === "AGUARDANDO_SEGUNDA_APROVACAO") {
+      etapaAtual = "SEGUNDA";
+      podeDecidir = await isSegundoAprovadorAtivo(req.user.email, segundaAprovacaoTipo, solicitacao.colaborador?.idEstacao);
+    }
+
+    return successResponse(res, {
+      ...solicitacao,
+      podeDecidir,
+      etapaAtual,
+      segundaAprovacaoTipo,
+      segundaAprovacaoLabel: segundaAprovacaoTipo ? SEGUNDO_APROVADOR_LABEL[segundaAprovacaoTipo] : null,
+    });
   } catch (err) {
     console.error("❌ getSolicitacao (operacional):", err);
     return errorResponse(res, "Erro ao buscar solicitação", 500);
@@ -1097,14 +1145,133 @@ exports.aprovarSolicitacao = async (req, res) => {
 
     const solicitacaoAtual = await prisma.solicitacaoOperacional.findUnique({
       where: { idSolicitacao },
-      select: { colaborador: { select: { idEstacao: true } } },
+      select: { tipo: true, status: true, colaborador: { select: { idEstacao: true } } },
     });
 
     if (!solicitacaoAtual || !pertenceAEstacaoDoUsuario(req, solicitacaoAtual.colaborador?.idEstacao)) {
       return notFoundResponse(res, "Solicitação não encontrada");
     }
 
-    const autorizado = await isAprovadorAtivo(req.user.email, solicitacaoAtual.colaborador?.idEstacao);
+    const idEstacaoSolicitacao = solicitacaoAtual.colaborador?.idEstacao;
+    const segundaEtapaTipo = SEGUNDA_APROVACAO_POR_TIPO[solicitacaoAtual.tipo] || null;
+
+    /* =====================================================
+       PRIMEIRA APROVAÇÃO — só para tipos com segunda etapa.
+       Não aplica nenhum efeito ainda; só avança o status e
+       avisa o RH/Coordenador de que é a vez dele.
+    ===================================================== */
+    if (solicitacaoAtual.status === "PENDENTE" && segundaEtapaTipo) {
+      const autorizado = await isAprovadorAtivo(req.user.email, idEstacaoSolicitacao);
+      if (!autorizado) {
+        return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
+      }
+
+      let solicitacaoAtualizada = null;
+      await prisma.$transaction(async (tx) => {
+        const claimed = await tx.solicitacaoOperacional.updateMany({
+          where: { idSolicitacao, status: "PENDENTE" },
+          data: {
+            status: "AGUARDANDO_SEGUNDA_APROVACAO",
+            primeiraAprovacaoPorUserId: req.user.id,
+            primeiraAprovacaoEm: new Date(),
+          },
+        });
+        if (claimed.count === 0) {
+          throw new HttpError("Esta solicitação já foi analisada por outro responsável.", 409);
+        }
+        solicitacaoAtualizada = await tx.solicitacaoOperacional.findUnique({ where: { idSolicitacao } });
+        await tx.solicitacaoOperacionalHistorico.create({
+          data: {
+            idSolicitacao,
+            evento: `Primeira aprovação por ${req.user.name} — aguardando confirmação do ${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]}`,
+          },
+        });
+      });
+
+      const segundosAprovadores = await prisma.segundoAprovadorOperacional.findMany({
+        where: {
+          tipo: segundaEtapaTipo,
+          ativo: true,
+          OR: [{ idEstacao: idEstacaoSolicitacao ?? null }, { idEstacao: null }],
+        },
+      });
+      const colaboradorNotif = await prisma.colaborador.findUnique({
+        where: { opsId: solicitacaoAtualizada.opsId },
+        select: {
+          nomeCompleto: true, cpf: true,
+          cargo: { select: { nomeCargo: true } },
+          setor: { select: { nomeSetor: true } },
+          turno: { select: { nomeTurno: true } },
+          lider: { select: { nomeCompleto: true } },
+        },
+      });
+
+      // E-mail ao(s) segundo(s) aprovador(es) — best-effort
+      try {
+        if (segundosAprovadores.length > 0) {
+          await sendSolicitacaoOperacionalEmail({
+            to: segundosAprovadores.map((a) => a.email),
+            solicitacao: {
+              idSolicitacao,
+              tipo: solicitacaoAtualizada.tipo,
+              colaboradorNome: colaboradorNotif?.nomeCompleto,
+              cpf: colaboradorNotif?.cpf,
+              cargo: colaboradorNotif?.cargo?.nomeCargo,
+              setor: colaboradorNotif?.setor?.nomeSetor,
+              turno: colaboradorNotif?.turno?.nomeTurno,
+              lider: colaboradorNotif?.lider?.nomeCompleto,
+              dataCriacao: solicitacaoAtualizada.dataCriacao,
+              data: solicitacaoAtualizada.data,
+              motivo: solicitacaoAtualizada.motivo,
+            },
+          });
+          await prisma.solicitacaoOperacionalHistorico.create({
+            data: { idSolicitacao, evento: `E-mail enviado ao(s) ${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]}(s)` },
+          });
+        }
+      } catch (emailErr) {
+        console.error("⚠️ Falha ao enviar email de segunda aprovação:", emailErr.message);
+      }
+
+      // SeaTalk ao(s) segundo(s) aprovador(es) — best-effort
+      try {
+        await sendSolicitacaoNotification(
+          `# ⏳ Aguardando 2ª Aprovação (${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]})\n\n` +
+            `- **Tipo:** ${TIPO_LABEL_SEATALK[solicitacaoAtualizada.tipo] || solicitacaoAtualizada.tipo}\n` +
+            `- **Colaborador:** ${colaboradorNotif?.nomeCompleto || "N/A"}\n` +
+            `- **1ª aprovação por:** ${req.user.name}\n\n` +
+            `---\n\n` +
+            `[Ver solicitação completa](${linkSolicitacaoOperacional(idSolicitacao)})`,
+          { mentionEmails: segundosAprovadores.map((a) => a.email) }
+        );
+      } catch (seatalkErr) {
+        console.error("⚠️ Falha ao enviar notificação SeaTalk de segunda aprovação:", seatalkErr.message);
+      }
+
+      return successResponse(
+        res,
+        null,
+        `Primeira aprovação registrada — aguardando confirmação do ${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]}`
+      );
+    }
+
+    /* =====================================================
+       DECISÃO FINAL — Sinergia (aprovação única, como antes)
+       ou segunda etapa dos demais tipos (RH/Coordenador).
+       Só agora os efeitos (frequência/cadastro) são aplicados.
+    ===================================================== */
+    let autorizado = false;
+    let statusEsperado = null;
+    if (solicitacaoAtual.status === "PENDENTE" && !segundaEtapaTipo) {
+      autorizado = await isAprovadorAtivo(req.user.email, idEstacaoSolicitacao);
+      statusEsperado = "PENDENTE";
+    } else if (solicitacaoAtual.status === "AGUARDANDO_SEGUNDA_APROVACAO" && segundaEtapaTipo) {
+      autorizado = await isSegundoAprovadorAtivo(req.user.email, segundaEtapaTipo, idEstacaoSolicitacao);
+      statusEsperado = "AGUARDANDO_SEGUNDA_APROVACAO";
+    } else {
+      return errorResponse(res, "Esta solicitação já foi analisada por outro responsável.", 409);
+    }
+
     if (!autorizado) {
       return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
     }
@@ -1122,7 +1289,7 @@ exports.aprovarSolicitacao = async (req, res) => {
 
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.solicitacaoOperacional.updateMany({
-        where: { idSolicitacao, status: "PENDENTE" },
+        where: { idSolicitacao, status: statusEsperado },
         data: { status: "APROVADA", decididoPorUserId: req.user.id, decididoEm: new Date() },
       });
 
@@ -1140,9 +1307,13 @@ exports.aprovarSolicitacao = async (req, res) => {
         await aplicarNaFrequencia(tx, solicitacao, req.user.id);
       }
 
+      const eventoDecisao = statusEsperado === "AGUARDANDO_SEGUNDA_APROVACAO"
+        ? `Segunda aprovação (${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]}) por ${req.user.name}`
+        : `Solicitação aprovada por ${req.user.name}`;
+
       await tx.solicitacaoOperacionalHistorico.createMany({
         data: [
-          { idSolicitacao, evento: `Solicitação aprovada por ${req.user.name}` },
+          { idSolicitacao, evento: eventoDecisao },
           { idSolicitacao, evento: EVENTO_POS_APROVACAO[solicitacao.tipo] || "Controle de Presença atualizado automaticamente" },
         ],
       });
@@ -1240,21 +1411,37 @@ exports.reprovarSolicitacao = async (req, res) => {
 
     const solicitacaoAtual = await prisma.solicitacaoOperacional.findUnique({
       where: { idSolicitacao },
-      select: { colaborador: { select: { idEstacao: true } } },
+      select: { tipo: true, status: true, colaborador: { select: { idEstacao: true } } },
     });
 
     if (!solicitacaoAtual || !pertenceAEstacaoDoUsuario(req, solicitacaoAtual.colaborador?.idEstacao)) {
       return notFoundResponse(res, "Solicitação não encontrada");
     }
 
-    const autorizado = await isAprovadorAtivo(req.user.email, solicitacaoAtual.colaborador?.idEstacao);
+    const idEstacaoSolicitacao = solicitacaoAtual.colaborador?.idEstacao;
+    const segundaEtapaTipo = SEGUNDA_APROVACAO_POR_TIPO[solicitacaoAtual.tipo] || null;
+
+    let autorizado = false;
+    let statusEsperado = null;
+    let etapaLabel = "";
+    if (solicitacaoAtual.status === "PENDENTE") {
+      autorizado = await isAprovadorAtivo(req.user.email, idEstacaoSolicitacao);
+      statusEsperado = "PENDENTE";
+    } else if (solicitacaoAtual.status === "AGUARDANDO_SEGUNDA_APROVACAO" && segundaEtapaTipo) {
+      autorizado = await isSegundoAprovadorAtivo(req.user.email, segundaEtapaTipo, idEstacaoSolicitacao);
+      statusEsperado = "AGUARDANDO_SEGUNDA_APROVACAO";
+      etapaLabel = ` (${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]})`;
+    } else {
+      return errorResponse(res, "Esta solicitação já foi analisada por outro responsável.", 409);
+    }
+
     if (!autorizado) {
       return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
     }
 
     await prisma.$transaction(async (tx) => {
       const claimed = await tx.solicitacaoOperacional.updateMany({
-        where: { idSolicitacao, status: "PENDENTE" },
+        where: { idSolicitacao, status: statusEsperado },
         data: {
           status: "REPROVADA",
           decididoPorUserId: req.user.id,
@@ -1270,7 +1457,7 @@ exports.reprovarSolicitacao = async (req, res) => {
       await tx.solicitacaoOperacionalHistorico.create({
         data: {
           idSolicitacao,
-          evento: `Solicitação reprovada por ${req.user.name} — Motivo: ${motivo.trim()}`,
+          evento: `Solicitação reprovada por ${req.user.name}${etapaLabel} — Motivo: ${motivo.trim()}`,
         },
       });
     });

@@ -1,10 +1,17 @@
 import { useEffect, useState, useContext } from "react";
 import { X, Plus, Pencil, UserCheck, UserX, Users, Building2 } from "lucide-react";
 import { AprovadoresOperacionaisAPI } from "../../services/aprovadoresOperacionais";
+import { SegundosAprovadoresOperacionaisAPI } from "../../services/segundosAprovadoresOperacionais";
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
 
 const TODAS_AS_ESTACOES = "TODAS";
+
+const ABAS = [
+  { key: "APROVADORES", label: "Aprovadores", desc: "Primeira etapa — todos os tipos de solicitação" },
+  { key: "COORDENADOR", label: "Coordenador", desc: "Segunda aprovação de Folga, Banco de Horas, Hora Extra, Troca de Gestão e Desligamento" },
+  { key: "RH", label: "RH", desc: "Segunda aprovação de Troca de Escala e Troca de DSR" },
+];
 
 function iniciais(nome) {
   const partes = (nome || "").trim().split(/\s+/);
@@ -12,7 +19,8 @@ function iniciais(nome) {
 }
 
 export function AprovadoresOperacionaisModal({ open, onClose }) {
-  const [aprovadores, setAprovadores] = useState([]);
+  const [aba, setAba] = useState("APROVADORES");
+  const [lista, setLista] = useState([]);
   const [estacoes, setEstacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const { permissions } = useContext(AuthContext);
@@ -23,11 +31,15 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
   const [form, setForm] = useState({ nome: "", email: "", ativo: true, idEstacao: "" });
   const [salvando, setSalvando] = useState(false);
 
+  const abaAtual = ABAS.find((a) => a.key === aba) || ABAS[0];
+
   async function load() {
     setLoading(true);
     try {
-      const data = await AprovadoresOperacionaisAPI.listar();
-      setAprovadores(data || []);
+      const data = aba === "APROVADORES"
+        ? await AprovadoresOperacionaisAPI.listar()
+        : await SegundosAprovadoresOperacionaisAPI.listar(aba);
+      setLista(data || []);
     } catch {
       // silencioso — modal secundário
     } finally {
@@ -37,7 +49,8 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
 
   useEffect(() => {
     if (open) load();
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, aba]);
 
   useEffect(() => {
     if (!open || !isAdmin) return;
@@ -47,6 +60,11 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
   }, [open, isAdmin]);
 
   if (!open) return null;
+
+  const trocarAba = (novaAba) => {
+    setAba(novaAba);
+    setFormOpen(false);
+  };
 
   const abrirNovo = () => {
     setEditando(null);
@@ -82,10 +100,12 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
 
     setSalvando(true);
     try {
-      if (editando) {
-        await AprovadoresOperacionaisAPI.atualizar(editando.idAprovador, payload);
+      if (aba === "APROVADORES") {
+        if (editando) await AprovadoresOperacionaisAPI.atualizar(editando.idAprovador, payload);
+        else await AprovadoresOperacionaisAPI.criar(payload);
       } else {
-        await AprovadoresOperacionaisAPI.criar(payload);
+        if (editando) await SegundosAprovadoresOperacionaisAPI.atualizar(editando.idAprovador, payload);
+        else await SegundosAprovadoresOperacionaisAPI.criar({ ...payload, tipo: aba });
       }
       setFormOpen(false);
       await load();
@@ -98,7 +118,8 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
 
   const alternarAtivo = async (a) => {
     try {
-      await AprovadoresOperacionaisAPI.atualizar(a.idAprovador, { ativo: !a.ativo });
+      if (aba === "APROVADORES") await AprovadoresOperacionaisAPI.atualizar(a.idAprovador, { ativo: !a.ativo });
+      else await SegundosAprovadoresOperacionaisAPI.atualizar(a.idAprovador, { ativo: !a.ativo });
       await load();
     } catch {
       alert("Erro ao atualizar aprovador");
@@ -114,11 +135,25 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-default shrink-0">
           <div>
             <h2 className="font-semibold text-base">Aprovadores</h2>
-            <p className="text-xs text-muted mt-0.5">Responsáveis por aprovar ou reprovar Folga, Banco de Horas, Sinergia e Troca de DSR</p>
+            <p className="text-xs text-muted mt-0.5">{abaAtual.desc}</p>
           </div>
           <button onClick={onClose} className="text-muted hover:text-page transition-colors cursor-pointer">
             <X size={20} />
           </button>
+        </div>
+
+        <div className="flex items-center gap-1 px-5 pt-3 border-b border-default shrink-0">
+          {ABAS.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => trocarAba(a.key)}
+              className={`px-3.5 py-2 text-sm font-medium rounded-t-lg transition-colors cursor-pointer border-b-2 ${
+                aba === a.key ? "border-[#FA4C00] text-page" : "border-transparent text-muted hover:text-page"
+              }`}
+            >
+              {a.label}
+            </button>
+          ))}
         </div>
 
         <div className="px-5 py-4 overflow-y-auto flex-1">
@@ -146,7 +181,7 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
                 </tr>
               </thead>
               <tbody>
-                {!loading && aprovadores.length === 0 && (
+                {!loading && lista.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-10 text-center">
                       <div className="flex flex-col items-center gap-2">
@@ -156,7 +191,7 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
                     </td>
                   </tr>
                 )}
-                {aprovadores.map((a) => {
+                {lista.map((a) => {
                   const podeGerenciar = isAdmin || a.idEstacao != null;
                   return (
                     <tr key={a.idAprovador} className="border-t border-default hover:bg-surface-2/50 transition-colors">
@@ -218,7 +253,9 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setFormOpen(false)}>
           <div className="bg-surface rounded-2xl w-full max-w-md border border-default shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-default">
-              <h2 className="font-semibold text-base">{editando ? "Editar Aprovador" : "Novo Aprovador"}</h2>
+              <h2 className="font-semibold text-base">
+                {editando ? "Editar" : "Novo"} Aprovador{aba !== "APROVADORES" ? ` (${abaAtual.label})` : ""}
+              </h2>
               <button onClick={() => setFormOpen(false)} className="text-muted hover:text-page transition-colors cursor-pointer">
                 <X size={20} />
               </button>
