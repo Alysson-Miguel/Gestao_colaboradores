@@ -1423,9 +1423,14 @@ exports.listarIdsAprovaveis = async (req, res) => {
       return successResponse(res, { ids: [], total: 0, truncado: false });
     }
 
+    const TIPOS_APROVACAO_LOTE = ["SINERGIA", "BANCO_HORAS"];
+    if (tipo && !TIPOS_APROVACAO_LOTE.includes(tipo)) {
+      return successResponse(res, { ids: [], total: 0, truncado: false });
+    }
+
     const where = { ...estacaoWhereSolicitacao(req) };
     where.status = status || { in: ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"] };
-    if (tipo) where.tipo = tipo;
+    where.tipo = tipo || { in: TIPOS_APROVACAO_LOTE };
     if (solicitante) where.solicitante = { name: { contains: solicitante, mode: "insensitive" } };
     if (dataInicio || dataFim) {
       where.data = {};

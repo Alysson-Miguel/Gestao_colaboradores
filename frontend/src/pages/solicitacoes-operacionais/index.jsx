@@ -18,6 +18,7 @@ import { AprovadoresOperacionaisModal } from "../../components/solicitacoesOpera
 
 const LIMIT = 20;
 const STATUS_APROVAVEIS = ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"];
+const TIPOS_APROVACAO_LOTE = ["SINERGIA", "BANCO_HORAS"];
 
 /* ─── CHECKBOX (custom, com estado indeterminado) ──── */
 function Checkbox({ checked, indeterminate = false, onChange, disabled, title, size = 18 }) {
@@ -326,8 +327,12 @@ export default function SolicitacoesOperacionaisPage() {
     return STATUS_APROVAVEIS.includes(status);
   }
 
+  function isSelecionavelEmLote(s) {
+    return isAprovavel(s.status) && TIPOS_APROVACAO_LOTE.includes(s.tipo);
+  }
+
   function toggleLinha(s) {
-    if (!isAprovavel(s.status)) return;
+    if (!isSelecionavelEmLote(s)) return;
     setSelecionados((prev) => {
       const next = new Set(prev);
       if (next.has(s.idSolicitacao)) next.delete(s.idSolicitacao);
@@ -341,7 +346,7 @@ export default function SolicitacoesOperacionaisPage() {
     setSelecaoTruncada(false);
   }
 
-  const aprovaveisDaPagina = solicitacoes.filter((s) => isAprovavel(s.status));
+  const aprovaveisDaPagina = solicitacoes.filter((s) => isSelecionavelEmLote(s));
   const todosDaPaginaSelecionados =
     aprovaveisDaPagina.length > 0 && aprovaveisDaPagina.every((s) => selecionados.has(s.idSolicitacao));
 
@@ -634,11 +639,13 @@ export default function SolicitacoesOperacionaisPage() {
                   {solicitacoes.map((s) => (
                     <tr key={s.idSolicitacao} className={`border-t border-default transition-colors ${selecionados.has(s.idSolicitacao) ? "bg-[#FA4C00]/5" : "hover:bg-surface-2/50"}`}>
                       <td className="px-4 py-3">
-                        <Checkbox
-                          checked={selecionados.has(s.idSolicitacao)}
-                          onChange={() => toggleLinha(s)}
-                          disabled={!isAprovavel(s.status)}
-                        />
+                        {TIPOS_APROVACAO_LOTE.includes(s.tipo) && (
+                          <Checkbox
+                            checked={selecionados.has(s.idSolicitacao)}
+                            onChange={() => toggleLinha(s)}
+                            disabled={!isAprovavel(s.status)}
+                          />
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">#{s.idSolicitacao}</td>
                       <td className="px-4 py-3"><TipoBadge tipo={s.tipo} /></td>
