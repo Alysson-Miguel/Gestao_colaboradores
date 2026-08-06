@@ -19,6 +19,9 @@ router.get("/calendario", authenticate, authorize(...roles), solicitacaoControll
 /* STATS (CARDS) */
 router.get("/stats", authenticate, authorize(...roles), solicitacaoController.statsSolicitacoes);
 
+/* IDs APROVÁVEIS PELO FILTRO ATUAL (seleção "todos os resultados") */
+router.get("/aprovaveis/ids", authenticate, authorize(...roles), solicitacaoController.listarIdsAprovaveis);
+
 /* IMPORTAR SINERGIA EM LOTE (CSV) */
 router.post(
   "/sinergia/importar",

@@ -64,6 +64,17 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data;
   },
 
+  idsAprovaveis: async ({ status, tipo, dataInicio, dataFim, solicitante } = {}) => {
+    const params = new URLSearchParams();
+    if (status)      params.set("status",      status);
+    if (tipo)        params.set("tipo",        tipo);
+    if (dataInicio)  params.set("dataInicio",  dataInicio);
+    if (dataFim)     params.set("dataFim",     dataFim);
+    if (solicitante) params.set("solicitante", solicitante);
+    const res = await api.get(`/solicitacoes-operacionais/aprovaveis/ids?${params}`);
+    return res.data.data; // { ids, total, truncado }
+  },
+
   reprovar: async (id, motivo) => {
     const res = await api.post(`/solicitacoes-operacionais/${id}/reprovar`, { motivo });
     return res.data.data;

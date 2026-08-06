@@ -1,9 +1,11 @@
 import { useEffect, useState, useContext, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import MainLayout from "../../components/MainLayout";
 import {
   Plus, FileText, CheckCircle, Clock, XCircle, CalendarDays, Settings,
-  Search, ChevronLeft, ChevronRight, Filter,
+  Search, ChevronLeft, ChevronRight, Filter, CheckSquare, X, AlertTriangle,
+  Check, Minus,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -15,6 +17,45 @@ import { StatusOperacionalBadge, TipoBadge, TIPO_LABEL, formatDateOnly } from ".
 import { AprovadoresOperacionaisModal } from "../../components/solicitacoesOperacionais/AprovadoresOperacionaisModal";
 
 const LIMIT = 20;
+const STATUS_APROVAVEIS = ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"];
+const TIPOS_APROVACAO_LOTE = ["SINERGIA", "BANCO_HORAS"];
+
+/* ─── CHECKBOX (custom, com estado indeterminado) ──── */
+function Checkbox({ checked, indeterminate = false, onChange, disabled, title, size = 18 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !checked && indeterminate;
+  }, [checked, indeterminate]);
+
+  const marcado = checked || indeterminate;
+
+  return (
+    <label
+      title={title}
+      className={`inline-flex items-center justify-center ${disabled ? "cursor-not-allowed opacity-30" : "cursor-pointer"}`}
+    >
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="peer sr-only"
+      />
+      <span
+        style={{ width: size, height: size }}
+        className={`flex items-center justify-center rounded-md border-2 transition-all duration-150 ease-out
+          peer-focus-visible:ring-2 peer-focus-visible:ring-[#FA4C00]/40 peer-focus-visible:ring-offset-1
+          ${marcado
+            ? "bg-[#FA4C00] border-[#FA4C00] scale-100"
+            : "bg-surface-2 border-default-2 hover:border-[#FA4C00]/60 hover:bg-[#FA4C00]/5"}`}
+      >
+        {checked && <Check size={size - 6} strokeWidth={3.5} className="text-white" />}
+        {!checked && indeterminate && <Minus size={size - 6} strokeWidth={3.5} className="text-white" />}
+      </span>
+    </label>
+  );
+}
 
 /* ─── PAGINATION ───────────────────────────────────── */
 function Pagination({ page, totalPages, onPage }) {
@@ -47,6 +88,132 @@ function Pagination({ page, totalPages, onPage }) {
   );
 }
 
+/* ─── MODAL: RESUMO DA APROVAÇÃO EM LOTE ───────────── */
+function ResumoAprovacaoModal({ open, onClose, onContinuar, ids, detalhesPorId, truncado }) {
+  if (!open) return null;
+
+  const porTipo = {};
+  const porSolicitante = {};
+  for (const id of ids) {
+    const d = detalhesPorId[id];
+    if (!d) continue;
+    porTipo[d.tipo] = (porTipo[d.tipo] || 0) + 1;
+    porSolicitante[d.solicitanteNome] = (porSolicitante[d.solicitanteNome] || 0) + 1;
+  }
+  const solicitantesOrdenados = Object.entries(porSolicitante).sort((a, b) => b[1] - a[1]);
+  const MOSTRAR_MAX = 10;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-surface border border-default rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-default">
+          <div className="flex items-center gap-2">
+            <CheckSquare size={18} className="text-[#FA4C00]" />
+            <h2 className="text-base font-semibold">Confirmar aprovação em lote</h2>
+          </div>
+          <button onClick={onClose} className="text-muted hover:text-page transition-colors"><X size={18} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+          <p className="text-sm text-page">
+            Você está prestes a aprovar <strong>{ids.length}</strong> solicitaç{ids.length !== 1 ? "ões" : "ão"}.
+          </p>
+
+          {truncado && (
+            <div className="flex items-start gap-2 bg-[#FF9F0A]/10 border border-[#FF9F0A]/20 rounded-xl px-3 py-2.5 text-xs text-[#FF9F0A]">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              Há mais resultados do que o limite de seleção em lote (200). Apenas os primeiros 200 foram selecionados.
+            </div>
+          )}
+
+          <div>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Por tipo</p>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(porTipo).map(([tipo, qtd]) => (
+                <span key={tipo} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#0A84FF]/10 text-[#0A84FF] border border-[#0A84FF]/20">
+                  {TIPO_LABEL[tipo] || tipo}: {qtd}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Solicitantes</p>
+            <ul className="text-sm text-page space-y-1">
+              {solicitantesOrdenados.slice(0, MOSTRAR_MAX).map(([nome, qtd]) => (
+                <li key={nome} className="flex items-center justify-between text-xs">
+                  <span className="line-clamp-1">{nome}</span>
+                  <span className="text-muted">{qtd}</span>
+                </li>
+              ))}
+            </ul>
+            {solicitantesOrdenados.length > MOSTRAR_MAX && (
+              <p className="text-xs text-muted mt-1">+{solicitantesOrdenados.length - MOSTRAR_MAX} outro(s)</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-default">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-muted hover:text-page hover:bg-surface-2 transition-colors">
+            Cancelar
+          </button>
+          <button onClick={onContinuar} className="px-4 py-2 rounded-xl text-sm font-medium bg-[#FA4C00] hover:bg-[#D84300] text-white transition-colors">
+            Continuar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── MODAL: CONFIRMAÇÃO FINAL + PROGRESSO ─────────── */
+function ConfirmacaoFinalModal({ open, onClose, onConfirmar, total, processando, progresso }) {
+  if (!open) return null;
+  const atual = progresso?.atual ?? 0;
+  const alvo = progresso?.total || total;
+  const pct = alvo > 0 ? Math.min(100, Math.round((atual / alvo) * 100)) : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-surface border border-default rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-default">
+          <AlertTriangle size={18} className="text-[#FF9F0A]" />
+          <h2 className="text-base font-semibold">{processando ? "Aprovando solicitações…" : "Tem certeza?"}</h2>
+        </div>
+
+        <div className="px-5 py-4">
+          {processando ? (
+            <div className="space-y-3">
+              <p className="text-sm text-page">
+                Aprovando <strong>{atual}</strong> de <strong>{alvo}</strong> solicitaç{alvo !== 1 ? "ões" : "ão"}…
+              </p>
+              <div className="w-full h-2 bg-surface-2 rounded-full overflow-hidden">
+                <div className="h-full bg-[#FA4C00] transition-all duration-300 ease-out" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="text-xs text-muted">Cada aprovação envia e-mail e notificação — pode levar alguns segundos por item.</p>
+            </div>
+          ) : (
+            <p className="text-sm text-page">
+              Esta ação vai aprovar <strong>{total}</strong> solicitaç{total !== 1 ? "ões" : "ão"} de uma vez e não pode ser desfeita. Deseja continuar?
+            </p>
+          )}
+        </div>
+
+        {!processando && (
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-default">
+            <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-muted hover:text-page hover:bg-surface-2 transition-colors">
+              Voltar
+            </button>
+            <button onClick={onConfirmar} className="px-4 py-2 rounded-xl text-sm font-medium bg-[#FF9F0A] hover:bg-[#E08E00] text-white transition-colors">
+              Sim, aprovar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* =====================================================
    PAGE — SOLICITAÇÕES OPERACIONAIS
 ===================================================== */
@@ -62,6 +229,7 @@ export default function SolicitacoesOperacionaisPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [page, setPage] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
 
   /* filtros */
   const [filtroStatus, setFiltroStatus] = useState("");
@@ -72,6 +240,16 @@ export default function SolicitacoesOperacionaisPage() {
 
   const [solicitanteDebounced, setSolicitanteDebounced] = useState("");
   const solicitanteTimer = useRef(null);
+
+  /* seleção em lote */
+  const [selecionados, setSelecionados] = useState(() => new Set());
+  const [detalhesPorId, setDetalhesPorId] = useState({});
+  const [selecaoTruncada, setSelecaoTruncada] = useState(false);
+  const [carregandoSelecaoFiltro, setCarregandoSelecaoFiltro] = useState(false);
+  const [resumoAberto, setResumoAberto] = useState(false);
+  const [confirmacaoAberta, setConfirmacaoAberta] = useState(false);
+  const [aprovandoLote, setAprovandoLote] = useState(false);
+  const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0 });
 
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
@@ -132,7 +310,122 @@ export default function SolicitacoesOperacionaisPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [page, filtroStatus, filtroTipo, solicitanteDebounced, filtroDataInicio, filtroDataFim, logout, navigate]);
+  }, [page, filtroStatus, filtroTipo, solicitanteDebounced, filtroDataInicio, filtroDataFim, reloadKey, logout, navigate]);
+
+  // Filtros/página mudaram: seleção manual perde o sentido (ids não visíveis mais).
+  useEffect(() => {
+    limparSelecao();
+  }, [filtroStatus, filtroTipo, solicitanteDebounced, filtroDataInicio, filtroDataFim]);
+
+  function limparSelecao() {
+    setSelecionados(new Set());
+    setDetalhesPorId({});
+    setSelecaoTruncada(false);
+  }
+
+  function isAprovavel(status) {
+    return STATUS_APROVAVEIS.includes(status);
+  }
+
+  function isSelecionavelEmLote(s) {
+    return isAprovavel(s.status) && TIPOS_APROVACAO_LOTE.includes(s.tipo);
+  }
+
+  function toggleLinha(s) {
+    if (!isSelecionavelEmLote(s)) return;
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(s.idSolicitacao)) next.delete(s.idSolicitacao);
+      else next.add(s.idSolicitacao);
+      return next;
+    });
+    setDetalhesPorId((prev) => ({
+      ...prev,
+      [s.idSolicitacao]: { tipo: s.tipo, solicitanteNome: s.solicitante?.name || "—" },
+    }));
+    setSelecaoTruncada(false);
+  }
+
+  const aprovaveisDaPagina = solicitacoes.filter((s) => isSelecionavelEmLote(s));
+  const todosDaPaginaSelecionados =
+    aprovaveisDaPagina.length > 0 && aprovaveisDaPagina.every((s) => selecionados.has(s.idSolicitacao));
+
+  function toggleTodosDaPagina() {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (todosDaPaginaSelecionados) {
+        aprovaveisDaPagina.forEach((s) => next.delete(s.idSolicitacao));
+      } else {
+        aprovaveisDaPagina.forEach((s) => next.add(s.idSolicitacao));
+      }
+      return next;
+    });
+    setDetalhesPorId((prev) => {
+      const next = { ...prev };
+      aprovaveisDaPagina.forEach((s) => {
+        next[s.idSolicitacao] = { tipo: s.tipo, solicitanteNome: s.solicitante?.name || "—" };
+      });
+      return next;
+    });
+    setSelecaoTruncada(false);
+  }
+
+  async function selecionarTodosDoFiltro() {
+    setCarregandoSelecaoFiltro(true);
+    try {
+      const res = await SolicitacoesOperacionaisAPI.idsAprovaveis({
+        status: filtroStatus || undefined,
+        tipo: filtroTipo || undefined,
+        solicitante: solicitanteDebounced || undefined,
+        dataInicio: filtroDataInicio || undefined,
+        dataFim: filtroDataFim || undefined,
+      });
+      setSelecionados(new Set(res.ids || []));
+      const mapa = {};
+      (res.detalhes || []).forEach((d) => { mapa[d.idSolicitacao] = { tipo: d.tipo, solicitanteNome: d.solicitanteNome }; });
+      setDetalhesPorId(mapa);
+      setSelecaoTruncada(!!res.truncado);
+      if (!res.ids?.length) toast("Nenhuma solicitação aprovável encontrada para este filtro", { icon: "ℹ️" });
+    } catch (e) {
+      if (e.response?.status === 401) { logout(); navigate("/login"); }
+      else toast.error("Erro ao buscar solicitações do filtro");
+    } finally {
+      setCarregandoSelecaoFiltro(false);
+    }
+  }
+
+  async function confirmarAprovacaoLote() {
+    const ids = [...selecionados];
+    setAprovandoLote(true);
+    setProgressoLote({ atual: 0, total: ids.length });
+
+    let aprovadas = 0;
+    const erros = [];
+
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        await SolicitacoesOperacionaisAPI.aprovar(ids[i]);
+        aprovadas++;
+      } catch (e) {
+        if (e.response?.status === 401) { logout(); navigate("/login"); return; }
+        erros.push({ idSolicitacao: ids[i], motivo: e.response?.data?.message || "Erro desconhecido" });
+      }
+      setProgressoLote({ atual: i + 1, total: ids.length });
+    }
+
+    if (erros.length > 0) {
+      toast.error(`${aprovadas} aprovada(s), ${erros.length} com erro`, { duration: 6000 });
+    } else {
+      toast.success(`${aprovadas} solicitação(ões) aprovada(s) com sucesso`);
+    }
+
+    setAprovandoLote(false);
+    setConfirmacaoAberta(false);
+    setResumoAberto(false);
+    limparSelecao();
+    setReloadKey((k) => k + 1);
+    carregarStats();
+  }
 
   if (erro) {
     return <div className="h-screen flex items-center justify-center text-[#FF453A]">{erro}</div>;
@@ -258,24 +551,62 @@ export default function SolicitacoesOperacionaisPage() {
             </div>
           </div>
 
+          {/* ── BARRA DE SELEÇÃO / AÇÃO EM LOTE ── */}
+          {selecionados.size > 0 && (
+            <div className="flex items-center justify-between flex-wrap gap-3 bg-[#FA4C00]/10 border border-[#FA4C00]/25 rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-2 text-sm text-page">
+                <CheckSquare size={16} className="text-[#FA4C00]" />
+                <strong>{selecionados.size}</strong> selecionada{selecionados.size !== 1 ? "s" : ""}
+                <button onClick={limparSelecao} className="text-xs text-muted hover:text-page underline ml-2">Limpar seleção</button>
+              </div>
+              <button
+                onClick={() => setResumoAberto(true)}
+                className="flex items-center gap-2 bg-[#FA4C00] hover:bg-[#D84300] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              >
+                <CheckCircle size={15} />
+                Aprovar selecionadas
+              </button>
+            </div>
+          )}
+
           {/* ── TABELA ── */}
           <div className="bg-surface rounded-2xl border border-default overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-default">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-default gap-3 flex-wrap">
               <span className="text-xs text-muted">
                 {loading ? "Carregando…" : `${pagination.total} solicitaç${pagination.total !== 1 ? "ões" : "ão"}`}
               </span>
-              {loading && (
-                <div className="flex items-center gap-1.5 text-xs text-muted">
-                  <div className="w-3 h-3 rounded-full border-2 border-[#FA4C00] border-t-transparent animate-spin" />
-                  Atualizando
-                </div>
-              )}
+              <div className="flex items-center gap-3">
+                {todosDaPaginaSelecionados && pagination.total > aprovaveisDaPagina.length && (
+                  <button
+                    onClick={selecionarTodosDoFiltro}
+                    disabled={carregandoSelecaoFiltro}
+                    className="text-xs text-[#FA4C00] hover:text-[#D84300] underline disabled:opacity-50"
+                  >
+                    {carregandoSelecaoFiltro ? "Buscando…" : "Selecionar todas as solicitações do filtro"}
+                  </button>
+                )}
+                {loading && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted">
+                    <div className="w-3 h-3 rounded-full border-2 border-[#FA4C00] border-t-transparent animate-spin" />
+                    Atualizando
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface-2 border-b border-default">
+                    <th className="px-4 py-3 text-left w-10">
+                      <Checkbox
+                        checked={todosDaPaginaSelecionados}
+                        indeterminate={!todosDaPaginaSelecionados && aprovaveisDaPagina.some((s) => selecionados.has(s.idSolicitacao))}
+                        onChange={toggleTodosDaPagina}
+                        disabled={aprovaveisDaPagina.length === 0}
+                        title="Selecionar todas as aprováveis desta página"
+                      />
+                    </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">Nº</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wide">Tipo</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wide">Colaborador</th>
@@ -294,7 +625,7 @@ export default function SolicitacoesOperacionaisPage() {
                 <tbody className={loading ? "opacity-50 pointer-events-none" : ""}>
                   {solicitacoes.length === 0 && !loading && (
                     <tr>
-                      <td colSpan={12} className="px-4 py-12 text-center">
+                      <td colSpan={13} className="px-4 py-12 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <FileText size={32} className="text-muted opacity-40" />
                           <p className="text-muted text-sm">
@@ -306,7 +637,16 @@ export default function SolicitacoesOperacionaisPage() {
                   )}
 
                   {solicitacoes.map((s) => (
-                    <tr key={s.idSolicitacao} className="border-t border-default hover:bg-surface-2/50 transition-colors">
+                    <tr key={s.idSolicitacao} className={`border-t border-default transition-colors ${selecionados.has(s.idSolicitacao) ? "bg-[#FA4C00]/5" : "hover:bg-surface-2/50"}`}>
+                      <td className="px-4 py-3">
+                        {TIPOS_APROVACAO_LOTE.includes(s.tipo) && (
+                          <Checkbox
+                            checked={selecionados.has(s.idSolicitacao)}
+                            onChange={() => toggleLinha(s)}
+                            disabled={!isAprovavel(s.status)}
+                          />
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">#{s.idSolicitacao}</td>
                       <td className="px-4 py-3"><TipoBadge tipo={s.tipo} /></td>
                       <td className="px-4 py-3 max-w-[160px]">
@@ -349,6 +689,24 @@ export default function SolicitacoesOperacionaisPage() {
       </MainLayout>
 
       <AprovadoresOperacionaisModal open={aprovadoresOpen} onClose={() => setAprovadoresOpen(false)} />
+
+      <ResumoAprovacaoModal
+        open={resumoAberto}
+        onClose={() => setResumoAberto(false)}
+        onContinuar={() => { setResumoAberto(false); setConfirmacaoAberta(true); }}
+        ids={[...selecionados]}
+        detalhesPorId={detalhesPorId}
+        truncado={selecaoTruncada}
+      />
+
+      <ConfirmacaoFinalModal
+        open={confirmacaoAberta}
+        onClose={() => setConfirmacaoAberta(false)}
+        onConfirmar={confirmarAprovacaoLote}
+        total={selecionados.size}
+        processando={aprovandoLote}
+        progresso={progressoLote}
+      />
     </div>
   );
 }
