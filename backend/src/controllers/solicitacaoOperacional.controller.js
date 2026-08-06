@@ -51,6 +51,11 @@ function formatDataBR(date) {
   return new Date(date).toLocaleDateString("pt-BR");
 }
 
+function formatDataHoraBR(date) {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 function linkSolicitacaoOperacional(idSolicitacao) {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   return `${frontendUrl}/solicitacoes-operacionais/${idSolicitacao}`;
@@ -374,7 +379,7 @@ exports.importarSinergiaLote = async (req, res) => {
               `- **Solicitações criadas:** ${criadas.length}\n` +
               `- **Solicitante:** ${req.user.name}\n\n` +
               `---\n\n${listaColaboradores}${resto}\n\n` +
-              `[Ver todas as solicitações](${(process.env.FRONTEND_URL || "http://localhost:5173")}/solicitacoes-operacionais/lista)`,
+              `[Ver todas as solicitações](${(process.env.FRONTEND_URL || "http://localhost:5173")}/solicitacoes-operacionais)`,
             { mentionEmails: emails }
           );
         }
@@ -995,11 +1000,16 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
     });
   }
 
+  // Dia inteiro fora da operação (Folga/BH completo/Sinergia): zera qualquer
+  // batida de ponto residual do dia — senão o Dashboard Operacional prioriza
+  // horaEntrada sobre o tipoAusencia e mostra "Presente" em vez do status real.
+  const SEM_BATIDA = { horaEntrada: null, horaSaida: null, horasTrabalhadas: null };
+
   if (solicitacao.tipo === "FOLGA") {
-    await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.FO);
+    await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.FO, SEM_BATIDA);
   } else if (solicitacao.tipo === "BANCO_HORAS") {
     if (solicitacao.bhDiaCompleto) {
-      await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.BH);
+      await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.BH, SEM_BATIDA);
     } else {
       // Horas parciais: colaborador continua presente, só registra a hora de entrada
       const horaEntrada = solicitacao.bhHoraEntrada
@@ -1008,7 +1018,7 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
       await upsertFrequencia(solicitacao.opsId, solicitacao.data, null, { horaEntrada });
     }
   } else if (solicitacao.tipo === "SINERGIA") {
-    await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.S1);
+    await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.S1, SEM_BATIDA);
   } else if (solicitacao.tipo === "TROCA_DSR") {
     // Colaborador 1: nova data vira DSR; data atual deixa de ser DSR
     await upsertFrequencia(solicitacao.opsId, solicitacao.dsrDataNova1, idPorCodigo.DSR);
@@ -1134,22 +1144,20 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
 }
 
 /* =====================================================
-   APROVAR SOLICITAÇÃO
+   APROVAR SOLICITAÇÃO (lógica interna, reaproveitada pela
+   aprovação individual e pela aprovação em lote)
    Regra: o primeiro aprovador ativo que agir vence. Update
    condicional atômico (status = PENDENTE) evita corrida entre
    dois aprovadores agindo simultaneamente.
 ===================================================== */
-exports.aprovarSolicitacao = async (req, res) => {
-  try {
-    const idSolicitacao = Number(req.params.id);
-
+async function processarAprovacaoSolicitacao(req, idSolicitacao) {
     const solicitacaoAtual = await prisma.solicitacaoOperacional.findUnique({
       where: { idSolicitacao },
       select: { tipo: true, status: true, colaborador: { select: { idEstacao: true } } },
     });
 
     if (!solicitacaoAtual || !pertenceAEstacaoDoUsuario(req, solicitacaoAtual.colaborador?.idEstacao)) {
-      return notFoundResponse(res, "Solicitação não encontrada");
+      throw new HttpError("Solicitação não encontrada", 404);
     }
 
     const idEstacaoSolicitacao = solicitacaoAtual.colaborador?.idEstacao;
@@ -1163,7 +1171,7 @@ exports.aprovarSolicitacao = async (req, res) => {
     if (solicitacaoAtual.status === "PENDENTE" && segundaEtapaTipo) {
       const autorizado = await isAprovadorAtivo(req.user.email, idEstacaoSolicitacao);
       if (!autorizado) {
-        return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
+        throw new HttpError("Você não está cadastrado como aprovador.", 403);
       }
 
       let solicitacaoAtualizada = null;
@@ -1248,11 +1256,7 @@ exports.aprovarSolicitacao = async (req, res) => {
         console.error("⚠️ Falha ao enviar notificação SeaTalk de segunda aprovação:", seatalkErr.message);
       }
 
-      return successResponse(
-        res,
-        null,
-        `Primeira aprovação registrada — aguardando confirmação do ${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]}`
-      );
+      return `Primeira aprovação registrada — aguardando confirmação do ${SEGUNDO_APROVADOR_LABEL[segundaEtapaTipo]}`;
     }
 
     /* =====================================================
@@ -1269,11 +1273,11 @@ exports.aprovarSolicitacao = async (req, res) => {
       autorizado = await isSegundoAprovadorAtivo(req.user.email, segundaEtapaTipo, idEstacaoSolicitacao);
       statusEsperado = "AGUARDANDO_SEGUNDA_APROVACAO";
     } else {
-      return errorResponse(res, "Esta solicitação já foi analisada por outro responsável.", 409);
+      throw new HttpError("Esta solicitação já foi analisada por outro responsável.", 409);
     }
 
     if (!autorizado) {
-      return errorResponse(res, "Você não está cadastrado como aprovador.", 403);
+      throw new HttpError("Você não está cadastrado como aprovador.", 403);
     }
 
     const TIPOS_CADASTRAIS = ["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"];
@@ -1375,6 +1379,8 @@ exports.aprovarSolicitacao = async (req, res) => {
         `# ✅ Solicitação Operacional Aprovada\n\n` +
           `- **Tipo:** ${TIPO_LABEL_SEATALK[tipoAprovado] || tipoAprovado}\n` +
           `- **Colaborador:** ${colaborador?.nomeCompleto || "N/A"}\n` +
+          `- **Data da solicitação:** ${formatDataBR(solicitacaoAprovada.data)}\n` +
+          `- **Data da aprovação:** ${formatDataHoraBR(solicitacaoAprovada.decididoEm)}\n` +
           `- **Aprovado por:** ${req.user.name}\n\n` +
           `---\n\n` +
           `[Ver solicitação completa](${linkSolicitacaoOperacional(idSolicitacao)})`,
@@ -1384,16 +1390,74 @@ exports.aprovarSolicitacao = async (req, res) => {
       console.error("⚠️ Falha ao enviar notificação SeaTalk de aprovação operacional:", seatalkErr.message);
     }
 
-    const mensagemSucesso = TIPOS_CADASTRAIS.includes(tipoAprovado)
+    return TIPOS_CADASTRAIS.includes(tipoAprovado)
       ? "Solicitação aprovada e cadastro do colaborador atualizado"
       : "Solicitação aprovada e Controle de Presença atualizado";
-    return successResponse(res, null, mensagemSucesso);
+}
+
+exports.aprovarSolicitacao = async (req, res) => {
+  try {
+    const idSolicitacao = Number(req.params.id);
+    const mensagem = await processarAprovacaoSolicitacao(req, idSolicitacao);
+    return successResponse(res, null, mensagem);
   } catch (err) {
     if (err instanceof HttpError) {
       return errorResponse(res, err.message, err.statusCode);
     }
     console.error("❌ aprovarSolicitacao (operacional):", err);
     return errorResponse(res, "Erro ao aprovar solicitação", 500);
+  }
+};
+
+/* =====================================================
+   LISTAR IDs APROVÁVEIS PELO FILTRO ATUAL
+   Usado pela seleção "todos os resultados do filtro" — respeita
+   os mesmos filtros da listagem, mas só retorna solicitações
+   ainda decidíveis (PENDENTE / AGUARDANDO_SEGUNDA_APROVACAO).
+===================================================== */
+exports.listarIdsAprovaveis = async (req, res) => {
+  try {
+    const { status, tipo, dataInicio, dataFim, solicitante } = req.query;
+
+    if (status && !["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"].includes(status)) {
+      return successResponse(res, { ids: [], total: 0, truncado: false });
+    }
+
+    const where = { ...estacaoWhereSolicitacao(req) };
+    where.status = status || { in: ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"] };
+    if (tipo) where.tipo = tipo;
+    if (solicitante) where.solicitante = { name: { contains: solicitante, mode: "insensitive" } };
+    if (dataInicio || dataFim) {
+      where.data = {};
+      if (dataInicio) where.data.gte = new Date(`${dataInicio}T00:00:00.000Z`);
+      if (dataFim) where.data.lte = new Date(`${dataFim}T23:59:59.999Z`);
+    }
+
+    const MAX = 200;
+    const registros = await prisma.solicitacaoOperacional.findMany({
+      where,
+      select: {
+        idSolicitacao: true,
+        tipo: true,
+        solicitante: { select: { name: true } },
+      },
+      orderBy: { data: "desc" },
+      take: MAX + 1,
+    });
+
+    const truncado = registros.length > MAX;
+    const pagina = registros.slice(0, MAX);
+    const ids = pagina.map((r) => r.idSolicitacao);
+    const detalhes = pagina.map((r) => ({
+      idSolicitacao: r.idSolicitacao,
+      tipo: r.tipo,
+      solicitanteNome: r.solicitante?.name || "—",
+    }));
+
+    return successResponse(res, { ids, detalhes, total: ids.length, truncado });
+  } catch (err) {
+    console.error("❌ listarIdsAprovaveis (operacional):", err);
+    return errorResponse(res, "Erro ao buscar solicitações aprováveis", 500);
   }
 };
 
