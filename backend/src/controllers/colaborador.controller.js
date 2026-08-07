@@ -407,7 +407,7 @@ const listarEscalas = async (req, res) => {
 const createColaborador = async (req, res) => {
   try {
     const {
-      opsId,
+      opsId: opsIdRaw,
       nomeCompleto,
       cpf,
       telefone,
@@ -426,6 +426,11 @@ const createColaborador = async (req, res) => {
       contatoEmergenciaTelefone,
       idLider,
     } = req.body;
+
+    // Remove espaços/tabs acidentais (ex.: copiado de uma planilha) antes de
+    // validar/gravar — ops_id é a chave primária, então qualquer whitespace
+    // sobrando cria um colaborador "fantasma" com ID visualmente idêntico.
+    const opsId = typeof opsIdRaw === "string" ? opsIdRaw.trim() : opsIdRaw;
 
     /* ===============================
        VALIDAÇÕES BÁSICAS
