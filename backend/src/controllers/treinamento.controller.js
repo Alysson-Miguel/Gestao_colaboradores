@@ -219,7 +219,7 @@ exports.statsTreinamentos = async (req, res) => {
 exports.listTreinamentos = async (req, res) => {
   try {
 
-    const { page = 1, limit = 50, tema, processo, lider, dataInicio, dataFim } = req.query;
+    const { page = 1, limit = 50, tema, processo, lider, status, dataInicio, dataFim } = req.query;
     const pageNum = Math.max(1, Number(page));
     const limitNum = Math.min(100, Math.max(1, Number(limit)));
     const skip = (pageNum - 1) * limitNum;
@@ -231,6 +231,7 @@ exports.listTreinamentos = async (req, res) => {
     if (tema)    where.tema     = { contains: tema,    mode: "insensitive" };
     if (processo) where.processo = { contains: processo, mode: "insensitive" };
     if (lider)   where.liderResponsavelOpsId = lider;
+    if (status)  where.status = status;
     if (dataInicio || dataFim) {
       where.dataTreinamento = {};
       if (dataInicio) where.dataTreinamento.gte = new Date(`${dataInicio}T00:00:00.000Z`);

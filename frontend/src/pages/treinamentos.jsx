@@ -128,6 +128,7 @@ export default function TreinamentosPage() {
   const [filtroTema, setFiltroTema] = useState("");
   const [filtroProcesso, setFiltroProcesso] = useState("");
   const [filtroLider, setFiltroLider] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
 
@@ -155,12 +156,13 @@ export default function TreinamentosPage() {
     processoTimer.current = setTimeout(() => { setProcessoDebounced(v); setPage(1); }, 400);
   };
 
-  const hasFilters = filtroTema || filtroProcesso || filtroLider || filtroDataInicio || filtroDataFim;
+  const hasFilters = filtroTema || filtroProcesso || filtroLider || filtroStatus || filtroDataInicio || filtroDataFim;
 
   const clearFilters = () => {
     setFiltroTema(""); setTemaDebounced("");
     setFiltroProcesso(""); setProcessoDebounced("");
     setFiltroLider("");
+    setFiltroStatus("");
     setFiltroDataInicio(""); setFiltroDataFim("");
     setPage(1);
   };
@@ -185,6 +187,7 @@ export default function TreinamentosPage() {
           tema: temaDebounced || undefined,
           processo: processoDebounced || undefined,
           lider: filtroLider || undefined,
+          status: filtroStatus || undefined,
           dataInicio: filtroDataInicio || undefined,
           dataFim: filtroDataFim || undefined,
         });
@@ -213,7 +216,7 @@ export default function TreinamentosPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [page, temaDebounced, processoDebounced, filtroLider, filtroDataInicio, filtroDataFim, logout, navigate]);
+  }, [page, temaDebounced, processoDebounced, filtroLider, filtroStatus, filtroDataInicio, filtroDataFim, logout, navigate]);
 
   /* ── percentual ── */
   const pct = (n) => stats.total > 0 ? Math.round((n / stats.total) * 100) : 0;
@@ -368,7 +371,7 @@ export default function TreinamentosPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {/* Tema */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted">Tema</label>
@@ -409,6 +412,21 @@ export default function TreinamentosPage() {
                 >
                   <option value="">Todos os líderes</option>
                   {lideres.map(l => <option key={l.opsId} value={l.opsId}>{l.nome}</option>)}
+                </select>
+              </div>
+
+              {/* Status */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted">Status</label>
+                <select
+                  value={filtroStatus}
+                  onChange={e => { setFiltroStatus(e.target.value); setPage(1); }}
+                  className="px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 focus:border-[#FA4C00]/50 transition-all appearance-none"
+                >
+                  <option value="">Todos os status</option>
+                  <option value="ABERTO">Em aberto</option>
+                  <option value="FINALIZADO">Finalizado</option>
+                  <option value="CANCELADO">Cancelado</option>
                 </select>
               </div>
 

@@ -1,11 +1,12 @@
 import api from "./api";
 
 export const TreinamentosAPI = {
-  listar: async ({ page = 1, limit = 50, tema, processo, lider, dataInicio, dataFim } = {}) => {
+  listar: async ({ page = 1, limit = 50, tema, processo, lider, status, dataInicio, dataFim } = {}) => {
     const params = new URLSearchParams({ page, limit });
     if (tema)       params.set("tema",       tema);
     if (processo)   params.set("processo",   processo);
     if (lider)      params.set("lider",      lider);
+    if (status)     params.set("status",     status);
     if (dataInicio) params.set("dataInicio", dataInicio);
     if (dataFim)    params.set("dataFim",    dataFim);
     const res = await api.get(`/treinamentos?${params}`);
