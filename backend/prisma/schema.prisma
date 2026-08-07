@@ -1079,6 +1079,7 @@ enum MotivoDesligamento {
   NAO_CONFORMIDADE
   PEDIDO_DEMISSAO
   REDUCAO_QUADRO
+  EX_COLABORADOR
 }
 
 enum StatusTreinamento {

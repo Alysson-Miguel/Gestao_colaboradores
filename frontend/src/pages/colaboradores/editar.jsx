@@ -25,6 +25,7 @@ const MOTIVOS_DESLIGAMENTO = [
   { value: "NAO_CONFORMIDADE", label: "Não conformidade" },
   { value: "PEDIDO_DEMISSAO", label: "Pedido de demissão" },
   { value: "REDUCAO_QUADRO", label: "Redução de quadro" },
+  { value: "EX_COLABORADOR", label: "Ex colaborador" },
 ];
 
 export default function EditarColaborador() {
