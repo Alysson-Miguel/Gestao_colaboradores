@@ -521,7 +521,7 @@ export default function App() {
       <Route
         path="/ponto"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "OPERACAO"]}>
             <PontoPage />
           </ProtectedRoute>
         }

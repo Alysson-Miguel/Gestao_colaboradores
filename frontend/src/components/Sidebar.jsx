@@ -496,11 +496,13 @@ export default function Sidebar({ isOpen, onClose }) {
               }`}
             >
               <div className="ml-8 mt-1 space-y-1">
-                <SidebarSubItem
-                  label="Registrar Ponto"
-                  active={location.pathname === "/ponto"}
-                  onClick={() => go("/ponto")}
-                />
+                {!isLideranca && (
+                  <SidebarSubItem
+                    label="Registrar Ponto"
+                    active={location.pathname === "/ponto"}
+                    onClick={() => go("/ponto")}
+                  />
+                )}
                 <SidebarSubItem
                   label="Controle de Presença"
                   active={location.pathname === "/ponto/controle"}
