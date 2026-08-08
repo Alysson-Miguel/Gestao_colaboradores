@@ -808,6 +808,10 @@ const updateColaborador = async (req, res) => {
         : null;
     }
 
+    if (data.dataInicioStatus && data.dataFimStatus && data.dataFimStatus < data.dataInicioStatus) {
+      return errorResponse(res, "A data final não pode ser anterior à data de início", 400);
+    }
+
     /* =============================
        ESCALA
     ============================== */

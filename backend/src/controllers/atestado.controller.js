@@ -224,6 +224,10 @@ const createAtestado = async (req, res) => {
       return errorResponse(res, "CPF inválido", 400);
     }
 
+    if (dateOnlyBrasil(dataFim) < dateOnlyBrasil(dataInicio)) {
+      return errorResponse(res, "A data final não pode ser anterior à data de início", 400);
+    }
+
     console.log("🔍 Buscando colaborador com CPF:", cpfLimpo);
 
     const colaborador = await prisma.colaborador.findFirst({
@@ -454,6 +458,19 @@ const updateAtestado = async (req, res) => {
 
     if (data.dataInicio) data.dataInicio = dateOnlyBrasil(data.dataInicio);
     if (data.dataFim) data.dataFim = dateOnlyBrasil(data.dataFim);
+
+    if (data.dataInicio || data.dataFim) {
+      const atual = await prisma.atestadoMedico.findUnique({
+        where: { idAtestado: Number(id) },
+        select: { dataInicio: true, dataFim: true },
+      });
+      if (!atual) return notFoundResponse(res, "Atestado não encontrado");
+      const inicioEfetivo = data.dataInicio || atual.dataInicio;
+      const fimEfetivo = data.dataFim || atual.dataFim;
+      if (fimEfetivo < inicioEfetivo) {
+        return errorResponse(res, "A data final não pode ser anterior à data de início", 400);
+      }
+    }
 
     if (data.documentoKey) {
       data.documentoAnexo = data.documentoKey;

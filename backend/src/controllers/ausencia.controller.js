@@ -4,7 +4,7 @@
  */
 
 const { prisma } = require('../config/database');
-const { successResponse, createdResponse, deletedResponse, notFoundResponse, paginatedResponse } = require('../utils/response');
+const { successResponse, createdResponse, deletedResponse, notFoundResponse, errorResponse, paginatedResponse } = require('../utils/response');
 const { gerarFrequenciaAusencia } = require('../services/dsrBackfill.service');
 
 const getAllAusencias = async (req, res) => {
@@ -56,6 +56,10 @@ const createAusencia = async (req, res) => {
 
   const novaInicio = new Date(dataInicio);
   const novaFim = new Date(dataFim);
+
+  if (novaFim < novaInicio) {
+    return errorResponse(res, "A data final não pode ser anterior à data de início", 400);
+  }
 
   // Desativa ausências ativas do mesmo tipo que se sobrepõem com o novo período
   await prisma.ausencia.updateMany({
@@ -111,6 +115,19 @@ const updateAusencia = async (req, res) => {
   if (updateData.idTipoAusencia) updateData.idTipoAusencia = parseInt(updateData.idTipoAusencia);
   if (updateData.diasCorridos) updateData.diasCorridos = parseInt(updateData.diasCorridos);
   if (updateData.diasUteis) updateData.diasUteis = parseInt(updateData.diasUteis);
+
+  if (updateData.dataInicio || updateData.dataFim) {
+    const atual = await prisma.ausencia.findUnique({
+      where: { idAusencia: parseInt(id) },
+      select: { dataInicio: true, dataFim: true },
+    });
+    if (!atual) return notFoundResponse(res, 'Ausência não encontrada');
+    const inicioEfetivo = updateData.dataInicio || atual.dataInicio;
+    const fimEfetivo = updateData.dataFim || atual.dataFim;
+    if (fimEfetivo < inicioEfetivo) {
+      return errorResponse(res, "A data final não pode ser anterior à data de início", 400);
+    }
+  }
 
   const ausencia = await prisma.ausencia.update({
     where: { idAusencia: parseInt(id) },
