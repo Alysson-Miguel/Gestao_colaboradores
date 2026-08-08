@@ -27,8 +27,10 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data; // { pendentes, aprovadas, reprovadas, doMes }
   },
 
-  calendario: async (inicio, fim) => {
-    const res = await api.get("/solicitacoes-operacionais/calendario", { params: { inicio, fim } });
+  calendario: async (inicio, fim, tipos) => {
+    const params = { inicio, fim };
+    if (tipos && tipos.length) params.tipo = tipos.join(",");
+    const res = await api.get("/solicitacoes-operacionais/calendario", { params });
     return res.data.data;
   },
 

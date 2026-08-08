@@ -662,7 +662,7 @@ exports.getSolicitacao = async (req, res) => {
 ===================================================== */
 exports.listarCalendario = async (req, res) => {
   try {
-    const { inicio, fim } = req.query;
+    const { inicio, fim, tipo } = req.query;
 
     if (!inicio || !fim) {
       return errorResponse(res, "Parâmetros inicio e fim são obrigatórios", 400);
@@ -675,6 +675,11 @@ exports.listarCalendario = async (req, res) => {
       },
       ...estacaoWhereSolicitacao(req),
     };
+
+    if (tipo) {
+      const tipos = String(tipo).split(",").map((t) => t.trim()).filter(Boolean);
+      if (tipos.length) where.tipo = { in: tipos };
+    }
 
     const solicitacoes = await prisma.solicitacaoOperacional.findMany({
       where,

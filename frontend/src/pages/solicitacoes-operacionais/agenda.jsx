@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import format from "date-fns/format";
@@ -19,7 +19,7 @@ import MainLayout from "../../components/MainLayout";
 import { Drawer } from "../../components/UIComponents/Drawer";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
-import { StatusOperacionalBadge, TipoBadge, STATUS_COLOR, STATUS_LABEL, DESTINO_SINERGIA_LABEL, formatDateOnly } from "./shared";
+import { StatusOperacionalBadge, TipoBadge, STATUS_COLOR, STATUS_LABEL, TIPO_LABEL, DESTINO_SINERGIA_LABEL, formatDateOnly } from "./shared";
 import "../treinamentos/calendario.css";
 
 const locales = { "pt-BR": ptBR };
@@ -161,13 +161,15 @@ export default function AgendaSolicitacoesOperacionais() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selecionada, setSelecionada] = useState(null);
+  const [filtrosTipo, setFiltrosTipo] = useState([]); // vazio = todos os tipos
+  const rangeRef = useRef(null);
 
-  const carregarEventos = useCallback(async (start, end) => {
+  const carregarEventos = useCallback(async (start, end, tipos) => {
     setLoading(true);
     try {
       const inicio = format(start, "yyyy-MM-dd");
       const fim = format(end, "yyyy-MM-dd");
-      const solicitacoes = await SolicitacoesOperacionaisAPI.calendario(inicio, fim);
+      const solicitacoes = await SolicitacoesOperacionaisAPI.calendario(inicio, fim, tipos);
       setEvents(
         (solicitacoes || []).map((s) => ({
           id: s.idSolicitacao,
@@ -194,16 +196,31 @@ export default function AgendaSolicitacoesOperacionais() {
       start = range.start;
       end = range.end;
     }
-    carregarEventos(start, end);
-  }, [carregarEventos]);
+    rangeRef.current = { start, end };
+    carregarEventos(start, end, filtrosTipo);
+  }, [carregarEventos, filtrosTipo]);
 
   // carga inicial (mês corrente)
   useMemo(() => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    carregarEventos(start, end);
+    rangeRef.current = { start, end };
+    carregarEventos(start, end, filtrosTipo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // filtro de tipo mudou: recarrega o mesmo período já exibido
+  useEffect(() => {
+    if (!rangeRef.current) return;
+    carregarEventos(rangeRef.current.start, rangeRef.current.end, filtrosTipo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtrosTipo]);
+
+  const toggleTipo = (tipo) => {
+    setFiltrosTipo((prev) =>
+      prev.includes(tipo) ? prev.filter((t) => t !== tipo) : [...prev, tipo]
+    );
+  };
 
   const abrirEvento = (event) => {
     setSelecionada(event.resource);
@@ -253,6 +270,36 @@ export default function AgendaSolicitacoesOperacionais() {
             <div className="flex-1">
               <h1 className="text-2xl font-semibold">Agenda de Solicitações Operacionais</h1>
               <p className="text-sm text-muted mt-0.5">Visualize Folga, Banco de Horas, Sinergia e Troca de DSR por data</p>
+            </div>
+          </div>
+
+          {/* ── FILTRO POR TIPO ── */}
+          <div className="bg-surface rounded-2xl border border-default p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-medium text-muted uppercase tracking-wide">Filtrar por tipo</span>
+              {filtrosTipo.length > 0 && (
+                <button onClick={() => setFiltrosTipo([])} className="ml-auto text-xs text-muted hover:text-[#FF453A] transition-colors">
+                  Limpar
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(TIPO_LABEL).map(([tipo, label]) => {
+                const ativo = filtrosTipo.includes(tipo);
+                return (
+                  <button
+                    key={tipo}
+                    onClick={() => toggleTipo(tipo)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                      ativo
+                        ? "bg-[#FA4C00] border-[#FA4C00] text-white"
+                        : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
