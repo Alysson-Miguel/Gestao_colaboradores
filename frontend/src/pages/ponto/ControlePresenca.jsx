@@ -35,6 +35,10 @@ export default function ControlePresenca() {
   const pendentesHoje   = statusFiltro === "PENDENTES_HOJE";
   const filtroFalta     = statusFiltro === "FALTA";
   const filtroOn        = statusFiltro === "ONBOARDING";
+  const filtroSinergia  = statusFiltro === "SINERGIA";
+  const filtroFolga     = statusFiltro === "FOLGA";
+  const filtroBancoHoras = statusFiltro === "BANCO_HORAS";
+  const filtroAtestado  = statusFiltro === "ATESTADO_MEDICO";
 
   /* ================== DADOS ================== */
   const [dias, setDias] = useState([]);
@@ -198,8 +202,32 @@ export default function ControlePresenca() {
       );
     }
 
+    if (filtroSinergia) {
+      lista = lista.filter((c) =>
+        Object.values(c.dias || {}).some((d) => d?.status === "S1")
+      );
+    }
+
+    if (filtroFolga) {
+      lista = lista.filter((c) =>
+        Object.values(c.dias || {}).some((d) => d?.status === "FO")
+      );
+    }
+
+    if (filtroBancoHoras) {
+      lista = lista.filter((c) =>
+        Object.values(c.dias || {}).some((d) => d?.status === "BH")
+      );
+    }
+
+    if (filtroAtestado) {
+      lista = lista.filter((c) =>
+        Object.values(c.dias || {}).some((d) => d?.status === "AM" || d?.status === "AA")
+      );
+    }
+
     return lista;
-  }, [colaboradoresRaw, busca, pendentesHoje, filtroFalta, filtroOn, mes]);
+  }, [colaboradoresRaw, busca, pendentesHoje, filtroFalta, filtroOn, filtroSinergia, filtroFolga, filtroBancoHoras, filtroAtestado, mes]);
 
   function aplicarAjusteLocal({ opsId, dataReferencia, status, horaEntrada, horaSaida }) {
     setColaboradoresRaw((prev) =>

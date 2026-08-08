@@ -19,6 +19,10 @@ const STATUS_OPTIONS = [
   { value: "ONBOARDING",      label: "Onboarding" },
   { value: "PENDENCIA_SAIDA", label: "Entrada sem saída" },
   { value: "PENDENTES_HOJE",  label: "Pendentes hoje" },
+  { value: "SINERGIA",        label: "Sinergia" },
+  { value: "FOLGA",           label: "Folga" },
+  { value: "BANCO_HORAS",     label: "Banco de Horas" },
+  { value: "ATESTADO_MEDICO", label: "Atestado Médico" },
 ];
 
 export default function PresencaToolbar({
