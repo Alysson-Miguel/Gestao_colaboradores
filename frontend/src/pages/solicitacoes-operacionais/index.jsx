@@ -235,11 +235,14 @@ export default function SolicitacoesOperacionaisPage() {
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroSolicitante, setFiltroSolicitante] = useState("");
+  const [filtroColaborador, setFiltroColaborador] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
 
   const [solicitanteDebounced, setSolicitanteDebounced] = useState("");
   const solicitanteTimer = useRef(null);
+  const [colaboradorDebounced, setColaboradorDebounced] = useState("");
+  const colaboradorTimer = useRef(null);
 
   /* seleção em lote */
   const [selecionados, setSelecionados] = useState(() => new Set());
@@ -260,11 +263,18 @@ export default function SolicitacoesOperacionaisPage() {
     solicitanteTimer.current = setTimeout(() => { setSolicitanteDebounced(v); setPage(1); }, 400);
   };
 
-  const hasFilters = filtroStatus || filtroTipo || filtroSolicitante || filtroDataInicio || filtroDataFim;
+  const handleColaborador = (v) => {
+    setFiltroColaborador(v);
+    clearTimeout(colaboradorTimer.current);
+    colaboradorTimer.current = setTimeout(() => { setColaboradorDebounced(v); setPage(1); }, 400);
+  };
+
+  const hasFilters = filtroStatus || filtroTipo || filtroSolicitante || filtroColaborador || filtroDataInicio || filtroDataFim;
 
   const clearFilters = () => {
     setFiltroStatus(""); setFiltroTipo("");
     setFiltroSolicitante(""); setSolicitanteDebounced("");
+    setFiltroColaborador(""); setColaboradorDebounced("");
     setFiltroDataInicio(""); setFiltroDataFim("");
     setPage(1);
   };
@@ -290,6 +300,7 @@ export default function SolicitacoesOperacionaisPage() {
           status: filtroStatus || undefined,
           tipo: filtroTipo || undefined,
           solicitante: solicitanteDebounced || undefined,
+          colaborador: colaboradorDebounced || undefined,
           dataInicio: filtroDataInicio || undefined,
           dataFim: filtroDataFim || undefined,
         });
@@ -310,12 +321,12 @@ export default function SolicitacoesOperacionaisPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [page, filtroStatus, filtroTipo, solicitanteDebounced, filtroDataInicio, filtroDataFim, reloadKey, logout, navigate]);
+  }, [page, filtroStatus, filtroTipo, solicitanteDebounced, colaboradorDebounced, filtroDataInicio, filtroDataFim, reloadKey, logout, navigate]);
 
   // Filtros/página mudaram: seleção manual perde o sentido (ids não visíveis mais).
   useEffect(() => {
     limparSelecao();
-  }, [filtroStatus, filtroTipo, solicitanteDebounced, filtroDataInicio, filtroDataFim]);
+  }, [filtroStatus, filtroTipo, solicitanteDebounced, colaboradorDebounced, filtroDataInicio, filtroDataFim]);
 
   function limparSelecao() {
     setSelecionados(new Set());
@@ -377,6 +388,7 @@ export default function SolicitacoesOperacionaisPage() {
         status: filtroStatus || undefined,
         tipo: filtroTipo || undefined,
         solicitante: solicitanteDebounced || undefined,
+        colaborador: colaboradorDebounced || undefined,
         dataInicio: filtroDataInicio || undefined,
         dataFim: filtroDataFim || undefined,
       });
@@ -515,7 +527,7 @@ export default function SolicitacoesOperacionaisPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted">Data início</label>
                 <input type="date" value={filtroDataInicio} onChange={(e) => { setFiltroDataInicio(e.target.value); setPage(1); }} className="px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all" />
@@ -546,6 +558,13 @@ export default function SolicitacoesOperacionaisPage() {
                 <div className="relative">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                   <input type="text" placeholder="Buscar solicitante..." value={filtroSolicitante} onChange={(e) => handleSolicitante(e.target.value)} className="w-full pl-7 pr-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page placeholder-muted focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted">Colaborador</label>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                  <input type="text" placeholder="Buscar colaborador..." value={filtroColaborador} onChange={(e) => handleColaborador(e.target.value)} className="w-full pl-7 pr-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page placeholder-muted focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all" />
                 </div>
               </div>
             </div>
