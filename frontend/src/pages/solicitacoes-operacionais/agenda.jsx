@@ -10,7 +10,8 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ExternalLink,
   CalendarDays, Clock, CheckCircle2, XCircle, AlertTriangle,
-  User, Briefcase, Building2, ArrowLeftRight,
+  User, Briefcase, Building2, ArrowLeftRight, Filter, Check,
+  CalendarOff, Clock3, Share2, Hourglass, UserCog, CalendarClock, UserX,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -36,6 +37,18 @@ const VIEW_OPTIONS = [
   { key: "week", label: "Semanal" },
   { key: "agenda", label: "Agenda" },
 ];
+
+// Mesmos ícones usados no seletor de tipo da tela "Nova Solicitação"
+const TIPO_ICON = {
+  FOLGA: CalendarOff,
+  BANCO_HORAS: Clock3,
+  SINERGIA: Share2,
+  TROCA_DSR: ArrowLeftRight,
+  HORA_EXTRA: Hourglass,
+  TROCA_GESTAO: UserCog,
+  TROCA_ESCALA: CalendarClock,
+  DESLIGAMENTO: UserX,
+};
 
 const MESSAGES = {
   allDay: "Dia inteiro",
@@ -276,27 +289,40 @@ export default function AgendaSolicitacoesOperacionais() {
           {/* ── FILTRO POR TIPO ── */}
           <div className="bg-surface rounded-2xl border border-default p-4">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-medium text-muted uppercase tracking-wide">Filtrar por tipo</span>
+              <Filter size={14} className="text-muted" />
+              <span className="text-xs font-medium text-muted uppercase tracking-wide">Tipo de Solicitação</span>
               {filtrosTipo.length > 0 && (
-                <button onClick={() => setFiltrosTipo([])} className="ml-auto text-xs text-muted hover:text-[#FF453A] transition-colors">
-                  Limpar
+                <span className="px-1.5 min-w-[18px] text-center rounded-full bg-[#FA4C00]/15 text-[#FA4C00] text-[10px] font-semibold leading-[18px]">
+                  {filtrosTipo.length}
+                </span>
+              )}
+              {filtrosTipo.length > 0 && (
+                <button
+                  onClick={() => setFiltrosTipo([])}
+                  className="ml-auto flex items-center gap-1 text-xs text-muted hover:text-[#FF453A] transition-colors cursor-pointer"
+                >
+                  <XCircle size={13} /> Limpar
                 </button>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
               {Object.entries(TIPO_LABEL).map(([tipo, label]) => {
                 const ativo = filtrosTipo.includes(tipo);
+                const Icon = TIPO_ICON[tipo];
                 return (
                   <button
                     key={tipo}
                     onClick={() => toggleTipo(tipo)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                    aria-pressed={ativo}
+                    className={`inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
                       ativo
-                        ? "bg-[#FA4C00] border-[#FA4C00] text-white"
-                        : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40"
+                        ? "bg-[#FA4C00] border-[#FA4C00] text-white shadow-sm shadow-[#FA4C00]/25"
+                        : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40 hover:bg-surface-3"
                     }`}
                   >
+                    {Icon && <Icon size={13} className={ativo ? "text-white" : "text-muted"} />}
                     {label}
+                    {ativo && <Check size={12} strokeWidth={3} className="text-white" />}
                   </button>
                 );
               })}
