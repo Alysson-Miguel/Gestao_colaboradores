@@ -908,6 +908,30 @@ const updateColaborador = async (req, res) => {
       }
 
       /* =========================
+         REATIVAÇÃO (INATIVO → ATIVO)
+         Limpa dados de desligamento e reverte os dias
+         gerados automaticamente como DP/DV/DF em frequência
+      ========================= */
+      const virouAtivoNovamente =
+        data.status === "ATIVO" && atual?.status === "INATIVO";
+
+      if (virouAtivoNovamente) {
+        await tx.colaborador.update({
+          where: { opsId },
+          data: {
+            dataDesligamento: null,
+            motivoDesligamento: null,
+            tipoDesligamento: null,
+          },
+        });
+
+        await tx.frequencia.updateMany({
+          where: { opsId, justificativa: "AUTO_DESLIGAMENTO", manual: false },
+          data: { idTipoAusencia: null, justificativa: null, validado: false },
+        });
+      }
+
+      /* =========================
          AUTO-CRIAR AUSÊNCIA DE FÉRIAS/AFASTAMENTO
          Garante que os dias apareçam no controle de presença
       ========================= */
