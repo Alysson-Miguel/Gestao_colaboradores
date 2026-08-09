@@ -813,8 +813,14 @@ exports.createSolicitacao = async (req, res) => {
       if (!data || !heHoraEntrada || !heHoraSaida) {
         return errorResponse(res, "Data, hora de entrada e hora de saída são obrigatórias", 400);
       }
-      if (heHoraSaida <= heHoraEntrada) {
-        return errorResponse(res, "A hora de saída deve ser depois da hora de entrada", 400);
+      {
+        const [hE, mE] = heHoraEntrada.split(":").map(Number);
+        const [hS, mS] = heHoraSaida.split(":").map(Number);
+        let minutosJornada = hS * 60 + mS - (hE * 60 + mE);
+        if (minutosJornada <= 0) minutosJornada += 24 * 60;
+        if (minutosJornada > 16 * 60) {
+          return errorResponse(res, "Jornada inválida. Verifique os horários informados (máximo de 16h)", 400);
+        }
       }
 
       const colaborador = await validarColaboradorDisponivel(opsId, data);
@@ -1044,7 +1050,9 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
     const [hS, mS] = solicitacao.heHoraSaida.split(":").map(Number);
     const horaEntrada = new Date(`1970-01-01T${solicitacao.heHoraEntrada}:00Z`);
     const horaSaida = new Date(`1970-01-01T${solicitacao.heHoraSaida}:00Z`);
-    const horasTrabalhadas = (hS + mS / 60) - (hE + mE / 60);
+    let minutosTrabalhados = hS * 60 + mS - (hE * 60 + mE);
+    if (minutosTrabalhados <= 0) minutosTrabalhados += 24 * 60;
+    const horasTrabalhadas = Number((minutosTrabalhados / 60).toFixed(2));
 
     await upsertFrequencia(solicitacao.opsId, solicitacao.data, null, {
       horaEntrada,

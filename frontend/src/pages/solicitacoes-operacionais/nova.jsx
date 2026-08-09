@@ -28,6 +28,22 @@ const TIPOS = [
 
 const TIPOS_COM_DATA_GENERICA = ["FOLGA", "BANCO_HORAS", "SINERGIA", "HORA_EXTRA"];
 
+// Retorna a duração em minutos entre entrada e saída, considerando turnos
+// que atravessam a meia-noite (ex.: T3, entrada 21:00 / saída 05:55).
+function duracaoMinutos(horaEntrada, horaSaida) {
+  const [hE, mE] = horaEntrada.split(":").map(Number);
+  const [hS, mS] = horaSaida.split(":").map(Number);
+  let minutos = (hS * 60 + mS) - (hE * 60 + mE);
+  if (minutos <= 0) minutos += 24 * 60;
+  return minutos;
+}
+
+function jornadaHeInvalida(horaEntrada, horaSaida) {
+  if (!horaEntrada || !horaSaida) return false;
+  const minutos = duracaoMinutos(horaEntrada, horaSaida);
+  return minutos <= 0 || minutos > 16 * 60;
+}
+
 function fieldCls() {
   return "w-full px-3 py-2.5 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all";
 }
@@ -152,7 +168,7 @@ export default function NovaSolicitacaoOperacional() {
       if (!data) return false;
       if (tipo === "BANCO_HORAS" && !bhDiaCompleto && (!bhQuantidadeHoras || !bhHoraEntrada)) return false;
       if (tipo === "SINERGIA" && !sinergiaDestino) return false;
-      if (tipo === "HORA_EXTRA" && (!heHoraEntrada || !heHoraSaida || heHoraSaida <= heHoraEntrada)) return false;
+      if (tipo === "HORA_EXTRA" && (!heHoraEntrada || !heHoraSaida || jornadaHeInvalida(heHoraEntrada, heHoraSaida))) return false;
       return true;
     }
     if (tipo === "TROCA_GESTAO") return !!novoLiderOpsId;
@@ -380,10 +396,10 @@ export default function NovaSolicitacaoOperacional() {
                       <p className="text-xs text-muted bg-surface-2 rounded-xl px-3 py-2.5">
                         Só é possível solicitar hora extra em um dia que seja DSR do colaborador. Após aprovada, o dia deixa de aparecer como DSR e passa a mostrar o horário trabalhado.
                       </p>
-                      {heHoraEntrada && heHoraSaida && heHoraSaida <= heHoraEntrada && (
+                      {jornadaHeInvalida(heHoraEntrada, heHoraSaida) && (
                         <div className="flex gap-2.5 rounded-xl border border-[#FF453A]/30 bg-[#FF453A]/5 p-3">
                           <AlertTriangle size={15} className="text-[#FF453A] shrink-0 mt-0.5" />
-                          <p className="text-xs text-[#FF453A]">A hora de saída deve ser depois da hora de entrada.</p>
+                          <p className="text-xs text-[#FF453A]">Jornada inválida. Verifique os horários informados (máximo de 16h).</p>
                         </div>
                       )}
                     </>
