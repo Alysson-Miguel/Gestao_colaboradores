@@ -1005,7 +1005,7 @@ exports.createSolicitacao = async (req, res) => {
 ===================================================== */
 async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
   const tipos = await tx.tipoAusencia.findMany({
-    where: { codigo: { in: ["FO", "BH", "S1", "DSR"] } },
+    where: { codigo: { in: ["FO", "BH", "S1", "DSR", "P"] } },
     select: { idTipoAusencia: true, codigo: true },
   });
   const idPorCodigo = Object.fromEntries(tipos.map((t) => [t.codigo, t.idTipoAusencia]));
@@ -1054,7 +1054,7 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
     if (minutosTrabalhados <= 0) minutosTrabalhados += 24 * 60;
     const horasTrabalhadas = Number((minutosTrabalhados / 60).toFixed(2));
 
-    await upsertFrequencia(solicitacao.opsId, solicitacao.data, null, {
+    await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.P, {
       horaEntrada,
       horaSaida,
       horasTrabalhadas,

@@ -93,6 +93,12 @@ export default function PresencaCell({
       return registro.status;
     }
 
+    // Ajuste manual já resolveu o dia (ex: hora extra em cima de um DSR,
+    // troca de DSR) — não recalcula DSR pela escala por cima disso.
+    if (registro?.manual) {
+      return "-";
+    }
+
     if (isDSR(dia?.date, colaborador?.diasDsr)) {
       return "DSR";
     }
