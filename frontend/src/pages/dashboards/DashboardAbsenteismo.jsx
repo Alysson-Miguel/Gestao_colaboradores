@@ -908,10 +908,18 @@ function TipoSplitCard({ totalFaltas, totalAtestados, loading }) {
   )
 }
 
+const STATUS_COLABORADOR_CONFIG = {
+  ATIVO:    { label: "Ativo",    color: "#22C55E" },
+  INATIVO:  { label: "Inativo",  color: "#EF4444" },
+  FERIAS:   { label: "Férias",   color: "#3B82F6" },
+  AFASTADO: { label: "Afastado", color: "#F59E0B" },
+}
+
 /* ─── TABLE ──────────────────────────────────────────────────────── */
 function AbsenceTable({ data, loading }) {
   const [search, setSearch] = useState("")
   const [filterFolga, setFilterFolga] = useState("")
+  const [filterStatus, setFilterStatus] = useState("")
 
   const folgaOptions = useMemo(() => {
     const set = new Set()
@@ -919,6 +927,13 @@ function AbsenceTable({ data, loading }) {
       if (c.diaFolgaDsr) c.diaFolgaDsr.split(", ").forEach((d) => set.add(d.trim()))
     })
     const ORDER = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+    return [...set].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))
+  }, [data])
+
+  const statusOptions = useMemo(() => {
+    const set = new Set()
+    data.forEach((c) => { if (c.status) set.add(c.status) })
+    const ORDER = ["ATIVO", "FERIAS", "AFASTADO", "INATIVO"]
     return [...set].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b))
   }, [data])
 
@@ -936,10 +951,13 @@ function AbsenceTable({ data, loading }) {
     if (filterFolga) {
       result = result.filter((c) => c.diaFolgaDsr?.includes(filterFolga))
     }
+    if (filterStatus) {
+      result = result.filter((c) => c.status === filterStatus)
+    }
     return result
-  }, [data, search, filterFolga])
+  }, [data, search, filterFolga, filterStatus])
 
-  const cols = ["Nome", "Matrícula", "Empresa", "Setor", "Turno", "Escala", "Tempo de Casa", "Dia de folga DSR", "Ausências", "Faltas", "Atestados", "Recorrente"]
+  const cols = ["Nome", "Matrícula", "Empresa", "Setor", "Turno", "Escala", "Tempo de Casa", "Dia de folga DSR", "Ausências", "Faltas", "Atestados", "Recorrente", "Status"]
 
   function exportCSV() {
     const rows = [
@@ -957,6 +975,7 @@ function AbsenceTable({ data, loading }) {
         c.totalFaltas || 0,
         c.totalAtestados || 0,
         c.recorrencia ? "Sim" : "Não",
+        STATUS_COLABORADOR_CONFIG[c.status]?.label || c.status || "",
       ]),
     ]
     const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
@@ -1014,6 +1033,26 @@ function AbsenceTable({ data, loading }) {
           <option value="">Folga DSR: Todas</option>
           {folgaOptions.map((d) => (
             <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{
+            background: "var(--color-surface)",
+            border: `1px solid ${filterStatus ? "rgba(250,76,0,0.45)" : "rgba(255,255,255,0.08)"}`,
+            color: filterStatus ? "var(--color-text)" : "var(--color-subtle)",
+            fontSize: 13,
+            borderRadius: 12,
+            padding: "9px 14px",
+            outline: "none",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <option value="">Status: Todos</option>
+          {statusOptions.map((s) => (
+            <option key={s} value={s}>{STATUS_COLABORADOR_CONFIG[s]?.label || s}</option>
           ))}
         </select>
         <button
@@ -1120,6 +1159,23 @@ function AbsenceTable({ data, loading }) {
                         <span style={{ color: "var(--color-subtle)", fontSize: 12 }}>—</span>
                       )}
                     </td>
+                    <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                      {(() => {
+                        const cfg = STATUS_COLABORADOR_CONFIG[c.status]
+                        if (!cfg) return <span style={{ color: "var(--color-subtle)", fontSize: 12 }}>—</span>
+                        return (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                            padding: "3px 10px", borderRadius: 99,
+                            background: `${cfg.color}18`, color: cfg.color,
+                            fontSize: 11, fontWeight: 600,
+                          }}>
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.color }} />
+                            {cfg.label}
+                          </span>
+                        )
+                      })()}
+                    </td>
                   </tr>
                 )
               })
@@ -1170,6 +1226,7 @@ export default function DashboardAbsenteismo() {
   const [fim, setFim] = useState(isoToday())
   const [empresaIds, setEmpresaIds] = useState([])
   const [empresas, setEmpresas] = useState([])
+  const [statusColaborador, setStatusColaborador] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [kpis, setKpis] = useState(null)
@@ -1237,6 +1294,7 @@ export default function DashboardAbsenteismo() {
         empresaIds: empresaIds.length ? empresaIds : undefined,
         setorNome:  drillSetor || undefined,
         turnoNome:  drillTurno || undefined,
+        status:     statusColaborador || undefined,
       }
       const [resResumo, resDist, resTend, resColab] = await Promise.all([
         api.get("/dashboard/absenteismo/resumo",        { params }),
@@ -1276,7 +1334,7 @@ export default function DashboardAbsenteismo() {
     }
   }
 
-  useEffect(() => { fetchAll() }, [inicio, fim, empresaIds, drillSetor, drillTurno, estacaoId])
+  useEffect(() => { fetchAll() }, [inicio, fim, empresaIds, drillSetor, drillTurno, statusColaborador, estacaoId])
 
   const porEmpresa   = dist?.porEmpresa   || []
   const porSetor     = dist?.porSetor     || []
@@ -1405,6 +1463,35 @@ export default function DashboardAbsenteismo() {
                 </select>
               </div>
               <SelectEmpresa values={empresaIds} onChange={setEmpresaIds} options={empresas} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <label style={{ fontSize: 10, color: "var(--color-text)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+                  Status
+                </label>
+                <select
+                  value={statusColaborador}
+                  onChange={(e) => setStatusColaborador(e.target.value)}
+                  style={{
+                    background: "var(--color-surface)",
+                    border: statusColaborador ? `1px solid ${BRAND}88` : "1px solid rgba(255,255,255,0.08)",
+                    color: statusColaborador ? "var(--color-text)" : "var(--color-muted)",
+                    fontSize: 13,
+                    borderRadius: 12,
+                    padding: "9px 14px",
+                    outline: "none",
+                    cursor: "pointer",
+                    colorScheme: "dark",
+                    height: 42,
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = `${BRAND}88`)}
+                  onBlur={(e) => (e.target.style.borderColor = statusColaborador ? `${BRAND}88` : "rgba(255,255,255,0.08)")}
+                >
+                  <option value="">Status: Todos</option>
+                  {Object.entries(STATUS_COLABORADOR_CONFIG).map(([value, cfg]) => (
+                    <option key={value} value={value}>{cfg.label}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 onClick={fetchAll}
                 disabled={loading}

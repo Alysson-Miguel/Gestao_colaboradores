@@ -37,7 +37,7 @@ const CARGOS_ABSENTEISMO = ["Auxiliar de Logística I", "Auxiliar de Logística 
 const HC_APTO_CODES = ["P", "F", "FJ", "AM", "AA", "FO", "BH", "S1"];
 
 function buildWhereHcApto(inicioDate, fimDate, empresaId, estacaoId, extras = {}, empresaIds = []) {
-  const { setorNome, turnoNome } = extras;
+  const { setorNome, turnoNome, statusColaborador } = extras;
   return {
     dataReferencia: { gte: inicioDate, lte: fimDate },
     OR: [
@@ -59,17 +59,18 @@ function buildWhereHcApto(inicioDate, fimDate, empresaId, estacaoId, extras = {}
         ...(estacaoId && { idEstacao: estacaoId }),
         ...(setorNome && { setor: { is: { nomeSetor: setorNome } } }),
         ...(turnoNome && { turno: { is: { nomeTurno: turnoNome } } }),
+        ...(statusColaborador && { status: statusColaborador }),
       },
     },
   };
 }
 
 /**
- * extras: { setorNome, turnoNome }  — drill-down dinâmico
+ * extras: { setorNome, turnoNome, statusColaborador }  — drill-down dinâmico
  * codigos: códigos de tipoAusencia a considerar — "F"/"FJ" = faltas; "AA" = atestado de acompanhamento (sem tabela própria)
  */
 function buildWhereFrequencia(inicioDate, fimDate, empresaId, estacaoId, extras = {}, empresaIds = [], codigos = ["F", "FJ"]) {
-  const { setorNome, turnoNome } = extras;
+  const { setorNome, turnoNome, statusColaborador } = extras;
   return {
     dataReferencia: { gte: inicioDate, lte: fimDate },
     tipoAusencia: { is: { codigo: { in: codigos } } },
@@ -88,13 +89,14 @@ function buildWhereFrequencia(inicioDate, fimDate, empresaId, estacaoId, extras 
         ...(estacaoId  && { idEstacao: estacaoId }),
         ...(setorNome  && { setor: { is: { nomeSetor: setorNome } } }),
         ...(turnoNome  && { turno: { is: { nomeTurno: turnoNome } } }),
+        ...(statusColaborador && { status: statusColaborador }),
       },
     },
   };
 }
 
 function buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras = {}, empresaIds = []) {
-  const { setorNome, turnoNome } = extras;
+  const { setorNome, turnoNome, statusColaborador } = extras;
   return {
     dataInicio: { lte: fimDate },
     dataFim:    { gte: inicioDate },
@@ -113,6 +115,7 @@ function buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras = 
       ...(estacaoId  && { idEstacao: estacaoId }),
       ...(setorNome  && { setor: { is: { nomeSetor: setorNome } } }),
       ...(turnoNome  && { turno: { is: { nomeTurno: turnoNome } } }),
+      ...(statusColaborador && { status: statusColaborador }),
     },
   };
 }
@@ -122,11 +125,11 @@ function buildWhereAtestado(inicioDate, fimDate, empresaId, estacaoId, extras = 
 ═══════════════════════════════════════════════════════════ */
 const getResumoAbsenteismo = async (req, res) => {
   try {
-    const { inicio, fim, empresaId, setorNome, turnoNome } = req.query;
+    const { inicio, fim, empresaId, setorNome, turnoNome, status } = req.query;
     const empresaIds = req.query.empresaIds ? [].concat(req.query.empresaIds) : [];
     const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
       ? req.dbContext.estacaoId : null;
-    const extras = { setorNome, turnoNome };
+    const extras = { setorNome, turnoNome, statusColaborador: status };
 
     if (!inicio || !fim) return errorResponse(res, "Período obrigatório", 400);
 
@@ -257,11 +260,11 @@ const getResumoAbsenteismo = async (req, res) => {
 ═══════════════════════════════════════════════════════════ */
 const getDistribuicoesAbsenteismo = async (req, res) => {
   try {
-    const { inicio, fim, empresaId, setorNome, turnoNome } = req.query;
+    const { inicio, fim, empresaId, setorNome, turnoNome, status } = req.query;
     const empresaIds = req.query.empresaIds ? [].concat(req.query.empresaIds) : [];
     const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
       ? req.dbContext.estacaoId : null;
-    const extras = { setorNome, turnoNome };
+    const extras = { setorNome, turnoNome, statusColaborador: status };
 
     if (!inicio || !fim) return errorResponse(res, "Período obrigatório", 400);
 
@@ -284,6 +287,7 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
               ...(estacaoId && { idEstacao: estacaoId }),
               ...(extras.setorNome && { setor: { is: { nomeSetor: extras.setorNome } } }),
               ...(extras.turnoNome && { turno: { is: { nomeTurno: extras.turnoNome } } }),
+              ...(extras.statusColaborador && { status: extras.statusColaborador }),
             },
           },
         },
@@ -426,11 +430,11 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
 ═══════════════════════════════════════════════════════════ */
 const getTendenciaAbsenteismo = async (req, res) => {
   try {
-    const { inicio, fim, empresaId, setorNome, turnoNome } = req.query;
+    const { inicio, fim, empresaId, setorNome, turnoNome, status } = req.query;
     const empresaIds = req.query.empresaIds ? [].concat(req.query.empresaIds) : [];
     const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
       ? req.dbContext.estacaoId : null;
-    const extras = { setorNome, turnoNome };
+    const extras = { setorNome, turnoNome, statusColaborador: status };
 
     if (!inicio || !fim) return errorResponse(res, "Período obrigatório", 400);
 
@@ -511,11 +515,11 @@ const getTendenciaAbsenteismo = async (req, res) => {
 ═══════════════════════════════════════════════════════════ */
 const getColaboradoresAbsenteismo = async (req, res) => {
   try {
-    const { inicio, fim, empresaId, setorNome, turnoNome } = req.query;
+    const { inicio, fim, empresaId, setorNome, turnoNome, status } = req.query;
     const empresaIds = req.query.empresaIds ? [].concat(req.query.empresaIds) : [];
     const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
       ? req.dbContext.estacaoId : null;
-    const extras = { setorNome, turnoNome };
+    const extras = { setorNome, turnoNome, statusColaborador: status };
 
     if (!inicio || !fim) return errorResponse(res, "Período obrigatório", 400);
 
@@ -565,6 +569,7 @@ const getColaboradoresAbsenteismo = async (req, res) => {
           setor: c.setor?.nomeSetor || "N/I",
           turno: c.turno?.nomeTurno || "N/I",
           escala: c.escala?.nomeEscala || "N/I",
+          status: c.status,
           diasDsrEscala: c.escala?.diasDsr || [],
           tempoCasa: getFaixaTempoCasa(c.dataAdmissao, fimDate),
           diasFaltas: new Set(),
@@ -588,6 +593,7 @@ const getColaboradoresAbsenteismo = async (req, res) => {
           setor: c.setor?.nomeSetor || "N/I",
           turno: c.turno?.nomeTurno || "N/I",
           escala: c.escala?.nomeEscala || "N/I",
+          status: c.status,
           diasDsrEscala: c.escala?.diasDsr || [],
           tempoCasa: getFaixaTempoCasa(c.dataAdmissao, fimDate),
           diasFaltas: new Set(),
@@ -612,6 +618,7 @@ const getColaboradoresAbsenteismo = async (req, res) => {
           setor: c.setor?.nomeSetor || "N/I",
           turno: c.turno?.nomeTurno || "N/I",
           escala: c.escala?.nomeEscala || "N/I",
+          status: c.status,
           diasDsrEscala: c.escala?.diasDsr || [],
           tempoCasa: getFaixaTempoCasa(c.dataAdmissao, fimDate),
           diasFaltas: new Set(),
@@ -639,6 +646,7 @@ const getColaboradoresAbsenteismo = async (req, res) => {
           setor:          c.setor,
           turno:          c.turno,
           escala:         c.escala,
+          status:         c.status,
           tempoCasa:      c.tempoCasa,
           diaFolgaDsr,
           totalFaltas,
