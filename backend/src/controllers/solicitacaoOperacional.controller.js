@@ -19,6 +19,14 @@ const {
 const { sendSolicitacaoNotification } = require("../services/seatalkSolicitacoes.service");
 const csv = require("csvtojson");
 
+// admin@admin.com aprova normalmente, mas não deve receber os e-mails de
+// notificação de solicitação pendente (continua valendo como aprovador).
+const EMAILS_SEM_NOTIFICACAO_EMAIL = ["admin@admin.com"];
+const emailsParaNotificar = (aprovadores) =>
+  aprovadores
+    .map((a) => a.email)
+    .filter((email) => !EMAILS_SEM_NOTIFICACAO_EMAIL.includes(email));
+
 const TIPO_LABEL_SEATALK = {
   FOLGA: "Folga",
   BANCO_HORAS: "Banco de Horas",
@@ -947,9 +955,10 @@ exports.createSolicitacao = async (req, res) => {
 
     // Notificação por e-mail — não bloqueia a criação em caso de falha
     try {
-      if (aprovadoresAtivos.length > 0) {
+      const emailsAprovadores = emailsParaNotificar(aprovadoresAtivos);
+      if (emailsAprovadores.length > 0) {
         await sendSolicitacaoOperacionalEmail({
-          to: aprovadoresAtivos.map((a) => a.email),
+          to: emailsAprovadores,
           solicitacao: {
             idSolicitacao: solicitacao.idSolicitacao,
             tipo,
@@ -1236,9 +1245,10 @@ async function processarAprovacaoSolicitacao(req, idSolicitacao) {
 
       // E-mail ao(s) segundo(s) aprovador(es) — best-effort
       try {
-        if (segundosAprovadores.length > 0) {
+        const emailsSegundosAprovadores = emailsParaNotificar(segundosAprovadores);
+        if (emailsSegundosAprovadores.length > 0) {
           await sendSolicitacaoOperacionalEmail({
-            to: segundosAprovadores.map((a) => a.email),
+            to: emailsSegundosAprovadores,
             solicitacao: {
               idSolicitacao,
               tipo: solicitacaoAtualizada.tipo,
