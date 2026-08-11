@@ -30,6 +30,8 @@ export default function CartaAdeccoTemplate({ medida, nomeEmpresa = "Adecco Recu
   const localidade = colaborador.estacao?.localizacao || "Jaboatão dos Guararapes";
   const dataAplicacaoLong = fmtDateLong(medida.dataAplicacao);
   const dataOcorrencia = fmtDateBR(medida.dataOcorrencia);
+  const violacao = medida.violacao || "";
+  const motivo = medida.motivo || "Sem motivo informado.";
 
   const isAdillis = nomeEmpresa.toLowerCase().includes("adilis");
   const logoNome = isAdillis ? "Adillis" : "Adecco";
@@ -204,7 +206,7 @@ export default function CartaAdeccoTemplate({ medida, nomeEmpresa = "Adecco Recu
 
           {/* MOTIVO — negrito */}
           <p className="body-bold">
-            Em razão de sua ausência na(s) data(s) {dataOcorrencia}, sem justificativa plausível ou legal para abonar o dia referido.
+            {violacao ? `${violacao} ` : ""}Ocorrido em {dataOcorrencia}: {motivo}
           </p>
 
           {/* CLT */}
