@@ -1287,6 +1287,12 @@ const importColaboradores = async (req, res) => {
       return errorResponse(res, "CSV vazio", 400);
     }
 
+    // Zera o resultado da importação anterior — sem isso, o front pode
+    // consultar /import-status logo após iniciar uma nova importação e
+    // ainda encontrar (e exibir) o resultado "finalizado" da importação
+    // passada, antes do processamento desta terminar.
+    ultimoResultadoImport = null;
+
     // Captura o contexto de estação antes de enviar a resposta (req pode ser destruído)
     const dbContextSnapshot = {
       isGlobal: req.dbContext?.isGlobal ?? false,
