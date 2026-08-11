@@ -1509,6 +1509,28 @@ const importColaboradores = async (req, res) => {
               });
             }
 
+            /* =========================
+               REMOVER DSR FUTURO ANTIGO
+               Sem isso, dias já gerados como DSR pela escala antiga
+               (ex: importação anterior) ficam "presos" na frequência
+               e continuam aparecendo mesmo depois da troca de escala.
+            ========================= */
+            const tipoDSR = await prisma.tipoAusencia.findFirst({
+              where: { codigo: "DSR" },
+              select: { idTipoAusencia: true },
+            });
+
+            if (tipoDSR) {
+              await prisma.frequencia.deleteMany({
+                where: {
+                  opsId: colab.opsId,
+                  dataReferencia: { gte: hoje },
+                  idTipoAusencia: tipoDSR.idTipoAusencia,
+                  manual: false,
+                },
+              });
+            }
+
             /* ESCALA */
             const escala = await prisma.escala.findUnique({
               where: { idEscala: data.idEscala },
