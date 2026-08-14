@@ -1240,6 +1240,7 @@ const movimentarColaborador = async (req, res) => {
     idCargo,
     idTurno,
     idLider,
+    idEstacao,
     dataEfetivacao,
     motivo,
   } = req.body;
@@ -1267,11 +1268,13 @@ const movimentarColaborador = async (req, res) => {
         cargoAnterior: atual.idCargo,
         turnoAnterior: atual.idTurno,
         liderAnterior: atual.idLider,
+        estacaoAnterior: atual.idEstacao,
 
         setorNovo: idSetor ? Number(idSetor) : null,
         cargoNovo: idCargo ? Number(idCargo) : null,
         turnoNovo: idTurno ? Number(idTurno) : null,
         liderNovo: idLider || null,
+        estacaoNova: idEstacao ? Number(idEstacao) : null,
 
         dataEfetivacao: new Date(dataEfetivacao),
         motivo,
@@ -1287,6 +1290,7 @@ const movimentarColaborador = async (req, res) => {
         ...(idCargo !== undefined ? { cargo: { connect: { idCargo: Number(idCargo) } } } : {}),
         ...(idTurno !== undefined ? { turno: { connect: { idTurno: Number(idTurno) } } } : {}),
         ...(idLider !== undefined ? { lider: { connect: { opsId: idLider } } } : {}), // Assumindo opsId como unique
+        ...(idEstacao !== undefined ? { estacao: { connect: { idEstacao: Number(idEstacao) } } } : {}),
       },
     }),
   ]);
