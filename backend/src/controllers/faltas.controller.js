@@ -21,9 +21,13 @@ function buildWhere(inicioDate, fimDate, empresaId, estacaoId) {
     },
     colaborador: {
       is: {
-        status: {
-          in: ["ATIVO", "FERIAS", "AFASTADO"],
-        },
+        // Inclui quem já foi desligado, desde que o desligamento tenha
+        // ocorrido depois do início do período — ou seja, estava ativo
+        // no dia da falta (mesmo critério usado no Dashboard de Absenteísmo).
+        OR: [
+          { status: { in: ["ATIVO", "FERIAS", "AFASTADO"] } },
+          { dataDesligamento: { gte: inicioDate } },
+        ],
         ...(empresaId && { idEmpresa: Number(empresaId) }),
         ...(estacaoId && { idEstacao: estacaoId }),
       },
