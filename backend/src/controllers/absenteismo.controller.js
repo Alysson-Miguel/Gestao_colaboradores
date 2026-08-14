@@ -18,6 +18,17 @@ function corrigirAdmissao(adm) {
   return new Date(d.getUTCFullYear(), d.getUTCDate() - 1, d.getUTCMonth() + 1);
 }
 
+/* Primeiro e último dia do mês calendário que contém a data de referência —
+   usado pra recorrência, que não deve ficar restrita ao período filtrado
+   (senão um filtro de 1 dia nunca acharia ninguém recorrente). */
+function getMesReferencia(dataRef) {
+  const d = new Date(dataRef);
+  const inicioMes = new Date(d.getFullYear(), d.getMonth(), 1);
+  const fimMes = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  fimMes.setHours(23, 59, 59, 999);
+  return { inicioMes, fimMes };
+}
+
 function getFaixaTempoCasa(adm, ref) {
   const admDate = corrigirAdmissao(adm);
   if (!admDate) return "N/I";
@@ -170,12 +181,39 @@ const getResumoAbsenteismo = async (req, res) => {
     ]);
     const colaboradoresImpactados = opsIds.size;
 
-    /* recorrência: colaboradores com ≥2 ausências (faltas + atestados + AA somados) */
-    const mapaAusencias = {};
-    faltasPeriodo.forEach(f => { mapaAusencias[f.opsId] = (mapaAusencias[f.opsId] || 0) + 1; });
-    atestadosPeriodo.forEach(a => { mapaAusencias[a.opsId] = (mapaAusencias[a.opsId] || 0) + 1; });
-    aaPeriodo.forEach(a => { mapaAusencias[a.opsId] = (mapaAusencias[a.opsId] || 0) + 1; });
-    const colaboradoresRecorrentes = Object.values(mapaAusencias).filter(q => q >= 2).length;
+    /* recorrência: colaboradores com ≥2 ausências no MÊS CALENDÁRIO de referência
+       (não só no período filtrado) — senão um filtro de 1 dia nunca mostraria
+       ninguém como recorrente, mesmo que a pessoa tenha faltado várias vezes
+       no mês. A base de comparação continua sendo só quem está impactado
+       no período filtrado; o que muda é a janela usada pra contar as ausências. */
+    const { inicioMes: inicioMesRec, fimMes: fimMesRec } = getMesReferencia(fimDate);
+    const [faltasMesRec, atestadosMesRec, aaMesRec] = await Promise.all([
+      prisma.frequencia.findMany({
+        where: buildWhereFrequencia(inicioMesRec, fimMesRec, empresaId, estacaoId, extras, empresaIds),
+        select: { opsId: true, dataReferencia: true },
+      }),
+      prisma.atestadoMedico.findMany({
+        where: buildWhereAtestado(inicioMesRec, fimMesRec, empresaId, estacaoId, extras, empresaIds),
+        select: { opsId: true },
+      }),
+      prisma.frequencia.findMany({
+        where: buildWhereFrequencia(inicioMesRec, fimMesRec, empresaId, estacaoId, extras, empresaIds, ["AA"]),
+        select: { opsId: true, dataReferencia: true },
+      }),
+    ]);
+
+    const mapaAusenciasMes = {};
+    new Set(faltasMesRec.map(f => `${f.opsId}_${f.dataReferencia}`)).forEach((chave) => {
+      const opsId = chave.split("_")[0];
+      mapaAusenciasMes[opsId] = (mapaAusenciasMes[opsId] || 0) + 1;
+    });
+    atestadosMesRec.forEach(a => { mapaAusenciasMes[a.opsId] = (mapaAusenciasMes[a.opsId] || 0) + 1; });
+    new Set(aaMesRec.map(a => `${a.opsId}_${a.dataReferencia}`)).forEach((chave) => {
+      const opsId = chave.split("_")[0];
+      mapaAusenciasMes[opsId] = (mapaAusenciasMes[opsId] || 0) + 1;
+    });
+
+    const colaboradoresRecorrentes = [...opsIds].filter((opsId) => (mapaAusenciasMes[opsId] || 0) >= 2).length;
     const recorrencia = colaboradoresImpactados > 0
       ? Number(((colaboradoresRecorrentes / colaboradoresImpactados) * 100).toFixed(2))
       : 0;
@@ -356,7 +394,7 @@ const getDistribuicoesAbsenteismo = async (req, res) => {
       if (opsIdsNaFrequencia.has(a.opsId)) continue;
       inc(acc.empresa,   c.empresa?.razaoSocial || "N/I", "atestados");
       inc(acc.setor,     c.setor?.nomeSetor      || "N/I", "atestados");
-      // turno: não conta atestados de afastados sem registro em frequencia — mantém coerência com dashboard operacional
+      inc(acc.turno,     c.turno?.nomeTurno      || "N/I", "atestados");
       inc(acc.genero,    c.genero                || "N/I", "atestados");
       inc(acc.lider,     c.lider?.nomeCompleto   || "Sem líder", "atestados");
       inc(acc.diaSemana, DIAS_SEMANA[new Date(a.dataInicio).getDay()]          , "atestados");
@@ -630,6 +668,36 @@ const getColaboradoresAbsenteismo = async (req, res) => {
       mapa[c.opsId].diasAfastados  += 1;
     });
 
+    /* recorrência: mesma lógica do resumo — olha o mês calendário inteiro
+       de referência, não só o período filtrado (senão um filtro de 1 dia
+       nunca mostraria ninguém como recorrente). */
+    const { inicioMes, fimMes } = getMesReferencia(fimDate);
+    const [faltasMesRec, atestadosMesRec, aaMesRec] = await Promise.all([
+      prisma.frequencia.findMany({
+        where: buildWhereFrequencia(inicioMes, fimMes, empresaId, estacaoId, extras, empresaIds),
+        select: { opsId: true, dataReferencia: true },
+      }),
+      prisma.atestadoMedico.findMany({
+        where: buildWhereAtestado(inicioMes, fimMes, empresaId, estacaoId, extras, empresaIds),
+        select: { opsId: true },
+      }),
+      prisma.frequencia.findMany({
+        where: buildWhereFrequencia(inicioMes, fimMes, empresaId, estacaoId, extras, empresaIds, ["AA"]),
+        select: { opsId: true, dataReferencia: true },
+      }),
+    ]);
+
+    const mapaAusenciasMes = {};
+    new Set(faltasMesRec.map(f => `${f.opsId}_${f.dataReferencia}`)).forEach((chave) => {
+      const opsId = chave.split("_")[0];
+      mapaAusenciasMes[opsId] = (mapaAusenciasMes[opsId] || 0) + 1;
+    });
+    atestadosMesRec.forEach(a => { mapaAusenciasMes[a.opsId] = (mapaAusenciasMes[a.opsId] || 0) + 1; });
+    new Set(aaMesRec.map(a => `${a.opsId}_${a.dataReferencia}`)).forEach((chave) => {
+      const opsId = chave.split("_")[0];
+      mapaAusenciasMes[opsId] = (mapaAusenciasMes[opsId] || 0) + 1;
+    });
+
     const lista = Object.values(mapa)
       .map((c) => {
         const totalFaltas    = c.diasFaltas.size;
@@ -653,7 +721,7 @@ const getColaboradoresAbsenteismo = async (req, res) => {
           totalAtestados: c.totalAtestados,
           diasAfastados:  c.diasAfastados,
           totalAusencias,
-          recorrencia:    totalAusencias >= 2,
+          recorrencia:    (mapaAusenciasMes[c.opsId] || 0) >= 2,
         };
       })
       .sort((a, b) => {

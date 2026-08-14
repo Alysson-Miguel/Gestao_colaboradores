@@ -1127,7 +1127,65 @@ const deleteColaborador = async (req, res) => {
   const { opsId } = req.params;
 
   try {
-    await prisma.colaborador.delete({ where: { opsId } });
+    const colaborador = await prisma.colaborador.findUnique({ where: { opsId } });
+    if (!colaborador) return notFoundResponse(res, "Colaborador não encontrado");
+
+    // Responsável por treinamento é campo obrigatório na tabela de treinamento —
+    // não dá pra esvaziar, então bloqueia com uma mensagem clara em vez de
+    // deixar o banco rejeitar com um erro genérico de FK.
+    const treinamentosLiderados = await prisma.treinamento.count({
+      where: { liderResponsavelOpsId: opsId },
+    });
+    if (treinamentosLiderados > 0) {
+      return errorResponse(
+        res,
+        "Não é possível excluir: colaborador é responsável por treinamento(s) cadastrados. Reatribua a responsabilidade antes de excluir.",
+        400
+      );
+    }
+
+    // Colaborador tem dezenas de tabelas dependentes (frequência, ausências,
+    // medidas disciplinares, etc.) sem ON DELETE CASCADE no banco — precisa
+    // limpar tudo manualmente, na ordem certa, antes do delete final.
+    await prisma.$transaction(async (tx) => {
+      // Desvincula subordinados (não apaga quem ele lidera)
+      await tx.colaborador.updateMany({ where: { idLider: opsId }, data: { idLider: null } });
+
+      // Referências secundárias em solicitações operacionais de outras pessoas
+      // (par de troca de DSR / indicado como novo líder) — apenas desvincula
+      await tx.solicitacaoOperacional.updateMany({ where: { opsId2: opsId }, data: { opsId2: null } });
+      await tx.solicitacaoOperacional.updateMany({ where: { novoLiderOpsId: opsId }, data: { novoLiderOpsId: null } });
+
+      // Evidências de acidente têm RESTRICT — precisam sair antes dos acidentes
+      const acidentes = await tx.acidenteTrabalho.findMany({
+        where: { opsIdColaborador: opsId },
+        select: { idAcidente: true },
+      });
+      if (acidentes.length) {
+        await tx.evidenciaAcidente.deleteMany({ where: { idAcidente: { in: acidentes.map((a) => a.idAcidente) } } });
+      }
+      await tx.acidenteTrabalho.deleteMany({ where: { opsIdColaborador: opsId } });
+
+      // Referencia frequencia.id_frequencia — precisa sair antes da frequência
+      await tx.sugestaoMedidaDisciplinar.deleteMany({ where: { opsId } });
+
+      await tx.folgaDominical.deleteMany({ where: { opsId } });
+      await tx.atestadoMedico.deleteMany({ where: { opsId } });
+      await tx.ausencia.deleteMany({ where: { opsId } });
+      await tx.colaboradorEscalaHistorico.deleteMany({ where: { opsId } });
+      await tx.desligamento.deleteMany({ where: { opsId } });
+      await tx.historicoMovimentacao.deleteMany({ where: { opsId } });
+      await tx.medidaDisciplinar.deleteMany({ where: { opsId } });
+      await tx.solicitacaoOperacional.deleteMany({ where: { opsId } });
+      await tx.solicitacaoTreinamentoParticipante.deleteMany({ where: { opsId } });
+      await tx.treinamentoParticipante.deleteMany({ where: { opsId } });
+
+      // frequencia_historico cascateia automaticamente no banco
+      await tx.frequencia.deleteMany({ where: { opsId } });
+
+      await tx.colaborador.delete({ where: { opsId } });
+    }, { timeout: 30000 });
+
     return deletedResponse(res, "Colaborador excluído com sucesso");
   } catch (err) {
     console.error("❌ ERRO DELETE:", err);
