@@ -187,6 +187,19 @@ function isRegistroVazio(f) {
   return f && !f.horaEntrada && !f.tipoAusencia;
 }
 
+/* Labels dos tipos de ausência (férias/afastamento/licenças) usadas tanto na
+   seção 6.1b (card "Status dos Colaboradores") quanto na 6.3 (Planejados). */
+const LABEL_AUSENCIA_PLANEJADOS = {
+  FE: "Férias",
+  AFA: "Afastamento",
+  AF: "Afastamento",
+  LM: "Licença Maternidade",
+  LP: "Licença Paternidade",
+  AB: "Licença - Atestado de Óbito",
+  JE: "Licença - Justiça Eleitoral",
+  SU: "Suspensão",
+};
+
 /* =====================================================
    CONTROLLER
 ===================================================== */
@@ -301,6 +314,14 @@ const carregarDashboard = async (req, res) => {
                 dataInicio: { lte: fim },
                 dataFim: { gte: inicio },
               },
+            },
+            ausencias: {
+              where: {
+                status: "ATIVO",
+                dataInicio: { lte: fim },
+                dataFim: { gte: inicio },
+              },
+              include: { tipoAusencia: true },
             },
           },
         }),
@@ -799,6 +820,58 @@ const carregarDashboard = async (req, res) => {
       }
     }
 
+    /* ===============================
+       6️⃣.1b AUSÊNCIAS (FÉRIAS/AFASTAMENTO/LICENÇAS — origem: ausencias)
+       Mesmo problema da 6.1: períodos longos de férias/afastamento às vezes
+       não têm frequencia gerada dia a dia, então o colaborador não aparecia
+       em nenhuma categoria do card "Status dos Colaboradores" (sumia da
+       contagem em vez de aparecer como Férias/Afastamento). Diferente do
+       atestado, esses tipos não impactam absenteísmo nem contam como
+       escalado — só entram no card de status, sem mexer em
+       totalHcAptoDias/totalAusenciasDias/turnoSetorAgg/tendenciaPorDia.
+    =============================== */
+    for (const c of colaboradores) {
+      if (!c.ausencias?.length) continue;
+      if (!isCargoElegivel(c.cargo?.nomeCargo)) continue;
+
+      const turno = normalizeTurno(c.turno?.nomeTurno);
+      if (turno === "Sem turno") continue;
+      if (turnoFiltro && turno !== turnoFiltro) continue;
+
+      for (const ausencia of c.ausencias) {
+        const label = LABEL_AUSENCIA_PLANEJADOS[ausencia.tipoAusencia?.codigo] || ausencia.tipoAusencia?.descricao || "Ausência";
+
+        const cur = new Date(
+          Math.max(new Date(ausencia.dataInicio).getTime(), inicio.getTime())
+        );
+        const fimAus = new Date(
+          Math.min(new Date(ausencia.dataFim).getTime(), fim.getTime())
+        );
+
+        while (cur <= fimAus) {
+          if (c.dataDesligamento && cur > new Date(c.dataDesligamento)) {
+            cur.setUTCDate(cur.getUTCDate() + 1);
+            continue;
+          }
+
+          const dataStr = isoDate(cur);
+          const key = `${c.opsId}_${dataStr}`;
+
+          // Se já há um lançamento real de frequência nesse dia (ex: colaborador
+          // voltou a trabalhar antes do fim previsto), o lançamento real prevalece.
+          const freqRecord = _freqDedupMap.get(key);
+          const temLancamentoReal = freqRecord && !isRegistroVazio(freqRecord);
+
+          if (!temLancamentoReal && !ausenciasSet.has(key) && (!turnoFiltro || turno === turnoFiltro)) {
+            pushStatusColab(turno, label, c);
+            ausenciasSet.add(key);
+          }
+
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+      }
+    }
+
     // Calculado APÓS seção 6.1 para incluir atestados sem registro em frequencia
     const absenteismoPeriodo =
       totalHcAptoDias > 0
@@ -860,10 +933,27 @@ colaboradores.forEach((c) => {
     const key = `${c.opsId}_${dataStr}`;
     const freqRecord = _freqDedupMap.get(key);
     const semLancamento = !freqRecord || isRegistroVazio(freqRecord);
-    const sSnapPlan = !semLancamento ? getStatusDoDiaOperacional(freqRecord) : null;
+
+    // Sem lançamento em frequência não significa sem lançamento real: férias e
+    // afastamentos longos às vezes não têm frequencia gerada dia a dia, mas têm
+    // um registro na tabela de Ausências cobrindo a data. Sem essa checagem o
+    // dia aparecia incorretamente como "Sem Lançamento" em vez de Férias/Afastamento.
+    const ausenciaDia = semLancamento
+      ? (c.ausencias || []).find(
+          (a) => dia >= new Date(a.dataInicio) && dia <= new Date(a.dataFim)
+        )
+      : null;
+
+    const sSnapPlan = !semLancamento
+      ? getStatusDoDiaOperacional(freqRecord)
+      : ausenciaDia
+      ? { label: LABEL_AUSENCIA_PLANEJADOS[ausenciaDia.tipoAusencia?.codigo] || ausenciaDia.tipoAusencia?.descricao || "Ausência", contaComoEscalado: false }
+      : null;
+
+    const semLancamentoReal = semLancamento && !ausenciaDia;
 
     // FERIAS/AFASTADO sem lançamento real não estavam disponíveis para ser escalados
-    if (semLancamento && ["FERIAS", "AFASTADO"].includes(c.status) && !foiDesligadoDepois) continue;
+    if (semLancamentoReal && ["FERIAS", "AFASTADO"].includes(c.status) && !foiDesligadoDepois) continue;
 
     if (ehDiaDsr) {
       // Dia de folga na escala — só entra em "Planejados" se há lançamento real
@@ -877,7 +967,7 @@ colaboradores.forEach((c) => {
 
     colaboradoresPlanejadosPorTurno[turno] += 1;
 
-    if (semLancamento && !ausenciasSet.has(key)) {
+    if (semLancamentoReal && !ausenciasSet.has(key)) {
       pushStatusColab(turno, "Sem Lançamento", c);
     }
   }
