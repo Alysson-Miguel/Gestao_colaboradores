@@ -5,9 +5,10 @@ const { successResponse, errorResponse } = require("../utils/response");
    HELPERS
 ─────────────────────────────────────────────────────────── */
 function dateOnlyBrasil(dateStr) {
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  // dataReferencia é armazenado como DATE puro (meia-noite UTC).
+  // new Date(dateStr) + setHours() usa o fuso LOCAL do servidor (UTC-3),
+  // o que desloca a data em 1 dia — sempre construir em UTC.
+  return new Date(dateStr.slice(0, 10) + "T00:00:00.000Z");
 }
 
 function corrigirAdmissao(adm) {
