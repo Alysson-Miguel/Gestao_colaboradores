@@ -11,6 +11,7 @@ import {
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 
+import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
 import { StatusOperacionalBadge, TipoBadge, TIPO_LABEL, formatDateOnly } from "./shared";
@@ -234,6 +235,8 @@ export default function SolicitacoesOperacionaisPage() {
   /* filtros */
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
+  const [filtroTurno, setFiltroTurno] = useState("");
+  const [turnos, setTurnos] = useState([]);
   const [filtroSolicitante, setFiltroSolicitante] = useState("");
   const [filtroColaborador, setFiltroColaborador] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
@@ -269,10 +272,10 @@ export default function SolicitacoesOperacionaisPage() {
     colaboradorTimer.current = setTimeout(() => { setColaboradorDebounced(v); setPage(1); }, 400);
   };
 
-  const hasFilters = filtroStatus || filtroTipo || filtroSolicitante || filtroColaborador || filtroDataInicio || filtroDataFim;
+  const hasFilters = filtroStatus || filtroTipo || filtroTurno || filtroSolicitante || filtroColaborador || filtroDataInicio || filtroDataFim;
 
   const clearFilters = () => {
-    setFiltroStatus(""); setFiltroTipo("");
+    setFiltroStatus(""); setFiltroTipo(""); setFiltroTurno("");
     setFiltroSolicitante(""); setSolicitanteDebounced("");
     setFiltroColaborador(""); setColaboradorDebounced("");
     setFiltroDataInicio(""); setFiltroDataFim("");
@@ -290,6 +293,16 @@ export default function SolicitacoesOperacionaisPage() {
   useEffect(() => { carregarStats(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    api.get("/turnos").then((r) => {
+      const p = r.data?.data ?? r.data;
+      const lista = Array.isArray(p) ? p : p?.items ?? [];
+      // /turnos retorna de todas as estações — deduplica por nome (o filtro usa o nome).
+      const nomesUnicos = [...new Set(lista.map((t) => t.nomeTurno).filter(Boolean))].sort();
+      setTurnos(nomesUnicos);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -299,6 +312,7 @@ export default function SolicitacoesOperacionaisPage() {
           limit: LIMIT,
           status: filtroStatus || undefined,
           tipo: filtroTipo || undefined,
+          turno: filtroTurno || undefined,
           solicitante: solicitanteDebounced || undefined,
           colaborador: colaboradorDebounced || undefined,
           dataInicio: filtroDataInicio || undefined,
@@ -321,12 +335,12 @@ export default function SolicitacoesOperacionaisPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [page, filtroStatus, filtroTipo, solicitanteDebounced, colaboradorDebounced, filtroDataInicio, filtroDataFim, reloadKey, logout, navigate]);
+  }, [page, filtroStatus, filtroTipo, filtroTurno, solicitanteDebounced, colaboradorDebounced, filtroDataInicio, filtroDataFim, reloadKey, logout, navigate]);
 
   // Filtros/página mudaram: seleção manual perde o sentido (ids não visíveis mais).
   useEffect(() => {
     limparSelecao();
-  }, [filtroStatus, filtroTipo, solicitanteDebounced, colaboradorDebounced, filtroDataInicio, filtroDataFim]);
+  }, [filtroStatus, filtroTipo, filtroTurno, solicitanteDebounced, colaboradorDebounced, filtroDataInicio, filtroDataFim]);
 
   function limparSelecao() {
     setSelecionados(new Set());
@@ -387,6 +401,7 @@ export default function SolicitacoesOperacionaisPage() {
       const res = await SolicitacoesOperacionaisAPI.idsAprovaveis({
         status: filtroStatus || undefined,
         tipo: filtroTipo || undefined,
+        turno: filtroTurno || undefined,
         solicitante: solicitanteDebounced || undefined,
         colaborador: colaboradorDebounced || undefined,
         dataInicio: filtroDataInicio || undefined,
@@ -527,7 +542,7 @@ export default function SolicitacoesOperacionaisPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted">Data início</label>
                 <input type="date" value={filtroDataInicio} onChange={(e) => { setFiltroDataInicio(e.target.value); setPage(1); }} className="px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all" />
@@ -541,6 +556,13 @@ export default function SolicitacoesOperacionaisPage() {
                 <select value={filtroTipo} onChange={(e) => { setFiltroTipo(e.target.value); setPage(1); }} className="px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all appearance-none">
                   <option value="">Todos</option>
                   {Object.entries(TIPO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted">Turno</label>
+                <select value={filtroTurno} onChange={(e) => { setFiltroTurno(e.target.value); setPage(1); }} className="px-3 py-2 bg-surface-2 border border-default rounded-xl text-sm text-page focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/40 transition-all appearance-none">
+                  <option value="">Todos</option>
+                  {turnos.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-1">

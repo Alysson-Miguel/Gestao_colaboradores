@@ -10,6 +10,7 @@ export const SolicitacoesOperacionaisAPI = {
     dataFim,
     solicitante,
     colaborador,
+    turno,
   } = {}) => {
     const params = new URLSearchParams({ page, limit });
     if (status)      params.set("status",      status);
@@ -18,6 +19,7 @@ export const SolicitacoesOperacionaisAPI = {
     if (dataFim)     params.set("dataFim",     dataFim);
     if (solicitante) params.set("solicitante", solicitante);
     if (colaborador) params.set("colaborador", colaborador);
+    if (turno)       params.set("turno",       turno);
     const res = await api.get(`/solicitacoes-operacionais?${params}`);
     return res.data; // { data, pagination }
   },
@@ -68,7 +70,7 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data;
   },
 
-  idsAprovaveis: async ({ status, tipo, dataInicio, dataFim, solicitante, colaborador } = {}) => {
+  idsAprovaveis: async ({ status, tipo, dataInicio, dataFim, solicitante, colaborador, turno } = {}) => {
     const params = new URLSearchParams();
     if (status)      params.set("status",      status);
     if (tipo)        params.set("tipo",        tipo);
@@ -76,6 +78,7 @@ export const SolicitacoesOperacionaisAPI = {
     if (dataFim)     params.set("dataFim",     dataFim);
     if (solicitante) params.set("solicitante", solicitante);
     if (colaborador) params.set("colaborador", colaborador);
+    if (turno)       params.set("turno",       turno);
     const res = await api.get(`/solicitacoes-operacionais/aprovaveis/ids?${params}`);
     return res.data.data; // { ids, total, truncado }
   },

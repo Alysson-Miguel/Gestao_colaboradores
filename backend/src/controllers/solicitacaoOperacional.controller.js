@@ -514,6 +514,7 @@ exports.listSolicitacoes = async (req, res) => {
       dataFim,
       solicitante,
       colaborador,
+      turno,
     } = req.query;
 
     const pageNum = Math.max(1, Number(page));
@@ -523,6 +524,7 @@ exports.listSolicitacoes = async (req, res) => {
     const where = { ...estacaoWhereSolicitacao(req) };
     if (status) where.status = status;
     if (tipo) where.tipo = tipo;
+    if (turno) where.colaborador = { ...where.colaborador, turno: { nomeTurno: turno } };
     if (solicitante) where.solicitante = { name: { contains: solicitante, mode: "insensitive" } };
     if (colaborador) {
       where.OR = [
@@ -1447,7 +1449,7 @@ exports.aprovarSolicitacao = async (req, res) => {
 ===================================================== */
 exports.listarIdsAprovaveis = async (req, res) => {
   try {
-    const { status, tipo, dataInicio, dataFim, solicitante, colaborador } = req.query;
+    const { status, tipo, dataInicio, dataFim, solicitante, colaborador, turno } = req.query;
 
     if (status && !["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"].includes(status)) {
       return successResponse(res, { ids: [], total: 0, truncado: false });
@@ -1461,6 +1463,7 @@ exports.listarIdsAprovaveis = async (req, res) => {
     const where = { ...estacaoWhereSolicitacao(req) };
     where.status = status || { in: ["PENDENTE", "AGUARDANDO_SEGUNDA_APROVACAO"] };
     where.tipo = tipo || { in: TIPOS_APROVACAO_LOTE };
+    if (turno) where.colaborador = { ...where.colaborador, turno: { nomeTurno: turno } };
     if (solicitante) where.solicitante = { name: { contains: solicitante, mode: "insensitive" } };
     if (colaborador) {
       where.OR = [
