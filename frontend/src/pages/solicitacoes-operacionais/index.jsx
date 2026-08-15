@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import MainLayout from "../../components/MainLayout";
 import {
@@ -711,12 +711,14 @@ export default function SolicitacoesOperacionaisPage() {
                         <span className="line-clamp-1">{s.decididoPor?.name || "—"}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => navigate(`/solicitacoes-operacionais/${s.idSolicitacao}`)}
+                        <Link
+                          to={`/solicitacoes-operacionais/${s.idSolicitacao}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 text-xs text-[#0A84FF] hover:text-[#409CFF] hover:underline transition-colors"
                         >
                           <FileText size={13} /> Detalhes
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))}
