@@ -713,8 +713,6 @@ export default function SolicitacoesOperacionaisPage() {
                       <td className="px-4 py-3 text-right">
                         <Link
                           to={`/solicitacoes-operacionais/${s.idSolicitacao}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 text-xs text-[#0A84FF] hover:text-[#409CFF] hover:underline transition-colors"
                         >
                           <FileText size={13} /> Detalhes
