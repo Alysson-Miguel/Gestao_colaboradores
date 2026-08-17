@@ -19,6 +19,9 @@ router.get("/calendario", authenticate, authorize(...roles), solicitacaoControll
 /* STATS (CARDS) */
 router.get("/stats", authenticate, authorize(...roles), solicitacaoController.statsSolicitacoes);
 
+/* EXPORTAR CSV (mesmos filtros da listagem) */
+router.get("/export/csv", authenticate, authorize(...roles), solicitacaoController.exportarCsvSolicitacoes);
+
 /* IDs APROVÁVEIS PELO FILTRO ATUAL (seleção "todos os resultados") */
 router.get("/aprovaveis/ids", authenticate, authorize(...roles), solicitacaoController.listarIdsAprovaveis);
 

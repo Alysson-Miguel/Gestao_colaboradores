@@ -56,10 +56,12 @@ const startServer = async () => {
     });
 
     // Tratamento de erros não capturados
+    // Não derruba o servidor: uma promise rejeitada sem catch em um job de
+    // background ou em uma rota não deve tirar do ar todas as outras requisições.
+    // Apenas loga para investigação — o processo continua rodando.
     process.on('unhandledRejection', (err) => {
       logger.error('❌ ERRO NÃO TRATADO (Unhandled Rejection):');
       logger.error(err);
-      server.close(() => process.exit(1));
     });
 
     process.on('uncaughtException', (err) => {

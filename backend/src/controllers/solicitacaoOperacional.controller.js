@@ -569,6 +569,98 @@ exports.listSolicitacoes = async (req, res) => {
 };
 
 /* =====================================================
+   EXPORTAR SOLICITAÇÕES (CSV) — mesmos filtros da listagem,
+   sem paginação (todos os registros que baterem no filtro).
+===================================================== */
+const TIPO_LABEL = {
+  FOLGA: "Folga",
+  BANCO_HORAS: "Banco de Horas",
+  SINERGIA: "Sinergia",
+  TROCA_DSR: "Troca de DSR",
+  HORA_EXTRA: "Hora Extra",
+  TROCA_GESTAO: "Troca de Gestão",
+  TROCA_ESCALA: "Troca de Escala",
+  DESLIGAMENTO: "Desligamento",
+};
+
+const STATUS_LABEL = {
+  PENDENTE: "Pendente",
+  AGUARDANDO_SEGUNDA_APROVACAO: "Aguardando 2ª Aprovação",
+  APROVADA: "Aprovada",
+  REPROVADA: "Reprovada",
+};
+
+exports.exportarCsvSolicitacoes = async (req, res) => {
+  try {
+    const { status, tipo, dataInicio, dataFim, solicitante, colaborador } = req.query;
+
+    const where = { ...estacaoWhereSolicitacao(req) };
+    if (status) where.status = status;
+    if (tipo) where.tipo = tipo;
+    if (solicitante) where.solicitante = { name: { contains: solicitante, mode: "insensitive" } };
+    if (colaborador) {
+      where.OR = [
+        { colaborador: { nomeCompleto: { contains: colaborador, mode: "insensitive" } } },
+        { colaborador2: { nomeCompleto: { contains: colaborador, mode: "insensitive" } } },
+      ];
+    }
+    if (dataInicio || dataFim) {
+      where.data = {};
+      if (dataInicio) where.data.gte = new Date(`${dataInicio}T00:00:00.000Z`);
+      if (dataFim) where.data.lte = new Date(`${dataFim}T23:59:59.999Z`);
+    }
+
+    const solicitacoes = await prisma.solicitacaoOperacional.findMany({
+      where,
+      orderBy: { data: "desc" },
+      include: {
+        colaborador: {
+          select: {
+            nomeCompleto: true,
+            cpf: true,
+            setor: { select: { nomeSetor: true } },
+            turno: { select: { nomeTurno: true } },
+          },
+        },
+        colaborador2: { select: { nomeCompleto: true } },
+        solicitante: { select: { name: true } },
+        decididoPor: { select: { name: true } },
+      },
+    });
+
+    const rows = solicitacoes.map((s) => [
+      s.idSolicitacao,
+      TIPO_LABEL[s.tipo] || s.tipo,
+      s.colaborador?.nomeCompleto || "",
+      s.colaborador?.cpf || "",
+      s.solicitante?.name || "",
+      s.colaborador?.setor?.nomeSetor || "",
+      s.colaborador?.turno?.nomeTurno || "",
+      STATUS_LABEL[s.status] || s.status,
+      formatDataBR(s.dataCriacao),
+      s.dataDecisao ? formatDataBR(s.dataDecisao) : "",
+      s.decididoPor?.name || "",
+    ]);
+
+    const header = ["Nº", "Tipo", "Colaborador", "CPF", "Solicitante", "Setor", "Turno", "Status", "Data Solicitação", "Data Decisão", "Responsável"];
+    const csvLines = [header, ...rows].map((r) =>
+      r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")
+    );
+
+    const bom = "﻿";
+    const csv = bom + csvLines.join("\r\n");
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="solicitacoes_operacionais_${hoje}.csv"`);
+    return res.send(csv);
+  } catch (err) {
+    console.error("❌ exportarCsvSolicitacoes (operacional):", err);
+    return errorResponse(res, "Erro ao exportar solicitações", 500);
+  }
+};
+
+/* =====================================================
    ESTATÍSTICAS (CARDS DO DASHBOARD)
 ===================================================== */
 exports.statsSolicitacoes = async (req, res) => {
@@ -635,6 +727,10 @@ exports.getSolicitacao = async (req, res) => {
         decididoPor: { select: { name: true, email: true } },
         primeiraAprovacaoPor: { select: { name: true, email: true } },
         historico: { orderBy: { criadoEm: "asc" } },
+        comentarios: {
+          orderBy: { criadoEm: "asc" },
+          include: { autor: { select: { id: true, name: true, email: true, role: true } } },
+        },
       },
     });
 
@@ -643,16 +739,28 @@ exports.getSolicitacao = async (req, res) => {
     }
 
     const segundaAprovacaoTipo = SEGUNDA_APROVACAO_POR_TIPO[solicitacao.tipo] || null;
+    const idEstacaoSolicitacao = solicitacao.colaborador?.idEstacao;
 
     let podeDecidir = false;
     let etapaAtual = null;
     if (solicitacao.status === "PENDENTE") {
       etapaAtual = "PRIMEIRA";
-      podeDecidir = await isAprovadorAtivo(req.user.email, solicitacao.colaborador?.idEstacao);
+      podeDecidir = await isAprovadorAtivo(req.user.email, idEstacaoSolicitacao);
     } else if (solicitacao.status === "AGUARDANDO_SEGUNDA_APROVACAO") {
       etapaAtual = "SEGUNDA";
-      podeDecidir = await isSegundoAprovadorAtivo(req.user.email, segundaAprovacaoTipo, solicitacao.colaborador?.idEstacao);
+      podeDecidir = await isSegundoAprovadorAtivo(req.user.email, segundaAprovacaoTipo, idEstacaoSolicitacao);
     }
+
+    // Quem pode comentar: o próprio solicitante, ou qualquer aprovador ativo
+    // (primeira etapa ou segunda etapa, RH ou Coordenador), independente da
+    // etapa atual da solicitação — diferente de podeDecidir, que só libera
+    // quem decide a etapa corrente.
+    const ehSolicitante = req.user.id === solicitacao.solicitanteUserId;
+    const podeComentar =
+      ehSolicitante ||
+      (await isAprovadorAtivo(req.user.email, idEstacaoSolicitacao)) ||
+      (await isSegundoAprovadorAtivo(req.user.email, "RH", idEstacaoSolicitacao)) ||
+      (await isSegundoAprovadorAtivo(req.user.email, "COORDENADOR", idEstacaoSolicitacao));
 
     return successResponse(res, {
       ...solicitacao,
@@ -660,6 +768,7 @@ exports.getSolicitacao = async (req, res) => {
       etapaAtual,
       segundaAprovacaoTipo,
       segundaAprovacaoLabel: segundaAprovacaoTipo ? SEGUNDO_APROVADOR_LABEL[segundaAprovacaoTipo] : null,
+      podeComentar,
     });
   } catch (err) {
     console.error("❌ getSolicitacao (operacional):", err);

@@ -5,7 +5,7 @@ import MainLayout from "../../components/MainLayout";
 import {
   Plus, FileText, CheckCircle, Clock, XCircle, CalendarDays, Settings,
   Search, ChevronLeft, ChevronRight, Filter, CheckSquare, X, AlertTriangle,
-  Check, Minus,
+  Check, Minus, Download,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -256,6 +256,7 @@ export default function SolicitacoesOperacionaisPage() {
   const [confirmacaoAberta, setConfirmacaoAberta] = useState(false);
   const [aprovandoLote, setAprovandoLote] = useState(false);
   const [progressoLote, setProgressoLote] = useState({ atual: 0, total: 0 });
+  const [exportando, setExportando] = useState(false);
 
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
@@ -280,6 +281,30 @@ export default function SolicitacoesOperacionaisPage() {
     setFiltroColaborador(""); setColaboradorDebounced("");
     setFiltroDataInicio(""); setFiltroDataFim("");
     setPage(1);
+  };
+
+  const handleExportarCsv = async () => {
+    try {
+      setExportando(true);
+      const res = await SolicitacoesOperacionaisAPI.exportarCsv({
+        status: filtroStatus || undefined,
+        tipo: filtroTipo || undefined,
+        solicitante: solicitanteDebounced || undefined,
+        colaborador: colaboradorDebounced || undefined,
+        dataInicio: filtroDataInicio || undefined,
+        dataFim: filtroDataFim || undefined,
+      });
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `solicitacoes_operacionais_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Erro ao exportar CSV.");
+    } finally {
+      setExportando(false);
+    }
   };
 
   function carregarStats() {
@@ -479,6 +504,15 @@ export default function SolicitacoesOperacionaisPage() {
                 title="Configurar aprovadores"
               >
                 <Settings size={16} />
+              </button>
+              <button
+                onClick={handleExportarCsv}
+                disabled={exportando}
+                title="Exportar solicitações filtradas para CSV"
+                className="flex items-center gap-2 bg-surface-2 hover:bg-surface-3 disabled:opacity-40 disabled:cursor-not-allowed text-page px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+              >
+                <Download size={16} />
+                {exportando ? "Exportando..." : "Exportar"}
               </button>
               <button
                 onClick={() => navigate("/solicitacoes-operacionais/nova")}

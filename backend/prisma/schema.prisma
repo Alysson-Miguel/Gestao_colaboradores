@@ -128,6 +128,7 @@ model User {
   solicitacoesOperacionaisCriadas   SolicitacaoOperacional[] @relation("SolicitacaoOperacionalSolicitante")
   solicitacoesOperacionaisDecididas SolicitacaoOperacional[] @relation("SolicitacaoOperacionalDecisor")
   solicitacoesOperacionaisPrimeiraAprovacao SolicitacaoOperacional[] @relation("SolicitacaoOperacionalPrimeiraAprovacao")
+  solicitacaoOperacionalComentarios         SolicitacaoOperacionalComentario[]
 
   @@index([opsId], map: "idx_users_ops_id")
   @@index([idEstacao], map: "idx_users_id_estacao")
@@ -808,14 +809,15 @@ model SolicitacaoOperacional {
   dataCriacao     DateTime @default(now()) @map("data_criacao") @db.Timestamp(6)
   dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao") @db.Timestamp(6)
 
-  colaborador       Colaborador                       @relation("SolicitacaoOperacionalColaborador1", fields: [opsId], references: [opsId], map: "fk_solop_colaborador1")
-  colaborador2      Colaborador?                      @relation("SolicitacaoOperacionalColaborador2", fields: [opsId2], references: [opsId], map: "fk_solop_colaborador2")
-  novoLider         Colaborador?                      @relation("SolicitacaoOperacionalNovoLider", fields: [novoLiderOpsId], references: [opsId], map: "fk_solop_novo_lider")
-  novaEscala        Escala?                           @relation(fields: [novaIdEscala], references: [idEscala], onUpdate: NoAction, map: "fk_solop_nova_escala")
-  solicitante       User                              @relation("SolicitacaoOperacionalSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solop_solicitante")
-  decididoPor       User?                             @relation("SolicitacaoOperacionalDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solop_decisor")
-  primeiraAprovacaoPor User?                           @relation("SolicitacaoOperacionalPrimeiraAprovacao", fields: [primeiraAprovacaoPorUserId], references: [id], map: "fk_solop_primeira_aprovacao")
-  historico    SolicitacaoOperacionalHistorico[]
+  colaborador          Colaborador                       @relation("SolicitacaoOperacionalColaborador1", fields: [opsId], references: [opsId], map: "fk_solop_colaborador1")
+  colaborador2         Colaborador?                      @relation("SolicitacaoOperacionalColaborador2", fields: [opsId2], references: [opsId], map: "fk_solop_colaborador2")
+  novoLider            Colaborador?                      @relation("SolicitacaoOperacionalNovoLider", fields: [novoLiderOpsId], references: [opsId], map: "fk_solop_novo_lider")
+  novaEscala           Escala?                           @relation(fields: [novaIdEscala], references: [idEscala], onUpdate: NoAction, map: "fk_solop_nova_escala")
+  solicitante          User                              @relation("SolicitacaoOperacionalSolicitante", fields: [solicitanteUserId], references: [id], map: "fk_solop_solicitante")
+  decididoPor          User?                             @relation("SolicitacaoOperacionalDecisor", fields: [decididoPorUserId], references: [id], map: "fk_solop_decisor")
+  primeiraAprovacaoPor User?                             @relation("SolicitacaoOperacionalPrimeiraAprovacao", fields: [primeiraAprovacaoPorUserId], references: [id], map: "fk_solop_primeira_aprovacao")
+  historico            SolicitacaoOperacionalHistorico[]
+  comentarios          SolicitacaoOperacionalComentario[]
 
   @@index([tipo], map: "idx_solop_tipo")
   @@index([status], map: "idx_solop_status")
@@ -837,6 +839,19 @@ model SolicitacaoOperacionalHistorico {
 
   @@index([idSolicitacao], map: "idx_soh_solicitacao")
   @@map("solicitacao_operacional_historico")
+}
+
+model SolicitacaoOperacionalComentario {
+  idComentario  Int                    @id @default(autoincrement()) @map("id_comentario")
+  idSolicitacao Int                    @map("id_solicitacao")
+  autorUserId   String                 @map("autor_user_id")
+  texto         String                 @db.VarChar(2000)
+  criadoEm      DateTime               @default(now()) @map("criado_em") @db.Timestamp(6)
+  solicitacao   SolicitacaoOperacional @relation(fields: [idSolicitacao], references: [idSolicitacao], onDelete: Cascade, map: "fk_soc_solicitacao")
+  autor         User                   @relation(fields: [autorUserId], references: [id], map: "fk_soc_autor")
+
+  @@index([idSolicitacao], map: "idx_soc_solicitacao")
+  @@map("solicitacao_operacional_comentario")
 }
 
 model DwPlanejado {

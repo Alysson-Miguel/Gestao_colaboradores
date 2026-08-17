@@ -463,10 +463,76 @@ async function sendDecisaoOperacionalEmail({ to, solicitacao, aprovada, motivoRe
   }
 }
 
+/* =====================================================
+   ENVIO DE E-MAIL — SOLICITAÇÃO OPERACIONAL (novo comentário)
+===================================================== */
+
+async function sendComentarioOperacionalEmail({ to, solicitacao, autorNome, texto }) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    throw new Error("Credenciais do Gmail não configuradas (GMAIL_USER ou GMAIL_APP_PASSWORD)");
+  }
+
+  const destinatarios = Array.isArray(to) ? to : [to];
+  if (destinatarios.length === 0) {
+    throw new Error("Nenhum destinatário de e-mail fornecido");
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  })
+
+  try {
+    await transporter.verify();
+  } catch (verifyError) {
+    console.error("❌ Erro ao verificar conexão SMTP:", verifyError);
+    throw new Error(`Falha na autenticação do Gmail: ${verifyError.message}`);
+  }
+
+  const tipoLabel = TIPO_LABEL_OPERACIONAL[solicitacao.tipo] || solicitacao.tipo;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const link = `${frontendUrl}/solicitacoes-operacionais/${solicitacao.idSolicitacao}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px;">
+      <h2 style="color:#FA4C00;">Novo comentário na Solicitação #${solicitacao.idSolicitacao}</h2>
+      <p><strong>${autorNome}</strong> comentou:</p>
+      <blockquote style="margin:12px 0; padding:12px 16px; background:#f5f5f5; border-left:3px solid #FA4C00; color:#333;">
+        ${String(texto).replace(/\n/g, "<br/>")}
+      </blockquote>
+      <p style="color:#666; font-size:13px;">Solicitação: ${tipoLabel} — ${solicitacao.colaboradorNome || "—"}</p>
+      <a href="${link}" style="display:inline-block; background:#FA4C00; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-weight:bold; margin-top:8px;">
+        Ver e responder
+      </a>
+      <p style="color:#888; font-size:12px; margin-top:16px;">
+        Este e-mail foi gerado automaticamente pelo sistema de Gestão de Colaboradores.
+      </p>
+    </div>
+  `
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Gestão de Colaboradores" <${process.env.GMAIL_USER}>`,
+      to: destinatarios,
+      subject: `[Solicitação Operacional #${solicitacao.idSolicitacao}] Novo comentário de ${autorNome}`,
+      html,
+    })
+    console.log(`✅ Email enviado - MessageID: ${info.messageId}`);
+    return info;
+  } catch (sendError) {
+    console.error("❌ Erro ao enviar email via Nodemailer:", sendError);
+    throw new Error(`Falha no envio do e-mail: ${sendError.message}`);
+  }
+}
+
 module.exports = {
   sendReportEmail,
   sendMedidaDisciplinarEmail,
   sendSolicitacaoTreinamentoEmail,
   sendSolicitacaoOperacionalEmail,
   sendDecisaoOperacionalEmail,
+  sendComentarioOperacionalEmail,
 }

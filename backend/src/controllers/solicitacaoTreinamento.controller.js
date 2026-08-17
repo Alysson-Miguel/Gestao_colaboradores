@@ -711,6 +711,13 @@ exports.aprovarSolicitacao = async (req, res) => {
       return errorResponse(res, err.message, err.statusCode);
     }
     console.error("❌ aprovarSolicitacao:", err);
+    if (err.code === "P2003") {
+      return errorResponse(
+        res,
+        `Não foi possível criar o treinamento: colaborador vinculado (${err.meta?.field_name || "referência"}) não encontrado no cadastro.`,
+        400
+      );
+    }
     return errorResponse(res, "Erro ao aprovar solicitação", 500);
   }
 };

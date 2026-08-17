@@ -143,13 +143,142 @@ function ColaboradoresModal({ status, color, foraDeEscalaSet, onClose }) {
   );
 }
 
+function ForaEscalaModal({ registros, onClose }) {
+  const [busca, setBusca] = useState("");
+  const [page, setPage] = useState(1);
+
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return registros;
+    return registros.filter(
+      (r) =>
+        r.nome?.toLowerCase().includes(termo) ||
+        r.setor?.toLowerCase().includes(termo) ||
+        r.lider?.toLowerCase().includes(termo)
+    );
+  }, [registros, busca]);
+
+  const totalPages = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
+  const pageClamped = Math.min(page, totalPages);
+  const paginaAtual = filtrados.slice(
+    (pageClamped - 1) * PAGE_SIZE,
+    pageClamped * PAGE_SIZE
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-default shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-default shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: `${FORA_ESCALA_COLOR}1A` }}
+            >
+              <AlertTriangle size={16} style={{ color: FORA_ESCALA_COLOR }} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-semibold text-base text-page truncate">
+                Lançamentos em dia de DSR (fora da escala)
+              </h2>
+              <p className="text-xs text-muted">
+                {registros.length} {registros.length === 1 ? "lançamento" : "lançamentos"}
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-muted hover:text-page transition-colors shrink-0">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* BUSCA */}
+        <div className="px-5 py-3 border-b border-default shrink-0">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => { setBusca(e.target.value); setPage(1); }}
+              placeholder="Buscar por nome, setor ou líder..."
+              className="w-full pl-9 pr-4 py-2.5 bg-surface-2 border border-default rounded-xl text-sm text-page placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/50"
+            />
+          </div>
+        </div>
+
+        {/* LISTA */}
+        <div className="flex-1 overflow-y-auto px-5 py-2">
+          {paginaAtual.length === 0 ? (
+            <p className="text-center text-muted text-sm py-10">Nenhum lançamento encontrado</p>
+          ) : (
+            paginaAtual.map((r, i) => (
+              <div
+                key={`${r.colaboradorId}-${r.data}-${i}`}
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl mb-1 border border-[#FFD60A]/40 bg-[#FFD60A]/10"
+              >
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <AlertTriangle size={13} className="shrink-0" style={{ color: FORA_ESCALA_COLOR }} />
+                  <span className="min-w-0">
+                    <span className="text-sm truncate block" style={{ color: FORA_ESCALA_COLOR }}>
+                      {r.nome}
+                    </span>
+                    <span className="text-xs text-muted truncate block">
+                      {r.setor} {r.lider ? `· Líder: ${r.lider}` : ""}
+                    </span>
+                  </span>
+                </span>
+                <span className="text-xs text-muted shrink-0 ml-3 text-right">
+                  <span className="block">{r.data} ({r.diaSemana})</span>
+                  <span className="block">{r.status}</span>
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* PAGINAÇÃO */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-default shrink-0">
+            <span className="text-xs text-muted">
+              Página {pageClamped} de {totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={pageClamped === 1}
+                className="p-1.5 rounded-lg text-muted hover:text-page hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={pageClamped === totalPages}
+                className="p-1.5 rounded-lg text-muted hover:text-page hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function StatusColaboradoresSection({
   title = "Status dos Colaboradores",
   items = [],
   footer = "",
   foraDeEscala = [],
+  foraDeEscalaRegistros = [],
 }) {
   const [modalStatus, setModalStatus] = useState(null);
+  const [showForaEscalaModal, setShowForaEscalaModal] = useState(false);
 
   const foraDeEscalaSet = useMemo(() => new Set(foraDeEscala), [foraDeEscala]);
 
@@ -255,7 +384,13 @@ export default function StatusColaboradoresSection({
       </div>
 
       {footer && (
-        <div className="pt-4 border-t border-default text-sm text-muted">
+        <div
+          className={`pt-4 border-t border-default text-sm text-muted ${
+            foraDeEscalaRegistros.length > 0 ? "cursor-pointer hover:text-page transition-colors" : ""
+          }`}
+          onClick={foraDeEscalaRegistros.length > 0 ? () => setShowForaEscalaModal(true) : undefined}
+          title={foraDeEscalaRegistros.length > 0 ? "Ver colaboradores" : undefined}
+        >
           {footer}
         </div>
       )}
@@ -266,6 +401,13 @@ export default function StatusColaboradoresSection({
           color={modalStatus.color}
           foraDeEscalaSet={foraDeEscalaSet}
           onClose={() => setModalStatus(null)}
+        />
+      )}
+
+      {showForaEscalaModal && (
+        <ForaEscalaModal
+          registros={foraDeEscalaRegistros}
+          onClose={() => setShowForaEscalaModal(false)}
         />
       )}
     </div>

@@ -87,4 +87,16 @@ export const SolicitacoesOperacionaisAPI = {
     const res = await api.post(`/solicitacoes-operacionais/${id}/reprovar`, { motivo });
     return res.data.data;
   },
+
+  exportarCsv: async ({ status, tipo, dataInicio, dataFim, solicitante, colaborador } = {}) => {
+    const params = {};
+    if (status)      params.status      = status;
+    if (tipo)        params.tipo        = tipo;
+    if (dataInicio)  params.dataInicio  = dataInicio;
+    if (dataFim)     params.dataFim     = dataFim;
+    if (solicitante) params.solicitante = solicitante;
+    if (colaborador) params.colaborador = colaborador;
+    const res = await api.get("/solicitacoes-operacionais/export/csv", { params, responseType: "blob" });
+    return res;
+  },
 };
