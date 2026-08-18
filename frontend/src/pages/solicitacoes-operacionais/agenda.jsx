@@ -11,7 +11,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, ExternalLink,
   CalendarDays, Clock, CheckCircle2, XCircle, AlertTriangle,
   User, Briefcase, Building2, ArrowLeftRight, Filter, Check,
-  CalendarOff, Clock3, Share2, Hourglass, UserCog, CalendarClock, UserX,
+  CalendarOff, Clock3, Share2, Hourglass, UserCog, CalendarClock, UserX, UserPlus,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -48,6 +48,7 @@ const TIPO_ICON = {
   TROCA_GESTAO: UserCog,
   TROCA_ESCALA: CalendarClock,
   DESLIGAMENTO: UserX,
+  ONBOARDING: UserPlus,
 };
 
 const MESSAGES = {

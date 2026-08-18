@@ -1120,6 +1120,7 @@ enum TipoSolicitacaoOperacional {
   TROCA_GESTAO
   TROCA_ESCALA
   DESLIGAMENTO
+  ONBOARDING
 }
 
 enum StatusSolicitacaoOperacional {

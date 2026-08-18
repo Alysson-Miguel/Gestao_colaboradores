@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/MainLayout";
 import {
   ArrowLeft, CalendarOff, Clock3, Share2, ArrowLeftRight, Send, AlertTriangle,
-  Hourglass, UserCog, CalendarClock, UserX, CheckCircle2, Upload,
+  Hourglass, UserCog, CalendarClock, UserX, CheckCircle2, Upload, UserPlus,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -24,9 +24,10 @@ const TIPOS = [
   { key: "TROCA_GESTAO", label: "Troca de Gestão", desc: "Alterar o líder responsável pelo colaborador", icon: UserCog },
   { key: "TROCA_ESCALA", label: "Troca de Escala", desc: "Alterar a escala de trabalho do colaborador", icon: CalendarClock },
   { key: "DESLIGAMENTO", label: "Desligamento", desc: "Solicitar o desligamento de um colaborador ativo", icon: UserX },
+  { key: "ONBOARDING", label: "Onboarding", desc: "Registrar o colaborador em onboarding em uma data específica", icon: UserPlus },
 ];
 
-const TIPOS_COM_DATA_GENERICA = ["FOLGA", "BANCO_HORAS", "SINERGIA", "HORA_EXTRA"];
+const TIPOS_COM_DATA_GENERICA = ["FOLGA", "BANCO_HORAS", "SINERGIA", "HORA_EXTRA", "ONBOARDING"];
 
 // Retorna a duração em minutos entre entrada e saída, considerando turnos
 // que atravessam a meia-noite (ex.: T3, entrada 21:00 / saída 05:55).

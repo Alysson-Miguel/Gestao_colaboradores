@@ -9,6 +9,7 @@ export const TIPO_LABEL = {
   TROCA_GESTAO: "Troca de Gestão",
   TROCA_ESCALA: "Troca de Escala",
   DESLIGAMENTO: "Desligamento",
+  ONBOARDING: "Onboarding",
 };
 
 export const DESTINO_SINERGIA_LABEL = {

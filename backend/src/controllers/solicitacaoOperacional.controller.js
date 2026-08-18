@@ -36,6 +36,7 @@ const TIPO_LABEL_SEATALK = {
   TROCA_GESTAO: "Troca de Gestão",
   TROCA_ESCALA: "Troca de Escala",
   DESLIGAMENTO: "Desligamento",
+  ONBOARDING: "Onboarding",
 };
 
 // Segunda etapa de aprovação por tipo — RH confirma Troca de Escala e Troca
@@ -581,6 +582,7 @@ const TIPO_LABEL = {
   TROCA_GESTAO: "Troca de Gestão",
   TROCA_ESCALA: "Troca de Escala",
   DESLIGAMENTO: "Desligamento",
+  ONBOARDING: "Onboarding",
 };
 
 const STATUS_LABEL = {
@@ -859,6 +861,14 @@ exports.createSolicitacao = async (req, res) => {
 
       dadosBase.opsId = opsId;
       dadosBase.data = normalizeDateOnly(data);
+    } else if (tipo === "ONBOARDING") {
+      const { data } = req.body;
+      if (!data) return errorResponse(res, "Data do onboarding é obrigatória", 400);
+
+      await validarColaboradorDisponivel(opsId, data);
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = normalizeDateOnly(data);
     } else if (tipo === "BANCO_HORAS") {
       const { data, bhDiaCompleto, bhQuantidadeHoras, bhHoraEntrada } = req.body;
       if (!data) return errorResponse(res, "Data é obrigatória", 400);
@@ -1125,7 +1135,7 @@ exports.createSolicitacao = async (req, res) => {
 ===================================================== */
 async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
   const tipos = await tx.tipoAusencia.findMany({
-    where: { codigo: { in: ["FO", "BH", "S1", "DSR", "P"] } },
+    where: { codigo: { in: ["FO", "BH", "S1", "DSR", "P", "ON"] } },
     select: { idTipoAusencia: true, codigo: true },
   });
   const idPorCodigo = Object.fromEntries(tipos.map((t) => [t.codigo, t.idTipoAusencia]));
@@ -1145,6 +1155,8 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
 
   if (solicitacao.tipo === "FOLGA") {
     await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.FO, SEM_BATIDA);
+  } else if (solicitacao.tipo === "ONBOARDING") {
+    await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.ON, SEM_BATIDA);
   } else if (solicitacao.tipo === "BANCO_HORAS") {
     if (solicitacao.bhDiaCompleto) {
       await upsertFrequencia(solicitacao.opsId, solicitacao.data, idPorCodigo.BH, SEM_BATIDA);
