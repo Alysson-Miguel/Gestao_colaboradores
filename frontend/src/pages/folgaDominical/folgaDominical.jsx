@@ -397,7 +397,7 @@ export default function FolgaDominicalPage() {
   }
 
   async function reprocessar() {
-    if (!isAdmin && !isAltaGestao) return;
+    if (!isAdmin) return;
     if (!window.confirm("Isso irá remover o planejamento atual e apagar DSRs automáticos.\nDeseja continuar?")) return;
     setLoading(true); setErro("");
     try {
@@ -574,7 +574,7 @@ export default function FolgaDominicalPage() {
               </button>
 
               {/* Simular */}
-              {(isAdmin || isAltaGestao || isLideranca) && (
+              {(isAdmin || isAltaGestao) && (
                 <button
                   onClick={preview}
                   disabled={previewLoading || loading || semEstacaoSelecionada}
@@ -596,45 +596,46 @@ export default function FolgaDominicalPage() {
 
               {/* Gerar */}
               {(isAdmin || isAltaGestao) && (
-                <>
-                  <button
-                    onClick={gerar}
-                    disabled={loading || previewLoading || previewInvalido || previewNaoExecutado || semEstacaoSelecionada}
-                    title={semEstacaoSelecionada ? "Selecione uma estação no menu superior primeiro" : previewNaoExecutado ? "Execute a simulação antes de gerar" : previewInvalido ? "Existem colaboradores não alocados" : "Gerar planejamento"}
-                    style={{
-                      height: 40, padding: "0 20px", borderRadius: 12,
-                      background: (previewInvalido || previewNaoExecutado || semEstacaoSelecionada) ? "var(--color-surface-3)" : BRAND,
-                      color: "#fff", fontSize: 13, fontWeight: 700,
-                      border: "none", cursor: (previewInvalido || previewNaoExecutado || semEstacaoSelecionada) ? "not-allowed" : "pointer",
-                      display: "flex", alignItems: "center", gap: 7,
-                      opacity: (loading || previewLoading) ? 0.5 : 1, transition: "background 0.2s",
-                    }}
-                    onMouseEnter={(e) => !(previewInvalido || previewNaoExecutado || semEstacaoSelecionada) && (e.currentTarget.style.background = "#e04400")}
-                    onMouseLeave={(e) => !(previewInvalido || previewNaoExecutado || semEstacaoSelecionada) && (e.currentTarget.style.background = BRAND)}
-                  >
-                    <CalendarDays size={14} />
-                    Gerar
-                  </button>
+                <button
+                  onClick={gerar}
+                  disabled={loading || previewLoading || previewInvalido || previewNaoExecutado || semEstacaoSelecionada}
+                  title={semEstacaoSelecionada ? "Selecione uma estação no menu superior primeiro" : previewNaoExecutado ? "Execute a simulação antes de gerar" : previewInvalido ? "Existem colaboradores não alocados" : "Gerar planejamento"}
+                  style={{
+                    height: 40, padding: "0 20px", borderRadius: 12,
+                    background: (previewInvalido || previewNaoExecutado || semEstacaoSelecionada) ? "var(--color-surface-3)" : BRAND,
+                    color: "#fff", fontSize: 13, fontWeight: 700,
+                    border: "none", cursor: (previewInvalido || previewNaoExecutado || semEstacaoSelecionada) ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: 7,
+                    opacity: (loading || previewLoading) ? 0.5 : 1, transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) => !(previewInvalido || previewNaoExecutado || semEstacaoSelecionada) && (e.currentTarget.style.background = "#e04400")}
+                  onMouseLeave={(e) => !(previewInvalido || previewNaoExecutado || semEstacaoSelecionada) && (e.currentTarget.style.background = BRAND)}
+                >
+                  <CalendarDays size={14} />
+                  Gerar
+                </button>
+              )}
 
-                  <button
-                    onClick={reprocessar}
-                    disabled={loading || previewLoading || semEstacaoSelecionada}
-                    title={semEstacaoSelecionada ? "Selecione uma estação no menu superior primeiro" : undefined}
-                    style={{
-                      height: 40, padding: "0 18px", borderRadius: 12,
-                      background: `${RED}18`, border: `1px solid ${RED}40`,
-                      color: RED, fontSize: 13, fontWeight: 700,
-                      cursor: semEstacaoSelecionada ? "not-allowed" : "pointer",
-                      display: "flex", alignItems: "center", gap: 7,
-                      opacity: (loading || previewLoading || semEstacaoSelecionada) ? 0.5 : 1, transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => !semEstacaoSelecionada && (e.currentTarget.style.background = `${RED}30`)}
-                    onMouseLeave={(e) => !semEstacaoSelecionada && (e.currentTarget.style.background = `${RED}18`)}
-                  >
-                    <Trash2 size={14} />
-                    Reprocessar
-                  </button>
-                </>
+              {/* Reprocessar — exclusivo ADMIN */}
+              {isAdmin && (
+                <button
+                  onClick={reprocessar}
+                  disabled={loading || previewLoading || semEstacaoSelecionada}
+                  title={semEstacaoSelecionada ? "Selecione uma estação no menu superior primeiro" : undefined}
+                  style={{
+                    height: 40, padding: "0 18px", borderRadius: 12,
+                    background: `${RED}18`, border: `1px solid ${RED}40`,
+                    color: RED, fontSize: 13, fontWeight: 700,
+                    cursor: semEstacaoSelecionada ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: 7,
+                    opacity: (loading || previewLoading || semEstacaoSelecionada) ? 0.5 : 1, transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => !semEstacaoSelecionada && (e.currentTarget.style.background = `${RED}30`)}
+                  onMouseLeave={(e) => !semEstacaoSelecionada && (e.currentTarget.style.background = `${RED}18`)}
+                >
+                  <Trash2 size={14} />
+                  Reprocessar
+                </button>
               )}
             </div>
           </div>

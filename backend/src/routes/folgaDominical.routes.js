@@ -14,12 +14,12 @@ router.get(
 );
 
 /* =====================================================
-  PREVIEW → ADMIN + ALTA_GESTAO + LIDERANCA
+  PREVIEW → ADMIN + ALTA_GESTAO
   (simulação sem salvar)
 ===================================================== */
 router.post(
   "/preview",
-  authorizeRoles("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
+  authorizeRoles("ADMIN", "ALTA_GESTAO"),
   controller.preview
 );
 
@@ -33,11 +33,11 @@ router.post(
 );
 
 /* =====================================================
-  DELETE → ADMIN + ALTA_GESTAO
+  DELETE (usado pelo "Reprocessar") → exclusivo ADMIN
 ===================================================== */
 router.delete(
   "/",
-  authorizeRoles("ADMIN", "ALTA_GESTAO"),
+  authorizeRoles("ADMIN"),
   controller.deletar
 );
 
