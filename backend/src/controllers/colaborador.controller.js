@@ -181,6 +181,14 @@ const getColaboradorById = async (req, res) => {
       return notFoundResponse(res, "Colaborador não encontrado");
     }
 
+    // Isolamento por estação: usuário não-global só pode ver colaboradores da própria estação.
+    // 404 (não 403) para não revelar que o opsId existe em outra estação.
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId) {
+      if (colaborador.idEstacao !== req.dbContext.estacaoId) {
+        return notFoundResponse(res, "Colaborador não encontrado");
+      }
+    }
+
     /* =====================================================
        INDICADORES — ATESTADOS (CORRETO + BR TIME)
     ===================================================== */
