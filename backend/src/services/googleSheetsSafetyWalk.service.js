@@ -1,8 +1,8 @@
 const { google } = require('googleapis');
 
 // 📊 CONFIGURAÇÕES DA PLANILHA SAFETY WALK
-const SAFETY_WALK_SPREADSHEET_ID = process.env.SHEETS_SAFETY_WALK_SPREADSHEET_ID || '1maB_sUQ-J5oVYUNJWuN5om19qjoSfX-aOnYakmlw0aI';
-const SAFETY_WALK_SHEET = process.env.SHEETS_SAFETY_WALK_ABA || 'Report SPI';
+const SAFETY_WALK_SPREADSHEET_ID = process.env.SHEETS_SAFETY_WALK_SPREADSHEET_ID || '1eQnTc-pugE9iK4fvZB4Z2eyZ6_BOYmi_dQP36wOGV5U';
+const SAFETY_WALK_SHEET = process.env.SHEETS_SAFETY_WALK_ABA || 'DB';
 
 // 🔧 Inicializar Google Sheets API
 const getGoogleSheetsClient = () => {
@@ -238,11 +238,14 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       // Pular linhas vazias
       if (!row || row.length === 0 || !row[0]) continue;
 
-      const semana = normalizarSemana(row[0] || ''); // Ex: W2 → W02
-      const pilar = row[1] || '';  // Ex: Safety Walk
-      const dataInicio = row[2] || '';
-      const dataFim = row[3] || '';
-      
+      // Layout atual da aba "DB": Pilar(A), Data inicio(B), Data fim(C), Ano(D),
+      // Mês(E), Cód Mês Ano(F), Semana(G, número cru "02"), Cód Sem Ano(H)...
+      const pilar = row[0] || '';  // Ex: Safety Walk
+      const dataInicio = row[1] || '';
+      const dataFim = row[2] || '';
+      const numeroSemana = row[6] || '';
+      const semana = normalizarSemana(numeroSemana ? `W${numeroSemana}` : '');
+
       const dataInicioParsed = parseData(dataInicio);
       const dataFimParsed = parseData(dataFim);
 
@@ -250,7 +253,7 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       if (!pilar.toLowerCase().includes('safety')) continue;
 
       // Filtrar apenas W5 em diante (desconsiderar W1-W4)
-      const weekNumber = parseInt(semana.replace('W', ''));
+      const weekNumber = parseInt(numeroSemana || '0', 10);
       if (weekNumber < 5) continue;
 
       // Processar status de cada líder

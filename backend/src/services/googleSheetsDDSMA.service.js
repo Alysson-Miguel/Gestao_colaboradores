@@ -1,8 +1,8 @@
 const { google } = require('googleapis');
 
 // 📊 CONFIGURAÇÕES DA PLANILHA DDSMA
-const DDSMA_SPREADSHEET_ID = process.env.SHEETS_DDSMA_SPREADSHEET_ID || '1maB_sUQ-J5oVYUNJWuN5om19qjoSfX-aOnYakmlw0aI';
-const DDSMA_SHEET = process.env.SHEETS_DDSMA_ABA || 'Report SPI';
+const DDSMA_SPREADSHEET_ID = process.env.SHEETS_DDSMA_SPREADSHEET_ID || '1eQnTc-pugE9iK4fvZB4Z2eyZ6_BOYmi_dQP36wOGV5U';
+const DDSMA_SHEET = process.env.SHEETS_DDSMA_ABA || 'DB';
 const DDSMA_RANGE = 'A59:CZ110'; // Intervalo específico do DDSMA (começando da coluna A para manter índices consistentes)
 
 // 🔧 Inicializar Google Sheets API
@@ -228,12 +228,14 @@ const buscarDadosDDSMA = async (filtros = {}) => {
         continue;
       }
 
-      const pilar = row[1] || ''; // Coluna B (índice 1 quando começamos de A)
-      const dataInicio = row[2] || ''; // Coluna C
-      const dataFimParcial = row[3] || ''; // Coluna D
-      const ano = row[4] || ''; // Coluna E
-      const numeroSemana = row[7] || ''; // Coluna H = Número da semana (ex: "07")
-      const descricaoSemana = row[9] || ''; // Coluna J = Descrição (ex: "Sem 07 (09/02 a 15/02)")
+      // Layout atual da aba "DB": Pilar(A), Data inicio(B), Data fim(C), Ano(D),
+      // Mês(E), Cód Mês Ano(F), Semana(G, número cru), Cód Sem Ano(H), Líder(I)...
+      const pilar = row[0] || ''; // Coluna A
+      const dataInicio = row[1] || ''; // Coluna B
+      const dataFimParcial = row[2] || ''; // Coluna C
+      const ano = row[3] || ''; // Coluna D
+      const numeroSemana = row[6] || ''; // Coluna G = Número da semana (ex: "07")
+      const descricaoSemana = row[8] || ''; // Coluna I = Descrição (ex: "Sem 07 (09/02 a 15/02)")
       
       console.log(`🔍 Linha ${linhaSheets} (índice ${i}): Pilar="${pilar}", Semana="${numeroSemana}", Descrição="${descricaoSemana}"`);
       

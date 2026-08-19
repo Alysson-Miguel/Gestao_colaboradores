@@ -1,8 +1,8 @@
 const { google } = require('googleapis');
 
 // 📊 CONFIGURAÇÕES DA PLANILHA OPA
-const OPA_SPREADSHEET_ID = process.env.SHEETS_OPA_SPREADSHEET_ID || '1maB_sUQ-J5oVYUNJWuN5om19qjoSfX-aOnYakmlw0aI';
-const OPA_SHEET = process.env.SHEETS_OPA_ABA || 'Report SPI';
+const OPA_SPREADSHEET_ID = process.env.SHEETS_OPA_SPREADSHEET_ID || '1eQnTc-pugE9iK4fvZB4Z2eyZ6_BOYmi_dQP36wOGV5U';
+const OPA_SHEET = process.env.SHEETS_OPA_ABA || 'DB';
 // Não precisamos mais da constante OPA_RANGE pois usamos o range diretamente na função
 
 // 🔧 Inicializar Google Sheets API
@@ -211,11 +211,13 @@ const buscarDadosOPA = async (filtros = {}) => {
         continue;
       }
 
-      const pilar = row[1] || ''; // Coluna B
-      const dataInicio = row[2] || ''; // Coluna C
-      const semana = normalizarSemana(row[0] || ''); // Coluna A = Semana (W2 → W02)
-      const numeroSemana = row[7] || ''; // Coluna H = Número da semana
-      const descricaoSemana = row[9] || ''; // Coluna J = Descrição
+      // Layout atual da aba "DB": Pilar(A), Data inicio(B), Data fim(C), Ano(D),
+      // Mês(E), Cód Mês Ano(F), Semana(G, número cru), Cód Sem Ano(H), Líder(I)...
+      const pilar = row[0] || ''; // Coluna A
+      const dataInicio = row[1] || ''; // Coluna B
+      const numeroSemana = row[6] || ''; // Coluna G = Número da semana
+      const semana = normalizarSemana(numeroSemana ? `W${numeroSemana}` : ''); // W02
+      const descricaoSemana = row[8] || ''; // Coluna I = Descrição
       
       console.log(`🔍 Linha ${linhaSheets} (índice ${i}): Semana="${semana}", Pilar="${pilar}", NumSemana="${numeroSemana}", Descrição="${descricaoSemana}"`);
       console.log(`   📋 Primeiras 15 colunas:`, row.slice(0, 15));
