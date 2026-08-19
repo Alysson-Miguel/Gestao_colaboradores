@@ -216,6 +216,7 @@ const buscarDadosDDSMA = async (filtros = {}) => {
     console.log(`✅ Após filtro de cargos isentos: ${responsaveisFiltrados.length}`);
 
     const registros = [];
+    const semanasSet = new Set();
 
     // IMPORTANTE: rows[0] = linha 59 do sheets (porque o range começa em B59)
     // Então começamos do índice 0, não do 5!
@@ -259,6 +260,9 @@ const buscarDadosDDSMA = async (filtros = {}) => {
 
       const semana = normalizarSemana(`W${numeroSemana}`);
       console.log(`   ✅ Processando linha ${linhaSheets} (índice ${i}) - ${semana} - ${pilar}`);
+
+      // Semana existe na planilha (tem linha própria) independente de já ter status preenchido
+      semanasSet.add(semana);
 
       const dataInicioParsed = parseData(dataInicio);
       const dataFimParsed = parseData(dataInicio); // Usar data início como fim também
@@ -453,7 +457,9 @@ const buscarDadosDDSMA = async (filtros = {}) => {
       })
       .sort((a, b) => a.turno.localeCompare(b.turno));
 
-    const semanasDisponiveis = [...new Set(registros.map(r => r.semana))]
+    // Baseada nas linhas da planilha (semanasSet), não em registros com status já
+    // preenchido, pois uma semana ainda sem nenhum status marcado deve continuar selecionável.
+    const semanasDisponiveis = [...semanasSet]
       .filter(s => s && s.startsWith('W'))
       .sort((a, b) => {
         const numA = parseInt(a.replace('W', ''));

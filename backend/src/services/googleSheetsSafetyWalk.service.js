@@ -229,6 +229,7 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
 
     // Processar dados (a partir da linha 6 - índice 5)
     const registros = [];
+    const semanasSet = new Set();
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
@@ -255,6 +256,9 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       // Filtrar apenas W5 em diante (desconsiderar W1-W4)
       const weekNumber = parseInt(numeroSemana || '0', 10);
       if (weekNumber < 5) continue;
+
+      // Semana existe na planilha (tem linha própria) independente de já ter status preenchido
+      semanasSet.add(semana);
 
       // Processar status de cada líder
       lideres.forEach((lider) => {
@@ -440,8 +444,10 @@ const buscarDadosSafetyWalk = async (filtros = {}) => {
       })
       .sort((a, b) => a.turno.localeCompare(b.turno));
 
-    // Extrair lista de semanas disponíveis (únicas e ordenadas)
-    const semanasDisponiveis = [...new Set(registros.map(r => r.semana))]
+    // Extrair lista de semanas disponíveis (únicas e ordenadas) - baseada nas linhas
+    // da planilha (semanasSet), não em registros com status já preenchido, pois
+    // uma semana ainda sem nenhum status marcado deve continuar selecionável.
+    const semanasDisponiveis = [...semanasSet]
       .filter(s => s && s.startsWith('W'))
       .sort((a, b) => {
         const numA = parseInt(a.replace('W', ''));
