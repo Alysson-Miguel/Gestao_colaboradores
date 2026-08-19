@@ -132,9 +132,12 @@ async function gerarOnboardingColaborador({ opsId, dataAdmissao, tx = prisma, id
   });
   if (!tipoON) throw new Error(`Tipo de ausência ON não encontrado (tentou código "ON" e id ${idTipoAusenciaFallback}).`);
 
-  const dia1 = startOfDay(new Date(dataAdmissao));
-  const dia2 = new Date(dia1);
-  dia2.setDate(dia2.getDate() + 1);
+  // Constrói em UTC (mesmo padrão de gerarNcPreAdmissao) — startOfDay() usa
+  // setHours() em horário LOCAL (UTC-3), o que desloca a data em 1 dia
+  // quando aplicado direto sobre uma dataAdmissao já em UTC.
+  const adm = new Date(dataAdmissao);
+  const dia1 = new Date(Date.UTC(adm.getUTCFullYear(), adm.getUTCMonth(), adm.getUTCDate()));
+  const dia2 = new Date(Date.UTC(adm.getUTCFullYear(), adm.getUTCMonth(), adm.getUTCDate() + 1));
 
   for (const dia of [dia1, dia2]) {
     await tx.frequencia.upsert({
