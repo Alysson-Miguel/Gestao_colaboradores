@@ -18,7 +18,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import MainLayout from "../../components/MainLayout";
 import { Drawer } from "../../components/UIComponents/Drawer";
-import api from "../../services/api";
+import TurnoSelectorOperacional from "../../components/dashboard/TurnoSelectorOperacional";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
 import { StatusOperacionalBadge, TipoBadge, STATUS_COLOR, STATUS_LABEL, TIPO_LABEL, DESTINO_SINERGIA_LABEL, formatDateOnly } from "./shared";
@@ -178,18 +178,7 @@ export default function AgendaSolicitacoesOperacionais() {
   const [filtrosTipo, setFiltrosTipo] = useState([]); // vazio = todos os tipos
   const [filtroTurno, setFiltroTurno] = useState("");
   const [filtroStatus, setFiltroStatus] = useState(""); // vazio = todos os status
-  const [turnos, setTurnos] = useState([]);
   const rangeRef = useRef(null);
-
-  useEffect(() => {
-    api.get("/turnos").then((r) => {
-      const p = r.data?.data ?? r.data;
-      const lista = Array.isArray(p) ? p : p?.items ?? [];
-      // /turnos retorna de todas as estações — deduplica por nome (o filtro usa o nome).
-      const nomesUnicos = [...new Set(lista.map((t) => t.nomeTurno).filter(Boolean))].sort();
-      setTurnos(nomesUnicos);
-    }).catch(() => {});
-  }, []);
 
   const carregarEventos = useCallback(async (start, end, tipos, turno, status) => {
     setLoading(true);
@@ -352,47 +341,13 @@ export default function AgendaSolicitacoesOperacionais() {
             <div className="flex items-center gap-2 mb-3">
               <Filter size={14} className="text-muted" />
               <span className="text-xs font-medium text-muted uppercase tracking-wide">Turno</span>
-              {filtroTurno && (
-                <button
-                  onClick={() => setFiltroTurno("")}
-                  className="ml-auto flex items-center gap-1 text-xs text-muted hover:text-[#FF453A] transition-colors cursor-pointer"
-                >
-                  <XCircle size={13} /> Limpar
-                </button>
-              )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setFiltroTurno("")}
-                aria-pressed={!filtroTurno}
-                className={`inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-                  !filtroTurno
-                    ? "bg-[#FA4C00] border-[#FA4C00] text-white shadow-sm shadow-[#FA4C00]/25"
-                    : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40 hover:bg-surface-3"
-                }`}
-              >
-                Todos
-                {!filtroTurno && <Check size={12} strokeWidth={3} className="text-white" />}
-              </button>
-              {turnos.map((nome) => {
-                const ativo = filtroTurno === nome;
-                return (
-                  <button
-                    key={nome}
-                    onClick={() => setFiltroTurno(nome)}
-                    aria-pressed={ativo}
-                    className={`inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-                      ativo
-                        ? "bg-[#FA4C00] border-[#FA4C00] text-white shadow-sm shadow-[#FA4C00]/25"
-                        : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40 hover:bg-surface-3"
-                    }`}
-                  >
-                    {nome}
-                    {ativo && <Check size={12} strokeWidth={3} className="text-white" />}
-                  </button>
-                );
-              })}
-            </div>
+            <TurnoSelectorOperacional
+              value={filtroTurno}
+              onChange={setFiltroTurno}
+              todosKey=""
+              todosLabel="Todos"
+            />
           </div>
 
           {/* ── STAT CARDS ── */}
