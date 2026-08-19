@@ -109,7 +109,10 @@ const carregarGestaoOperacional = async (req, res) => {
 
     if (turno === 'T3') {
       const [quantidadeOntem, quantidadeHoje] = await Promise.all([
-        buscarQuantidadeRealizada(dataStr, producaoSpreadsheetId, sheetNameOnTime),
+        // Aceita também dataStrT3Seguinte: um operador que continua batendo
+        // ponto depois da meia-noite atualiza o "Atualizado em" da própria
+        // linha pro dia seguinte, mas as colunas de 22h/23h continuam válidas.
+        buscarQuantidadeRealizada(dataStr, producaoSpreadsheetId, sheetNameOnTime, dataStrT3Seguinte),
         buscarQuantidadeRealizada(dataStrT3Seguinte, producaoSpreadsheetId, sheetNameOnTime),
       ]);
 

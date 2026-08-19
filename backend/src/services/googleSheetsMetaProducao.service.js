@@ -268,7 +268,7 @@ async function buscarMetasProducao(turno, dataISO, spreadsheetId = DEFAULT_SPREA
    - dataISO ignorado pois a aba sempre reflete o período atual
 ===================================================== */
 
-async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID, sheetName = PRODUCAO_ONTIME_SHEET_PRIMARY) {
+async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID, sheetName = PRODUCAO_ONTIME_SHEET_PRIMARY, dataISOAlt = null) {
   try {
     const rows = await carregarProdutividadeOnTime(spreadsheetId, sheetName);
     if (!rows || rows.length < 2) return { success: false, data: {} };
@@ -302,12 +302,18 @@ async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_PRODUC
 
     // Data esperada no formato DD/MM/YYYY para filtrar pelo campo "Atualizado em"
     const dataBusca = dataISO ? formatarData(dataISO) : null;
+    // Data alternativa aceita (ex: para as horas 22/23 do T3, um operador que
+    // continua batendo ponto depois da meia-noite atualiza o "Atualizado em"
+    // da própria linha para o dia seguinte — mesmo assim as colunas de 22h/23h
+    // daquela linha continuam sendo dados válidos do turno de ontem).
+    const dataBuscaAlt = dataISOAlt ? formatarData(dataISOAlt) : null;
+    const dataBate = (d) => d === dataBusca || (dataBuscaAlt && d === dataBuscaAlt);
 
     // Se o timestamp é global (embutido no header) e uma data foi pedida,
     // a aba inteira só é válida se a data do timestamp bater com a buscada.
     if (timestampGlobalHeader && dataBusca) {
       const dataHeader = `${String(timestampGlobalHeader.getDate()).padStart(2, "0")}/${String(timestampGlobalHeader.getMonth() + 1).padStart(2, "0")}/${timestampGlobalHeader.getFullYear()}`;
-      if (dataHeader !== dataBusca) {
+      if (!dataBate(dataHeader)) {
         return { success: true, data: {}, ultimaAtualizacaoSheets: timestampGlobalHeader.toISOString() };
       }
     }
@@ -334,7 +340,7 @@ async function buscarQuantidadeRealizada(dataISO, spreadsheetId = DEFAULT_PRODUC
 
         if (dataBusca) {
           const dataAtualizacao = atualizadoEm.split(" ")[0]; // extrai "DD/MM/YYYY"
-          if (dataAtualizacao !== dataBusca) continue;
+          if (!dataBate(dataAtualizacao)) continue;
         }
 
         // Rastreia o timestamp mais recente entre os operadores filtrados

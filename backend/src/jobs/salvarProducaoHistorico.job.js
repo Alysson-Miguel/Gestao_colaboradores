@@ -30,9 +30,11 @@ function getInfoHoraAnterior() {
   else turno = "T3";
 
   // T3 horas 0-5 → referência é ontem (quando T3 começou às 22h)
-  // T3 horas 22-23 → referência é hoje
+  // T3 hora 23 → também é ontem quando o job roda em 00:05 (a hora 23 já
+  // aconteceu no dia anterior; só a hora 22, salva às 23:05 no mesmo dia,
+  // usa "hoje")
   let dataRef;
-  if (turno === "T3" && horaAnterior <= 5) {
+  if (turno === "T3" && (horaAnterior <= 5 || horaAnterior === 23)) {
     dataRef = getDataOntem();
   } else {
     dataRef = getDataHoje();

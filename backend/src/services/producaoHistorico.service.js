@@ -56,7 +56,7 @@ async function salvarProducaoHistorico(turno, dataStr = null) {
       dataHojeObj.setDate(dataHojeObj.getDate() + 1);
       const dataHojeStr = dataHojeObj.toISOString().slice(0, 10);
 
-      const qOntem = await buscarQuantidadeRealizada(dataStr, undefined, sheetNameOnTime);
+      const qOntem = await buscarQuantidadeRealizada(dataStr, undefined, sheetNameOnTime, dataHojeStr);
       if (qOntem.success) {
         if (qOntem.data[22]) quantidadePorHora[22] = qOntem.data[22];
         if (qOntem.data[23]) quantidadePorHora[23] = qOntem.data[23];
@@ -219,16 +219,24 @@ async function salvarHoraUnica(turno, dataStr, hora) {
 
     // T3 horas 0-5 ocorrem no dia seguinte ao início do turno
     let dataSheets = dataStr;
+    let dataSheetsAlt = null;
     if (turno === "T3" && hora <= 5) {
       const d = new Date(dataStr);
       d.setDate(d.getDate() + 1);
       dataSheets = d.toISOString().slice(0, 10);
+    } else if (turno === "T3" && hora >= 22) {
+      // Um operador que continua batendo ponto depois da meia-noite atualiza
+      // o "Atualizado em" da própria linha pro dia seguinte — as colunas de
+      // 22h/23h continuam válidas mesmo assim, então aceita as duas datas.
+      const d = new Date(dataStr);
+      d.setDate(d.getDate() + 1);
+      dataSheetsAlt = d.toISOString().slice(0, 10);
     }
 
     const fonteProducaoAtiva = await obterFonteProducaoAtiva();
     const sheetNameOnTime = fonteParaNomeAba(fonteProducaoAtiva);
 
-    const qtdResult = await buscarQuantidadeRealizada(dataSheets, undefined, sheetNameOnTime);
+    const qtdResult = await buscarQuantidadeRealizada(dataSheets, undefined, sheetNameOnTime, dataSheetsAlt);
     const realizadoHora = qtdResult.success ? Math.round(qtdResult.data[hora] || 0) : 0;
     const percentual = meta > 0 ? parseFloat(((realizadoHora / meta) * 100).toFixed(2)) : 0;
 
