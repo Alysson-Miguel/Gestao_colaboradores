@@ -18,6 +18,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import MainLayout from "../../components/MainLayout";
 import { Drawer } from "../../components/UIComponents/Drawer";
+import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
 import { StatusOperacionalBadge, TipoBadge, STATUS_COLOR, STATUS_LABEL, TIPO_LABEL, DESTINO_SINERGIA_LABEL, formatDateOnly } from "./shared";
@@ -175,14 +176,26 @@ export default function AgendaSolicitacoesOperacionais() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selecionada, setSelecionada] = useState(null);
   const [filtrosTipo, setFiltrosTipo] = useState([]); // vazio = todos os tipos
+  const [filtroTurno, setFiltroTurno] = useState("");
+  const [turnos, setTurnos] = useState([]);
   const rangeRef = useRef(null);
 
-  const carregarEventos = useCallback(async (start, end, tipos) => {
+  useEffect(() => {
+    api.get("/turnos").then((r) => {
+      const p = r.data?.data ?? r.data;
+      const lista = Array.isArray(p) ? p : p?.items ?? [];
+      // /turnos retorna de todas as estações — deduplica por nome (o filtro usa o nome).
+      const nomesUnicos = [...new Set(lista.map((t) => t.nomeTurno).filter(Boolean))].sort();
+      setTurnos(nomesUnicos);
+    }).catch(() => {});
+  }, []);
+
+  const carregarEventos = useCallback(async (start, end, tipos, turno) => {
     setLoading(true);
     try {
       const inicio = format(start, "yyyy-MM-dd");
       const fim = format(end, "yyyy-MM-dd");
-      const solicitacoes = await SolicitacoesOperacionaisAPI.calendario(inicio, fim, tipos);
+      const solicitacoes = await SolicitacoesOperacionaisAPI.calendario(inicio, fim, tipos, turno);
       setEvents(
         (solicitacoes || []).map((s) => ({
           id: s.idSolicitacao,
@@ -210,24 +223,24 @@ export default function AgendaSolicitacoesOperacionais() {
       end = range.end;
     }
     rangeRef.current = { start, end };
-    carregarEventos(start, end, filtrosTipo);
-  }, [carregarEventos, filtrosTipo]);
+    carregarEventos(start, end, filtrosTipo, filtroTurno);
+  }, [carregarEventos, filtrosTipo, filtroTurno]);
 
   // carga inicial (mês corrente)
   useMemo(() => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
     rangeRef.current = { start, end };
-    carregarEventos(start, end, filtrosTipo);
+    carregarEventos(start, end, filtrosTipo, filtroTurno);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // filtro de tipo mudou: recarrega o mesmo período já exibido
+  // filtro de tipo/turno mudou: recarrega o mesmo período já exibido
   useEffect(() => {
     if (!rangeRef.current) return;
-    carregarEventos(rangeRef.current.start, rangeRef.current.end, filtrosTipo);
+    carregarEventos(rangeRef.current.start, rangeRef.current.end, filtrosTipo, filtroTurno);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrosTipo]);
+  }, [filtrosTipo, filtroTurno]);
 
   const toggleTipo = (tipo) => {
     setFiltrosTipo((prev) =>
@@ -322,6 +335,54 @@ export default function AgendaSolicitacoesOperacionais() {
                   >
                     {Icon && <Icon size={13} className={ativo ? "text-white" : "text-muted"} />}
                     {label}
+                    {ativo && <Check size={12} strokeWidth={3} className="text-white" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── FILTRO POR TURNO ── */}
+          <div className="bg-surface rounded-2xl border border-default p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter size={14} className="text-muted" />
+              <span className="text-xs font-medium text-muted uppercase tracking-wide">Turno</span>
+              {filtroTurno && (
+                <button
+                  onClick={() => setFiltroTurno("")}
+                  className="ml-auto flex items-center gap-1 text-xs text-muted hover:text-[#FF453A] transition-colors cursor-pointer"
+                >
+                  <XCircle size={13} /> Limpar
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFiltroTurno("")}
+                aria-pressed={!filtroTurno}
+                className={`inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                  !filtroTurno
+                    ? "bg-[#FA4C00] border-[#FA4C00] text-white shadow-sm shadow-[#FA4C00]/25"
+                    : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40 hover:bg-surface-3"
+                }`}
+              >
+                Todos
+                {!filtroTurno && <Check size={12} strokeWidth={3} className="text-white" />}
+              </button>
+              {turnos.map((nome) => {
+                const ativo = filtroTurno === nome;
+                return (
+                  <button
+                    key={nome}
+                    onClick={() => setFiltroTurno(nome)}
+                    aria-pressed={ativo}
+                    className={`inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                      ativo
+                        ? "bg-[#FA4C00] border-[#FA4C00] text-white shadow-sm shadow-[#FA4C00]/25"
+                        : "bg-surface-2 border-default text-muted hover:text-page hover:border-[#FA4C00]/40 hover:bg-surface-3"
+                    }`}
+                  >
+                    {nome}
                     {ativo && <Check size={12} strokeWidth={3} className="text-white" />}
                   </button>
                 );
