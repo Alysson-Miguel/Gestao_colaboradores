@@ -29,10 +29,11 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data; // { pendentes, aprovadas, reprovadas, doMes }
   },
 
-  calendario: async (inicio, fim, tipos, turno) => {
+  calendario: async (inicio, fim, tipos, turno, status) => {
     const params = { inicio, fim };
     if (tipos && tipos.length) params.tipo = tipos.join(",");
     if (turno) params.turno = turno;
+    if (status) params.status = status;
     const res = await api.get("/solicitacoes-operacionais/calendario", { params });
     return res.data.data;
   },

@@ -177,6 +177,7 @@ export default function AgendaSolicitacoesOperacionais() {
   const [selecionada, setSelecionada] = useState(null);
   const [filtrosTipo, setFiltrosTipo] = useState([]); // vazio = todos os tipos
   const [filtroTurno, setFiltroTurno] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState(""); // vazio = todos os status
   const [turnos, setTurnos] = useState([]);
   const rangeRef = useRef(null);
 
@@ -190,12 +191,12 @@ export default function AgendaSolicitacoesOperacionais() {
     }).catch(() => {});
   }, []);
 
-  const carregarEventos = useCallback(async (start, end, tipos, turno) => {
+  const carregarEventos = useCallback(async (start, end, tipos, turno, status) => {
     setLoading(true);
     try {
       const inicio = format(start, "yyyy-MM-dd");
       const fim = format(end, "yyyy-MM-dd");
-      const solicitacoes = await SolicitacoesOperacionaisAPI.calendario(inicio, fim, tipos, turno);
+      const solicitacoes = await SolicitacoesOperacionaisAPI.calendario(inicio, fim, tipos, turno, status);
       setEvents(
         (solicitacoes || []).map((s) => ({
           id: s.idSolicitacao,
@@ -223,24 +224,28 @@ export default function AgendaSolicitacoesOperacionais() {
       end = range.end;
     }
     rangeRef.current = { start, end };
-    carregarEventos(start, end, filtrosTipo, filtroTurno);
-  }, [carregarEventos, filtrosTipo, filtroTurno]);
+    carregarEventos(start, end, filtrosTipo, filtroTurno, filtroStatus);
+  }, [carregarEventos, filtrosTipo, filtroTurno, filtroStatus]);
 
   // carga inicial (mês corrente)
   useMemo(() => {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
     rangeRef.current = { start, end };
-    carregarEventos(start, end, filtrosTipo, filtroTurno);
+    carregarEventos(start, end, filtrosTipo, filtroTurno, filtroStatus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // filtro de tipo/turno mudou: recarrega o mesmo período já exibido
+  // filtro de tipo/turno/status mudou: recarrega o mesmo período já exibido
   useEffect(() => {
     if (!rangeRef.current) return;
-    carregarEventos(rangeRef.current.start, rangeRef.current.end, filtrosTipo, filtroTurno);
+    carregarEventos(rangeRef.current.start, rangeRef.current.end, filtrosTipo, filtroTurno, filtroStatus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrosTipo, filtroTurno]);
+  }, [filtrosTipo, filtroTurno, filtroStatus]);
+
+  const toggleStatus = (status) => {
+    setFiltroStatus((prev) => (prev === status ? "" : status));
+  };
 
   const toggleTipo = (tipo) => {
     setFiltrosTipo((prev) =>
@@ -398,18 +403,38 @@ export default function AgendaSolicitacoesOperacionais() {
             <StatCard icon={<XCircle size={22} style={{ color: STATUS_COLOR.REPROVADA }} />} label="Reprovadas" value={counts.REPROVADA} color={STATUS_COLOR.REPROVADA} />
           </div>
 
-          {/* ── LEGENDA ── */}
+          {/* ── LEGENDA (clicável = filtro por status) ── */}
           <div className="flex flex-wrap items-center gap-2">
-            {Object.entries(STATUS_LABEL).map(([status, label]) => (
-              <span
-                key={status}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border"
-                style={{ background: `${STATUS_COLOR[status]}14`, borderColor: `${STATUS_COLOR[status]}33`, color: STATUS_COLOR[status] }}
+            {Object.entries(STATUS_LABEL).map(([status, label]) => {
+              const ativo = filtroStatus === status;
+              const cor = STATUS_COLOR[status];
+              return (
+                <button
+                  key={status}
+                  onClick={() => toggleStatus(status)}
+                  aria-pressed={ativo}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all"
+                  style={{
+                    background: ativo ? cor : `${cor}14`,
+                    borderColor: ativo ? cor : `${cor}33`,
+                    color: ativo ? "#fff" : cor,
+                    boxShadow: ativo ? `0 0 0 2px ${cor}40` : "none",
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: ativo ? "#fff" : cor }} />
+                  {label}
+                  {ativo && <Check size={12} strokeWidth={3} />}
+                </button>
+              );
+            })}
+            {filtroStatus && (
+              <button
+                onClick={() => setFiltroStatus("")}
+                className="inline-flex items-center gap-1 text-xs text-muted hover:text-[#FF453A] transition-colors cursor-pointer ml-1"
               >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_COLOR[status] }} />
-                {label}
-              </span>
-            ))}
+                <XCircle size={13} /> Limpar
+              </button>
+            )}
           </div>
 
           {/* ── CALENDÁRIO ── */}

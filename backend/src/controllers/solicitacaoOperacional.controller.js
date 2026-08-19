@@ -672,7 +672,7 @@ exports.getSolicitacao = async (req, res) => {
 ===================================================== */
 exports.listarCalendario = async (req, res) => {
   try {
-    const { inicio, fim, tipo, turno } = req.query;
+    const { inicio, fim, tipo, turno, status } = req.query;
 
     if (!inicio || !fim) {
       return errorResponse(res, "Parâmetros inicio e fim são obrigatórios", 400);
@@ -692,6 +692,11 @@ exports.listarCalendario = async (req, res) => {
     }
 
     if (turno) where.colaborador = { ...where.colaborador, turno: { nomeTurno: turno } };
+
+    if (status) {
+      const statusList = String(status).split(",").map((s) => s.trim()).filter(Boolean);
+      if (statusList.length) where.status = { in: statusList };
+    }
 
     const solicitacoes = await prisma.solicitacaoOperacional.findMany({
       where,
