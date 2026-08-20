@@ -1,265 +1,92 @@
-# 🏢 Sistema de Gestão de Colaboradores
+<div align="center">
 
-Sistema completo para gestão de colaboradores, controle de presença, escalas, treinamentos e muito mais.
+# 🏢 COPEOPLE
 
-## 🚀 Funcionalidades Principais
+### Gestão de força de trabalho para operações logísticas
 
-### 👥 Gestão de Colaboradores
-- Cadastro completo de colaboradores
-- Controle de contratos e vínculos
-- Gestão de cargos e setores
-- Histórico de movimentações
+*Colaboradores, ponto e presença, escalas, treinamentos, solicitações operacionais, medidas disciplinares e indicadores de segurança — tudo em um único lugar.*
 
-### ⏰ Controle de Presença
-- Registro de ponto por CPF
-- Controle de presença mensal
-- Ajustes manuais de presença
-- **✨ NOVO: Exportação automática para Google Sheets**
+[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](#tecnologias)
+[![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](#tecnologias)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prisma-4169E1?logo=postgresql&logoColor=white)](#tecnologias)
+[![Deploy](https://img.shields.io/badge/Deploy-Vercel%20%2B%20Render-000000?logo=vercel&logoColor=white)](#deploy)
+[![Docs](https://img.shields.io/badge/Docs-Arquitetura%20t%C3%A9cnica-FA4C00)](docs/ARCHITECTURE.md)
 
-### 📊 Dashboards
-- Dashboard administrativo
-- Dashboard operacional
-- Dashboard de colaboradores
-- Métricas e indicadores em tempo real
-
-### 📚 Treinamentos
-- Gestão de treinamentos
-- Controle de participantes
-- Geração de atas
-- Histórico de capacitações
-
-### 🏥 Gestão de Ausências
-- Atestados médicos
-- Faltas justificadas
-- Licenças
-- Acidentes de trabalho
-
-### 📈 Relatórios
-- Daily Work (DW)
-- Escalas e turnos
-- Medidas disciplinares
-- Frequência e absenteísmo
-
-## ✨ Novidade: Exportação Automática para Google Sheets
-
-### 🎯 O Que É?
-Sistema que exporta automaticamente o controle de presença para uma planilha do Google Sheets, mantendo os dados sempre atualizados.
-
-### 🔄 Funcionalidades
-- **Sincronização Automática:** A cada 5 minutos
-- **Exportação Manual:** Botão na interface com filtros
-- **Formatação Automática:** Planilha formatada e organizada
-- **Abertura Automática:** Planilha abre após exportação
-
-### 📚 Documentação Completa
-- **Início Rápido:** [INICIO_RAPIDO.md](INICIO_RAPIDO.md) (2 minutos)
-- **Guia Completo:** [README_EXPORTACAO_SHEETS.md](README_EXPORTACAO_SHEETS.md)
-- **Índice:** [INDICE_DOCUMENTACAO.md](INDICE_DOCUMENTACAO.md)
-
-### 🚀 Como Começar
-```bash
-# 1. Configurar permissões (ver INICIO_RAPIDO.md)
-# 2. Testar conexão
-cd backend
-npm run test:sheets
-
-# 3. Iniciar servidor
-npm run dev
-```
-
-## 🛠️ Tecnologias
-
-### Backend
-- **Node.js** + Express
-- **PostgreSQL** + Prisma ORM
-- **JWT** para autenticação
-- **Google Sheets API** para exportação
-- **node-cron** para jobs automáticos
-
-### Frontend
-- **React** + Vite
-- **TailwindCSS** para estilização
-- **Axios** para requisições
-- **Lucide React** para ícones
-
-## 📁 Estrutura do Projeto
-
-```
-/
-├── backend/                    # API Node.js
-│   ├── src/
-│   │   ├── controllers/       # Controladores
-│   │   ├── services/          # Serviços (incluindo Google Sheets)
-│   │   ├── jobs/              # Jobs automáticos
-│   │   ├── routes/            # Rotas da API
-│   │   ├── middlewares/       # Middlewares
-│   │   └── utils/             # Utilitários
-│   ├── prisma/                # Schema e migrations
-│   └── test-sheets-connection.js  # Teste de conexão
-│
-├── frontend/                   # Interface React
-│   ├── src/
-│   │   ├── components/        # Componentes React
-│   │   ├── pages/             # Páginas
-│   │   ├── services/          # Serviços de API
-│   │   └── context/           # Contextos React
-│   └── public/                # Arquivos estáticos
-│
-└── docs/                       # Documentação
-    ├── INICIO_RAPIDO.md
-    ├── README_EXPORTACAO_SHEETS.md
-    └── ...
-```
-
-## 🚀 Instalação
-
-### Pré-requisitos
-- Node.js 18+
-- PostgreSQL 14+
-- npm ou yarn
-
-### Backend
-```bash
-cd backend
-npm install
-npm run prisma:generate
-npm run prisma:migrate
-npm run dev
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## 🔧 Configuração
-
-### Backend (.env)
-```env
-# Banco de dados
-DATABASE_URL="postgresql://..."
-
-# JWT
-JWT_SECRET="..."
-JWT_EXPIRES_IN=12h
-
-# Google Sheets (para exportação)
-GOOGLE_CLIENT_EMAIL="..."
-GOOGLE_PRIVATE_KEY="..."
-SHEETS_PRESENCA_SPREADSHEET_ID="..."
-SHEETS_PRESENCA_ABA="Controle_Presenca"
-
-# Sincronização
-SYNC_ENABLED=true
-SYNC_INTERVAL_MINUTES=5
-```
-
-### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:3000/api
-```
-
-## 📊 Scripts Disponíveis
-
-### Backend
-```bash
-npm run dev              # Desenvolvimento
-npm start                # Produção
-npm run test:sheets      # Testar conexão Google Sheets
-npm run prisma:studio    # Interface do banco
-npm run prisma:migrate   # Executar migrations
-```
-
-### Frontend
-```bash
-npm run dev              # Desenvolvimento
-npm run build            # Build para produção
-npm run preview          # Preview do build
-```
-
-## 🔐 Autenticação
-
-O sistema usa JWT para autenticação. Inclua o token no header:
-```
-Authorization: Bearer <token>
-```
-
-## 📡 API Endpoints
-
-### Autenticação
-- `POST /api/auth/login` - Login
-- `POST /api/auth/register` - Registro
-
-### Colaboradores
-- `GET /api/colaboradores` - Listar
-- `POST /api/colaboradores` - Criar
-- `PUT /api/colaboradores/:id` - Atualizar
-- `DELETE /api/colaboradores/:id` - Deletar
-
-### Controle de Presença
-- `POST /api/ponto/registrar` - Registrar ponto
-- `GET /api/ponto/controle` - Buscar controle
-- `POST /api/ponto/ajuste-manual` - Ajuste manual
-- `GET /api/ponto/exportar-sheets` - **NOVO:** Exportar para Sheets
-
-### Dashboards
-- `GET /api/dashboard/admin` - Dashboard admin
-- `GET /api/dashboard/operacional` - Dashboard operacional
-- `GET /api/dashboard/colaborador/:id` - Dashboard colaborador
-
-## 🎯 Roadmap
-
-### ✅ Concluído
-- [x] Sistema de autenticação
-- [x] Gestão de colaboradores
-- [x] Controle de presença
-- [x] Dashboards
-- [x] Exportação para Google Sheets
-
-### 🚧 Em Desenvolvimento
-- [ ] Notificações push
-- [ ] App mobile
-- [ ] Relatórios avançados
-- [ ] Integração com folha de pagamento
-
-### 📋 Planejado
-- [ ] BI integrado
-- [ ] Machine Learning para previsões
-- [ ] API pública
-- [ ] Webhooks
-
-## 🤝 Contribuindo
-
-1. Fork o projeto
-2. Crie uma branch (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
-
-## 📝 Licença
-
-Este projeto está sob a licença ISC.
-
-## 👥 Equipe
-
-- **Backend:** Node.js + PostgreSQL
-- **Frontend:** React + TailwindCSS
-- **DevOps:** Render + Vercel
-
-## 📞 Suporte
-
-- **Documentação:** Veja pasta `/docs`
-- **Issues:** Abra uma issue no GitHub
-- **Email:** suporte@exemplo.com
-
-## 🎉 Agradecimentos
-
-Agradecimentos especiais a todos que contribuíram para este projeto.
+</div>
 
 ---
 
-**Versão:** 2.2.0
-**Última Atualização:** 20/03/2026  
-**Status:** ✅ Em Produção 
+## O que é
+
+COPEOPLE é o sistema interno usado para operar o dia a dia de uma ou mais estações (unidades) logísticas: quem está trabalhando, quem tem folga, quem precisa de treinamento, quem cometeu uma não conformidade, quem se afastou — e como cada uma dessas decisões impacta a operação em tempo real.
+
+Ele nasceu para substituir controle manual/planilha em processos que envolvem múltiplas pessoas decidindo sobre a mesma informação (líder, gestão e RH aprovando a mesma solicitação, por exemplo), e centraliza esses fluxos com regras de aprovação, histórico e notificação automática.
+
+**Para quem é:**
+- **Liderança de turno/setor** — rotina operacional: presença, escalas, solicitações do time.
+- **Gestão e RH** — aprovações, medidas disciplinares, indicadores de absenteísmo e segurança.
+- **Administração** — configuração de estações, cadastros organizacionais e operações administrativas sensíveis.
+
+## Destaques
+
+- 🕒 **Controle de presença** com registro de ponto por CPF (sem necessidade de login em totem), ajuste manual e status do dia calculado automaticamente (desligamento, afastamento, atestado, DSR).
+- 📅 **Folga dominical automatizada** — geração mensal por algoritmo que distribui folgas de domingo respeitando capacidade operacional mínima por turno e o histórico de cada colaborador, com simulação (preview) antes de confirmar.
+- 📝 **Solicitações operacionais em fluxo de aprovação** — folga, banco de horas, sinergia, troca de DSR, hora extra, troca de gestão/escala e desligamento, com aprovação em uma ou duas etapas (líder → RH/Coordenador quando aplicável) e notificação automática por e-mail e SEATALK.
+- 🎓 **Treinamentos** com controle de participantes por setor, geração de ata em PDF e fluxo de solicitação com validação de conflito de horário.
+- ⚖️ **Medidas disciplinares** com matriz configurável de violação × consequência, sugestão automática a partir de faltas detectadas e assinatura digital de evidência.
+- 📊 **Dashboards operacionais** — absenteísmo, faltas, desligamentos, produção por turno/hora, e um painel de indicadores de segurança (Safety Walk, DDSMA, OPA) alimentado direto do Google Sheets.
+- 🔐 **Controle de acesso por papel e por estação** — cada usuário só enxerga e decide sobre o que sua função e sua unidade permitem.
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    U["👤 Usuário"] --> FE["Frontend\nReact + Vite"]
+    FE -->|"API REST + JWT"| BE["Backend\nNode.js / Express"]
+    BE --> DB[("PostgreSQL")]
+    BE --> INT["Integrações:\nGoogle Sheets · E-mail\nSEATALK · Cloudflare R2"]
+```
+
+Documentação técnica completa (rotas de API, schema do banco, variáveis de ambiente, jobs agendados, limitações conhecidas) está em **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+## Tecnologias
+
+| | |
+|---|---|
+| **Frontend** | React 19 · Vite · Tailwind CSS · React Query · React Hook Form + Zod · Radix UI |
+| **Backend** | Node.js · Express · Prisma ORM · JWT · bcrypt |
+| **Banco de dados** | PostgreSQL |
+| **Infraestrutura** | Redis (Upstash, cache) · Cloudflare R2 (arquivos) · Google Sheets API · Nodemailer · SEATALK |
+| **Deploy** | Vercel (frontend) · Render (backend) |
+
+## Começando
+
+```bash
+git clone <url-do-repositório>
+cd gestao-colaboradores
+
+npm run install:all        # instala backend e frontend
+# configure backend/.env e frontend/.env.local — ver docs/ARCHITECTURE.md
+
+npm run prisma:generate
+npm run prisma:migrate
+
+npm run dev                 # backend em :3000, frontend em :5173
+```
+
+Guia completo de variáveis de ambiente, scripts e requisitos: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#instalação)**.
+
+## Documentação
+
+| | |
+|---|---|
+| 📐 [Arquitetura e referência técnica](docs/ARCHITECTURE.md) | Rotas de API, schema do banco, fluxos, variáveis de ambiente, segurança e limitações conhecidas |
+| 📋 [Changelog](CHANGELOG.md) | Histórico de mudanças por versão |
+
+## Autor
+
+Desenvolvido e mantido por **Lucas Robson**.
+
+## Licença
+
+ISC.
