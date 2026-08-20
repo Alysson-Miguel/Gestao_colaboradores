@@ -236,6 +236,11 @@ export default function Sidebar({ isOpen, onClose }) {
                       active={isActive("/dashboard/faltas")}
                       onClick={() => go("/dashboard/faltas")}
                     />
+                    <SidebarSubItem
+                      label="Internalização"
+                      active={isActive("/dashboard/colaboradores")}
+                      onClick={() => go("/dashboard/colaboradores")}
+                    />
                   </>
                 )}
                 {isGlobal && (
@@ -244,11 +249,6 @@ export default function Sidebar({ isOpen, onClose }) {
                       label="Administrativo"
                       active={isActive("/dashboard/admin")}
                       onClick={() => go("/dashboard/admin")}
-                    />
-                    <SidebarSubItem
-                      label="Internalização"
-                      active={isActive("/dashboard/colaboradores")}
-                      onClick={() => go("/dashboard/colaboradores")}
                     />
                     <SidebarSubItem
                       label="Desligamentos"
