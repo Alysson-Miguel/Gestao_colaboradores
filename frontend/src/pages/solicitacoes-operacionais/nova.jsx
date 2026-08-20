@@ -4,6 +4,7 @@ import MainLayout from "../../components/MainLayout";
 import {
   ArrowLeft, CalendarOff, Clock3, Share2, ArrowLeftRight, Send, AlertTriangle,
   Hourglass, UserCog, CalendarClock, UserX, CheckCircle2, Upload,
+  Repeat, Palmtree, PauseCircle, Building2,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -24,6 +25,10 @@ const TIPOS = [
   { key: "TROCA_GESTAO", label: "Troca de Gestão", desc: "Alterar o líder responsável pelo colaborador", icon: UserCog },
   { key: "TROCA_ESCALA", label: "Troca de Escala", desc: "Alterar a escala de trabalho do colaborador", icon: CalendarClock },
   { key: "DESLIGAMENTO", label: "Desligamento", desc: "Solicitar o desligamento de um colaborador ativo", icon: UserX },
+  { key: "TROCA_TURNO", label: "Troca de Turno", desc: "Alterar o turno de trabalho do colaborador", icon: Repeat },
+  { key: "FERIAS", label: "Férias", desc: "Período de férias, com data de início e fim", icon: Palmtree },
+  { key: "AFASTAMENTO", label: "Afastamento", desc: "Período de afastamento, com data de início e fim", icon: PauseCircle },
+  { key: "INTERNALIZACAO", label: "Internalização", desc: "Colaborador terceirizado passa a ser SPX (empresa e matrícula)", icon: Building2 },
 ];
 
 const TIPOS_COM_DATA_GENERICA = ["FOLGA", "BANCO_HORAS", "SINERGIA", "HORA_EXTRA"];
@@ -107,6 +112,24 @@ export default function NovaSolicitacaoOperacional() {
   const [motivoDesligamentoSolicitado, setMotivoDesligamentoSolicitado] = useState("");
   const [tipoDesligamentoSolicitado, setTipoDesligamentoSolicitado] = useState("");
 
+  /* troca de turno */
+  const [novoIdTurno, setNovoIdTurno] = useState("");
+  const [turnos, setTurnos] = useState([]);
+  const [carregandoTurnos, setCarregandoTurnos] = useState(false);
+
+  /* férias / afastamento (campos compartilhados — mutuamente exclusivos por tipo) */
+  const [dataInicioAusencia, setDataInicioAusencia] = useState("");
+  const [dataFimAusencia, setDataFimAusencia] = useState("");
+
+  /* internalização */
+  const [internalizacaoNovaIdEmpresa, setInternalizacaoNovaIdEmpresa] = useState("");
+  const [internalizacaoNovaMatricula, setInternalizacaoNovaMatricula] = useState("");
+  const [empresasInternalizacao, setEmpresasInternalizacao] = useState([]);
+  const [carregandoEmpresasInternalizacao, setCarregandoEmpresasInternalizacao] = useState(false);
+  const [elegibilidadeInternalizacao, setElegibilidadeInternalizacao] = useState(null);
+  const [verificandoElegibilidade, setVerificandoElegibilidade] = useState(false);
+  const [confirmarMesmoAssim, setConfirmarMesmoAssim] = useState(false);
+
   const resetForm = () => {
     setColaborador(null); setData(""); setMotivo("");
     setBhDiaCompleto(true); setBhQuantidadeHoras(""); setBhHoraEntrada("");
@@ -116,6 +139,10 @@ export default function NovaSolicitacaoOperacional() {
     setNovoLiderOpsId(""); setLideres([]);
     setNovaIdEscala(""); setEscalas([]);
     setDataDesligamentoSolicitada(""); setMotivoDesligamentoSolicitado(""); setTipoDesligamentoSolicitado("");
+    setNovoIdTurno(""); setTurnos([]);
+    setDataInicioAusencia(""); setDataFimAusencia("");
+    setInternalizacaoNovaIdEmpresa(""); setInternalizacaoNovaMatricula(""); setEmpresasInternalizacao([]);
+    setElegibilidadeInternalizacao(null); setConfirmarMesmoAssim(false);
     setErro(null);
     setSucessoMsg(null);
   };
@@ -151,6 +178,40 @@ export default function NovaSolicitacaoOperacional() {
       .finally(() => setCarregandoEscalas(false));
   }, [tipo, colaborador?.opsId, colaborador?.idEscala]);
 
+  /* carrega turnos ativos da estação quando o colaborador é definido (Troca de Turno) */
+  useEffect(() => {
+    if (tipo !== "TROCA_TURNO" || !colaborador?.opsId) return;
+    setCarregandoTurnos(true);
+    SolicitacoesOperacionaisAPI.listarTurnosAtivos(colaborador.opsId)
+      .then((lista) => setTurnos(lista || []))
+      .catch(() => setTurnos([]))
+      .finally(() => setCarregandoTurnos(false));
+  }, [tipo, colaborador?.opsId]);
+
+  /* carrega empresas SPX/diretas quando o colaborador é definido (Internalização) */
+  useEffect(() => {
+    if (tipo !== "INTERNALIZACAO" || !colaborador?.opsId) return;
+    setCarregandoEmpresasInternalizacao(true);
+    SolicitacoesOperacionaisAPI.listarEmpresasInternalizacao(colaborador.opsId)
+      .then((lista) => setEmpresasInternalizacao(lista || []))
+      .catch(() => setEmpresasInternalizacao([]))
+      .finally(() => setCarregandoEmpresasInternalizacao(false));
+  }, [tipo, colaborador?.opsId]);
+
+  /* verifica elegibilidade do colaborador para Internalização assim que ele é definido */
+  useEffect(() => {
+    setConfirmarMesmoAssim(false);
+    if (tipo !== "INTERNALIZACAO" || !colaborador?.opsId) {
+      setElegibilidadeInternalizacao(null);
+      return;
+    }
+    setVerificandoElegibilidade(true);
+    SolicitacoesOperacionaisAPI.verificarElegibilidadeInternalizacao(colaborador.opsId)
+      .then((resultado) => setElegibilidadeInternalizacao(resultado))
+      .catch(() => setElegibilidadeInternalizacao(null))
+      .finally(() => setVerificandoElegibilidade(false));
+  }, [tipo, colaborador?.opsId]);
+
   const inversaoValida = dsrDataAtual1 && dsrDataNova1 && dsrDataAtual2 && dsrDataNova2
     ? dsrDataAtual1 === dsrDataNova2 && dsrDataAtual2 === dsrDataNova1
     : true;
@@ -175,6 +236,17 @@ export default function NovaSolicitacaoOperacional() {
     if (tipo === "TROCA_ESCALA") return !!novaIdEscala;
     if (tipo === "DESLIGAMENTO") {
       return !!dataDesligamentoSolicitada && !!motivoDesligamentoSolicitado && !!tipoDesligamentoSolicitado;
+    }
+    if (tipo === "TROCA_TURNO") return !!novoIdTurno;
+    if (tipo === "FERIAS" || tipo === "AFASTAMENTO") {
+      if (!dataInicioAusencia || !dataFimAusencia) return false;
+      return dataFimAusencia >= dataInicioAusencia;
+    }
+    if (tipo === "INTERNALIZACAO") {
+      if (!internalizacaoNovaIdEmpresa || !internalizacaoNovaMatricula.trim()) return false;
+      if (verificandoElegibilidade) return false;
+      if (elegibilidadeInternalizacao && !elegibilidadeInternalizacao.elegivel && !confirmarMesmoAssim) return false;
+      return true;
     }
     return false;
   })();
@@ -221,6 +293,18 @@ export default function NovaSolicitacaoOperacional() {
         payload.dataDesligamentoSolicitada = dataDesligamentoSolicitada;
         payload.motivoDesligamentoSolicitado = motivoDesligamentoSolicitado;
         payload.tipoDesligamentoSolicitado = tipoDesligamentoSolicitado;
+      } else if (tipo === "TROCA_TURNO") {
+        payload.opsId = colaborador.opsId;
+        payload.novoIdTurno = Number(novoIdTurno);
+      } else if (tipo === "FERIAS" || tipo === "AFASTAMENTO") {
+        payload.opsId = colaborador.opsId;
+        payload.dataInicio = dataInicioAusencia;
+        payload.dataFim = dataFimAusencia;
+      } else if (tipo === "INTERNALIZACAO") {
+        payload.opsId = colaborador.opsId;
+        payload.internalizacaoNovaIdEmpresa = Number(internalizacaoNovaIdEmpresa);
+        payload.internalizacaoNovaMatricula = internalizacaoNovaMatricula.trim();
+        payload.internalizacaoForcada = confirmarMesmoAssim;
       }
 
       const criada = await SolicitacoesOperacionaisAPI.criar(payload);
@@ -476,6 +560,110 @@ export default function NovaSolicitacaoOperacional() {
                           Ao ser aprovada, o colaborador é desligado automaticamente: status muda para Inativo e os dias restantes do mês são preenchidos no Controle de Presença.
                         </p>
                       </div>
+                    </>
+                  )}
+
+                  {tipo === "TROCA_TURNO" && (
+                    <Field label="Novo turno">
+                      <select
+                        value={novoIdTurno}
+                        onChange={(e) => setNovoIdTurno(e.target.value)}
+                        disabled={!colaborador || carregandoTurnos}
+                        className={`${fieldCls()} appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60`}
+                      >
+                        <option value="" disabled>
+                          {!colaborador ? "Informe o CPF do colaborador primeiro" : carregandoTurnos ? "Carregando turnos..." : "Selecione o novo turno"}
+                        </option>
+                        {turnos.map((t) => (
+                          <option key={t.idTurno} value={t.idTurno}>{t.nomeTurno}</option>
+                        ))}
+                      </select>
+                      {colaborador && !carregandoTurnos && turnos.length === 0 && (
+                        <p className="text-xs text-muted mt-1">Nenhum turno ativo encontrado na estação do colaborador.</p>
+                      )}
+                    </Field>
+                  )}
+
+                  {(tipo === "FERIAS" || tipo === "AFASTAMENTO") && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Data de início">
+                        <input type="date" value={dataInicioAusencia} onChange={(e) => setDataInicioAusencia(e.target.value)} className={fieldCls()} />
+                      </Field>
+                      <Field label="Data de fim">
+                        <input type="date" value={dataFimAusencia} onChange={(e) => setDataFimAusencia(e.target.value)} className={fieldCls()} />
+                      </Field>
+                    </div>
+                  )}
+                  {(tipo === "FERIAS" || tipo === "AFASTAMENTO") && dataInicioAusencia && dataFimAusencia && dataFimAusencia < dataInicioAusencia && (
+                    <div className="flex gap-2.5 rounded-xl border border-[#FF453A]/30 bg-[#FF453A]/5 p-3">
+                      <AlertTriangle size={15} className="text-[#FF453A] shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#FF453A]">A data de fim não pode ser anterior à data de início.</p>
+                    </div>
+                  )}
+
+                  {tipo === "INTERNALIZACAO" && (
+                    <>
+                      <Field label="Nova empresa">
+                        <select
+                          value={internalizacaoNovaIdEmpresa}
+                          onChange={(e) => setInternalizacaoNovaIdEmpresa(e.target.value)}
+                          disabled={!colaborador || carregandoEmpresasInternalizacao}
+                          className={`${fieldCls()} appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          <option value="" disabled>
+                            {!colaborador ? "Informe o CPF do colaborador primeiro" : carregandoEmpresasInternalizacao ? "Carregando empresas..." : "Selecione a nova empresa"}
+                          </option>
+                          {empresasInternalizacao.map((e) => (
+                            <option key={e.idEmpresa} value={e.idEmpresa}>{e.razaoSocial}</option>
+                          ))}
+                        </select>
+                      </Field>
+
+                      <Field label="Nova matrícula">
+                        <input
+                          type="text"
+                          value={internalizacaoNovaMatricula}
+                          onChange={(e) => setInternalizacaoNovaMatricula(e.target.value)}
+                          placeholder="Nova matrícula do colaborador"
+                          className={fieldCls()}
+                        />
+                      </Field>
+
+                      {colaborador && verificandoElegibilidade && (
+                        <p className="text-xs text-muted bg-surface-2 rounded-xl px-3 py-2.5">Verificando elegibilidade do colaborador...</p>
+                      )}
+
+                      {colaborador && !verificandoElegibilidade && elegibilidadeInternalizacao?.elegivel && (
+                        <div className="flex gap-2.5 rounded-xl border border-[#34C759]/30 bg-[#34C759]/5 p-3">
+                          <CheckCircle2 size={15} className="text-[#34C759] shrink-0 mt-0.5" />
+                          <p className="text-xs text-[#34C759]">
+                            Colaborador atende aos critérios de internalização ({elegibilidadeInternalizacao.diasCasa} dias de casa).
+                          </p>
+                        </div>
+                      )}
+
+                      {colaborador && !verificandoElegibilidade && elegibilidadeInternalizacao && !elegibilidadeInternalizacao.elegivel && (
+                        <div className="space-y-2.5">
+                          <div className="flex gap-2.5 rounded-xl border border-[#FF453A]/30 bg-[#FF453A]/5 p-3">
+                            <AlertTriangle size={15} className="text-[#FF453A] shrink-0 mt-0.5" />
+                            <div className="text-xs text-[#FF453A]">
+                              <p className="font-medium mb-1">Colaborador não atende aos critérios de internalização:</p>
+                              <ul className="list-disc list-inside space-y-0.5">
+                                {elegibilidadeInternalizacao.motivos.map((m, i) => <li key={i}>{m}</li>)}
+                              </ul>
+                            </div>
+                          </div>
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={confirmarMesmoAssim}
+                              onChange={(e) => setConfirmarMesmoAssim(e.target.checked)}
+                              className="accent-[#FA4C00]"
+                            />
+                            Confirmo que quero solicitar a internalização mesmo assim
+                          </label>
+                        </div>
+                      )}
                     </>
                   )}
                 </>

@@ -12,6 +12,7 @@ import {
   CalendarDays, Clock, CheckCircle2, XCircle, AlertTriangle,
   User, Briefcase, Building2, ArrowLeftRight, Filter, Check,
   CalendarOff, Clock3, Share2, Hourglass, UserCog, CalendarClock, UserX,
+  Repeat, Palmtree, PauseCircle,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -49,6 +50,10 @@ const TIPO_ICON = {
   TROCA_GESTAO: UserCog,
   TROCA_ESCALA: CalendarClock,
   DESLIGAMENTO: UserX,
+  TROCA_TURNO: Repeat,
+  FERIAS: Palmtree,
+  AFASTAMENTO: PauseCircle,
+  INTERNALIZACAO: Building2,
 };
 
 const MESSAGES = {
@@ -468,7 +473,7 @@ export default function AgendaSolicitacoesOperacionais() {
 
             <div className="grid grid-cols-2 gap-2.5">
               <InfoTile icon={<User size={15} />} label="Colaborador" value={selecionada.colaborador?.nomeCompleto} />
-              {!["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"].includes(selecionada.tipo) && (
+              {!["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO", "TROCA_TURNO", "FERIAS", "AFASTAMENTO", "INTERNALIZACAO"].includes(selecionada.tipo) && (
                 <InfoTile icon={<CalendarDays size={15} />} label="Data" value={formatDateOnly(selecionada.data)} />
               )}
               <InfoTile icon={<Building2 size={15} />} label="Setor" value={selecionada.colaborador?.setor?.nomeSetor} />
@@ -490,6 +495,18 @@ export default function AgendaSolicitacoesOperacionais() {
               )}
               {selecionada.tipo === "DESLIGAMENTO" && (
                 <InfoTile icon={<CalendarDays size={15} />} label="Data de Desligamento" value={formatDateOnly(selecionada.dataDesligamentoSolicitada)} />
+              )}
+              {selecionada.tipo === "TROCA_TURNO" && (
+                <InfoTile icon={<Repeat size={15} />} label="Novo Turno" value={selecionada.novoTurno?.nomeTurno} />
+              )}
+              {selecionada.tipo === "FERIAS" && (
+                <InfoTile icon={<CalendarDays size={15} />} label="Período" value={`${formatDateOnly(selecionada.feriasDataInicio)} a ${formatDateOnly(selecionada.feriasDataFim)}`} />
+              )}
+              {selecionada.tipo === "AFASTAMENTO" && (
+                <InfoTile icon={<CalendarDays size={15} />} label="Período" value={`${formatDateOnly(selecionada.afastamentoDataInicio)} a ${formatDateOnly(selecionada.afastamentoDataFim)}`} />
+              )}
+              {selecionada.tipo === "INTERNALIZACAO" && (
+                <InfoTile icon={<Building2 size={15} />} label="Nova Empresa" value={selecionada.internalizacaoNovaEmpresa?.razaoSocial} />
               )}
             </div>
 

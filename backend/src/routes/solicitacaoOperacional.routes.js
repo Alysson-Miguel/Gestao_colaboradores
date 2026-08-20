@@ -13,6 +13,15 @@ router.get("/colaborador", authenticate, authorize(...roles), solicitacaoControl
 /* ESCALAS ATIVAS DA ESTAÇÃO (formulário de Troca de Escala) */
 router.get("/escalas", authenticate, authorize(...roles), solicitacaoController.listarEscalasAtivas);
 
+/* TURNOS ATIVOS DA ESTAÇÃO (formulário de Troca de Turno) */
+router.get("/turnos", authenticate, authorize(...roles), solicitacaoController.listarTurnosAtivos);
+
+/* EMPRESAS SPX/DIRETAS DA ESTAÇÃO (formulário de Internalização) */
+router.get("/empresas-internalizacao", authenticate, authorize(...roles), solicitacaoController.listarEmpresasInternalizacao);
+
+/* CHECAGEM PRÉVIA DE ELEGIBILIDADE PARA INTERNALIZAÇÃO */
+router.get("/elegibilidade-internalizacao", authenticate, authorize(...roles), solicitacaoController.verificarElegibilidadeInternalizacaoHandler);
+
 /* CALENDÁRIO */
 router.get("/calendario", authenticate, authorize(...roles), solicitacaoController.listarCalendario);
 

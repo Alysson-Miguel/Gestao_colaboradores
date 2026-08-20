@@ -53,6 +53,21 @@ export const SolicitacoesOperacionaisAPI = {
     return res.data.data;
   },
 
+  listarTurnosAtivos: async (opsId) => {
+    const res = await api.get("/solicitacoes-operacionais/turnos", { params: { opsId } });
+    return res.data.data;
+  },
+
+  listarEmpresasInternalizacao: async (opsId) => {
+    const res = await api.get("/solicitacoes-operacionais/empresas-internalizacao", { params: { opsId } });
+    return res.data.data;
+  },
+
+  verificarElegibilidadeInternalizacao: async (opsId) => {
+    const res = await api.get("/solicitacoes-operacionais/elegibilidade-internalizacao", { params: { opsId } });
+    return res.data.data;
+  },
+
   criar: async (payload) => {
     const res = await api.post("/solicitacoes-operacionais", payload);
     return res.data.data;

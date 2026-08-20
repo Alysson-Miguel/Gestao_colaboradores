@@ -2,7 +2,7 @@ import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "../../components/MainLayout";
 import {
-  ArrowLeft, CheckCircle, XCircle, X, History, ArrowLeftRight,
+  ArrowLeft, CheckCircle, XCircle, X, History, ArrowLeftRight, AlertTriangle,
 } from "lucide-react";
 
 import Sidebar from "../../components/Sidebar";
@@ -142,7 +142,7 @@ export default function DetalhesSolicitacaoOperacional() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                {!["TROCA_DSR", "TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"].includes(solicitacao.tipo) && (
+                {!["TROCA_DSR", "TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO", "TROCA_TURNO", "FERIAS", "AFASTAMENTO", "INTERNALIZACAO"].includes(solicitacao.tipo) && (
                   <div><span className="text-muted">Data</span><p className="font-medium">{formatDateOnly(solicitacao.data)}</p></div>
                 )}
 
@@ -197,6 +197,35 @@ export default function DetalhesSolicitacaoOperacional() {
                   </>
                 )}
 
+                {solicitacao.tipo === "TROCA_TURNO" && (
+                  <div className="md:col-span-2">
+                    <span className="text-muted">Novo Turno</span>
+                    <p className="font-medium">{solicitacao.novoTurno?.nomeTurno || "—"}</p>
+                  </div>
+                )}
+
+                {(solicitacao.tipo === "FERIAS" || solicitacao.tipo === "AFASTAMENTO") && (
+                  <>
+                    <div><span className="text-muted">Data de Início</span><p className="font-medium">{formatDateOnly(solicitacao.tipo === "FERIAS" ? solicitacao.feriasDataInicio : solicitacao.afastamentoDataInicio)}</p></div>
+                    <div><span className="text-muted">Data de Fim</span><p className="font-medium">{formatDateOnly(solicitacao.tipo === "FERIAS" ? solicitacao.feriasDataFim : solicitacao.afastamentoDataFim)}</p></div>
+                  </>
+                )}
+
+                {solicitacao.tipo === "INTERNALIZACAO" && (
+                  <>
+                    <div><span className="text-muted">Nova Empresa</span><p className="font-medium">{solicitacao.internalizacaoNovaEmpresa?.razaoSocial || "—"}</p></div>
+                    <div><span className="text-muted">Nova Matrícula</span><p className="font-medium">{solicitacao.internalizacaoNovaMatricula || "—"}</p></div>
+                    {solicitacao.internalizacaoForcada && (
+                      <div className="md:col-span-2 flex gap-2.5 rounded-xl border border-[#FF9F0A]/30 bg-[#FF9F0A]/5 p-3">
+                        <AlertTriangle size={15} className="text-[#FF9F0A] shrink-0 mt-0.5" />
+                        <p className="text-xs text-[#FF9F0A]">
+                          O colaborador não atendia aos critérios de elegibilidade no momento da solicitação — o solicitante confirmou explicitamente mesmo assim.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div><span className="text-muted">Solicitante</span><p>{solicitacao.solicitante?.name}</p></div>
                 <div><span className="text-muted">Data da Solicitação</span><p>{formatDateOnly(solicitacao.dataCriacao)}</p></div>
                 {solicitacao.primeiraAprovacaoPor && (
@@ -223,7 +252,7 @@ export default function DetalhesSolicitacaoOperacional() {
               {solicitacao.status === "APROVADA" && (
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                   <p className="text-sm text-emerald-400 font-medium">
-                    {["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"].includes(solicitacao.tipo)
+                    {["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO", "TROCA_TURNO", "FERIAS", "AFASTAMENTO", "INTERNALIZACAO"].includes(solicitacao.tipo)
                       ? "Sua solicitação foi aprovada e o cadastro do colaborador já foi atualizado automaticamente."
                       : "Sua solicitação foi aprovada e o Controle de Presença já foi atualizado automaticamente."}
                   </p>

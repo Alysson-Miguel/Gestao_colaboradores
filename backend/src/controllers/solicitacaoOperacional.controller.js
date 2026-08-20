@@ -15,6 +15,8 @@ const {
   gerarFrequenciaDesligamento,
   gerarDSRFuturoColaborador,
   gerarDSRBackfillColaborador,
+  gerarFrequenciaFerias,
+  gerarFrequenciaAfastamento,
 } = require("../services/dsrBackfill.service");
 const { sendSolicitacaoNotification } = require("../services/seatalkSolicitacoes.service");
 const csv = require("csvtojson");
@@ -36,12 +38,18 @@ const TIPO_LABEL_SEATALK = {
   TROCA_GESTAO: "Troca de Gestão",
   TROCA_ESCALA: "Troca de Escala",
   DESLIGAMENTO: "Desligamento",
+  TROCA_TURNO: "Troca de Turno",
+  FERIAS: "Férias",
+  AFASTAMENTO: "Afastamento",
+  INTERNALIZACAO: "Internalização",
 };
 
 // Segunda etapa de aprovação por tipo — RH confirma Troca de Escala e Troca
 // de DSR; Coordenador confirma Folga, Banco de Horas, Hora Extra, Troca de
 // Gestão e Desligamento. Sinergia não tem entrada aqui — continua com
-// aprovação única, como antes.
+// aprovação única, como antes. Troca de Turno, Férias, Afastamento e
+// Internalização também passam pelo RH — mesma natureza de mudança
+// cadastral/de escala das outras confirmadas por RH.
 const SEGUNDA_APROVACAO_POR_TIPO = {
   FOLGA: "COORDENADOR",
   BANCO_HORAS: "COORDENADOR",
@@ -50,6 +58,10 @@ const SEGUNDA_APROVACAO_POR_TIPO = {
   DESLIGAMENTO: "COORDENADOR",
   TROCA_ESCALA: "RH",
   TROCA_DSR: "RH",
+  TROCA_TURNO: "RH",
+  FERIAS: "RH",
+  AFASTAMENTO: "RH",
+  INTERNALIZACAO: "RH",
 };
 
 const SEGUNDO_APROVADOR_LABEL = { RH: "RH", COORDENADOR: "Coordenador" };
@@ -204,6 +216,73 @@ async function validarColaboradorDisponivel(opsId, dataStr, { excluirIdSolicitac
   }
 
   return colaborador;
+}
+
+// Mesmos critérios usados no Dashboard de Internalização (candidatosInternalizacao):
+// BPO, cargo elegível, ativo, +90 dias de casa, sem atestado, sem falta
+// (idTipoAusencia 3 ou 32), sem medida disciplinar.
+const BPO_EMPRESAS = ["ADECCO", "ADILIS", "LUANDRE"];
+function isCargoElegivelInternalizacao(cargo) {
+  const nome = String(cargo || "").toUpperCase();
+  return nome.includes("AUXILIAR DE LOGÍSTICA I") || nome.includes("AUXILIAR DE LOGÍSTICA II");
+}
+
+/**
+ * Verifica se um colaborador atende aos critérios de elegibilidade para
+ * Internalização hoje. Retorna { elegivel, motivos, diasCasa }. Usado tanto
+ * pelo endpoint de checagem prévia (frontend avisa antes de enviar) quanto
+ * como guarda no próprio createSolicitacao (nunca confia só no frontend).
+ */
+async function verificarElegibilidadeInternalizacao(opsId) {
+  const colaborador = await prisma.colaborador.findUnique({
+    where: { opsId },
+    select: {
+      opsId: true,
+      status: true,
+      dataAdmissao: true,
+      cargo: { select: { nomeCargo: true } },
+      empresa: { select: { razaoSocial: true } },
+    },
+  });
+
+  if (!colaborador) {
+    return { elegivel: false, motivos: ["Colaborador não encontrado"], diasCasa: null };
+  }
+
+  const motivos = [];
+
+  if (colaborador.status !== "ATIVO") {
+    motivos.push("Colaborador não está ativo");
+  }
+
+  const empresaAtual = String(colaborador.empresa?.razaoSocial || "").toUpperCase();
+  if (!BPO_EMPRESAS.includes(empresaAtual)) {
+    motivos.push("Colaborador não pertence a uma empresa terceirizada (BPO)");
+  }
+
+  if (!isCargoElegivelInternalizacao(colaborador.cargo?.nomeCargo)) {
+    motivos.push("Cargo não elegível para internalização");
+  }
+
+  const diasCasa = colaborador.dataAdmissao
+    ? Math.floor((new Date() - new Date(colaborador.dataAdmissao)) / 86400000)
+    : null;
+  if (diasCasa === null || diasCasa <= 90) {
+    motivos.push("Menos de 90 dias de casa");
+  }
+
+  if (motivos.length === 0) {
+    const [qtdAtestados, qtdFaltas, qtdMedidas] = await Promise.all([
+      prisma.atestadoMedico.count({ where: { opsId } }),
+      prisma.frequencia.count({ where: { opsId, idTipoAusencia: { in: [3, 32] } } }),
+      prisma.medidaDisciplinar.count({ where: { opsId } }),
+    ]);
+    if (qtdAtestados > 0) motivos.push("Possui atestado médico registrado");
+    if (qtdFaltas > 0) motivos.push("Possui falta registrada");
+    if (qtdMedidas > 0) motivos.push("Possui medida disciplinar registrada");
+  }
+
+  return { elegivel: motivos.length === 0, motivos, diasCasa };
 }
 
 /**
@@ -444,6 +523,102 @@ exports.listarEscalasAtivas = async (req, res) => {
 };
 
 /* =====================================================
+   LISTAR TURNOS ATIVOS (formulário de Troca de Turno)
+   Escopados pela estação do colaborador informado, incluindo
+   turnos globais (idEstacao null).
+===================================================== */
+exports.listarTurnosAtivos = async (req, res) => {
+  try {
+    const { opsId } = req.query;
+    if (!opsId) {
+      return errorResponse(res, "opsId é obrigatório", 400);
+    }
+
+    const colaborador = await prisma.colaborador.findUnique({
+      where: { opsId },
+      select: { idEstacao: true },
+    });
+    if (!colaborador) {
+      return notFoundResponse(res, "Colaborador não encontrado");
+    }
+
+    const turnos = await prisma.turno.findMany({
+      where: {
+        ativo: true,
+        OR: [{ idEstacao: colaborador.idEstacao }, { idEstacao: null }],
+      },
+      select: { idTurno: true, nomeTurno: true },
+      orderBy: { nomeTurno: "asc" },
+    });
+
+    return successResponse(res, turnos);
+  } catch (err) {
+    console.error("❌ listarTurnosAtivos:", err);
+    return errorResponse(res, "Erro ao listar turnos", 500);
+  }
+};
+
+/* =====================================================
+   LISTAR EMPRESAS PARA INTERNALIZAÇÃO (formulário)
+   Só empresas SPX/diretas (fora da lista BPO), escopadas pela
+   estação do colaborador.
+===================================================== */
+exports.listarEmpresasInternalizacao = async (req, res) => {
+  try {
+    const { opsId } = req.query;
+    if (!opsId) {
+      return errorResponse(res, "opsId é obrigatório", 400);
+    }
+
+    const colaborador = await prisma.colaborador.findUnique({
+      where: { opsId },
+      select: { idEstacao: true, idEmpresa: true },
+    });
+    if (!colaborador) {
+      return notFoundResponse(res, "Colaborador não encontrado");
+    }
+
+    const empresas = await prisma.empresa.findMany({
+      where: {
+        ativo: true,
+        OR: [{ idEstacao: colaborador.idEstacao }, { idEstacao: null }],
+      },
+      select: { idEmpresa: true, razaoSocial: true },
+      orderBy: { razaoSocial: "asc" },
+    });
+
+    const naoBpo = empresas.filter(
+      (e) => !BPO_EMPRESAS.includes(String(e.razaoSocial).toUpperCase()) && e.idEmpresa !== colaborador.idEmpresa
+    );
+
+    return successResponse(res, naoBpo);
+  } catch (err) {
+    console.error("❌ listarEmpresasInternalizacao:", err);
+    return errorResponse(res, "Erro ao listar empresas", 500);
+  }
+};
+
+/* =====================================================
+   VERIFICAR ELEGIBILIDADE PARA INTERNALIZAÇÃO
+   Checagem prévia usada pelo formulário para avisar o usuário
+   antes de enviar, quando o colaborador não atende aos critérios.
+===================================================== */
+exports.verificarElegibilidadeInternalizacaoHandler = async (req, res) => {
+  try {
+    const { opsId } = req.query;
+    if (!opsId) {
+      return errorResponse(res, "opsId é obrigatório", 400);
+    }
+
+    const resultado = await verificarElegibilidadeInternalizacao(opsId);
+    return successResponse(res, resultado);
+  } catch (err) {
+    console.error("❌ verificarElegibilidadeInternalizacao:", err);
+    return errorResponse(res, "Erro ao verificar elegibilidade", 500);
+  }
+};
+
+/* =====================================================
    BUSCAR COLABORADOR POR CPF (autofill dos formulários)
 ===================================================== */
 exports.buscarColaboradorPorCpf = async (req, res) => {
@@ -631,6 +806,8 @@ exports.getSolicitacao = async (req, res) => {
         },
         novoLider: { select: { nomeCompleto: true, cargo: { select: { nomeCargo: true } } } },
         novaEscala: { select: { nomeEscala: true, descricao: true } },
+        novoTurno: { select: { nomeTurno: true } },
+        internalizacaoNovaEmpresa: { select: { razaoSocial: true } },
         solicitante: { select: { name: true, email: true, opsId: true } },
         decididoPor: { select: { name: true, email: true } },
         primeiraAprovacaoPor: { select: { name: true, email: true } },
@@ -713,10 +890,18 @@ exports.listarCalendario = async (req, res) => {
         dataDesligamentoSolicitada: true,
         motivoDesligamentoSolicitado: true,
         tipoDesligamentoSolicitado: true,
+        feriasDataInicio: true,
+        feriasDataFim: true,
+        afastamentoDataInicio: true,
+        afastamentoDataFim: true,
+        internalizacaoNovaMatricula: true,
+        internalizacaoForcada: true,
         colaborador: { select: { nomeCompleto: true, cpf: true, setor: { select: { nomeSetor: true } }, turno: { select: { nomeTurno: true } } } },
         colaborador2: { select: { nomeCompleto: true } },
         novoLider: { select: { nomeCompleto: true } },
         novaEscala: { select: { nomeEscala: true } },
+        novoTurno: { select: { nomeTurno: true } },
+        internalizacaoNovaEmpresa: { select: { razaoSocial: true } },
         decididoPor: { select: { name: true } },
       },
       orderBy: { data: "asc" },
@@ -927,6 +1112,105 @@ exports.createSolicitacao = async (req, res) => {
       dadosBase.dataDesligamentoSolicitada = normalizeDateOnly(dataDesligamentoSolicitada);
       dadosBase.motivoDesligamentoSolicitado = motivoDesligamentoSolicitado;
       dadosBase.tipoDesligamentoSolicitado = tipoDesligamentoSolicitado;
+    } else if (tipo === "TROCA_TURNO") {
+      const { novoIdTurno } = req.body;
+      if (!novoIdTurno) {
+        return errorResponse(res, "Selecione o novo turno", 400);
+      }
+
+      const colaborador = await validarColaboradorDisponivel(opsId, ymd(startOfDayBR()));
+
+      const colabAtual = await prisma.colaborador.findUnique({
+        where: { opsId },
+        select: { idTurno: true },
+      });
+      if (Number(novoIdTurno) === Number(colabAtual?.idTurno)) {
+        return errorResponse(res, `${colaborador.nomeCompleto} já está nesse turno`, 400);
+      }
+
+      const novoTurno = await prisma.turno.findUnique({
+        where: { idTurno: Number(novoIdTurno) },
+        select: { idTurno: true, nomeTurno: true, ativo: true, idEstacao: true },
+      });
+      if (!novoTurno) {
+        return errorResponse(res, "Turno não encontrado", 400);
+      }
+      if (!novoTurno.ativo) {
+        return errorResponse(res, `Turno ${novoTurno.nomeTurno} não está ativo`, 400);
+      }
+      if (novoTurno.idEstacao !== null && novoTurno.idEstacao !== colaborador.idEstacao) {
+        return errorResponse(res, `Turno ${novoTurno.nomeTurno} não está disponível para a estação do colaborador`, 400);
+      }
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = startOfDayBR();
+      dadosBase.novoIdTurno = Number(novoIdTurno);
+    } else if (tipo === "FERIAS" || tipo === "AFASTAMENTO") {
+      const { dataInicio, dataFim } = req.body;
+      if (!dataInicio || !dataFim) {
+        return errorResponse(res, "Data de início e fim são obrigatórias", 400);
+      }
+      if (normalizeDateOnly(dataFim) < normalizeDateOnly(dataInicio)) {
+        return errorResponse(res, "A data de fim não pode ser anterior à data de início", 400);
+      }
+
+      await validarColaboradorDisponivel(opsId, dataInicio);
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = normalizeDateOnly(dataInicio);
+      if (tipo === "FERIAS") {
+        dadosBase.feriasDataInicio = normalizeDateOnly(dataInicio);
+        dadosBase.feriasDataFim = normalizeDateOnly(dataFim);
+      } else {
+        dadosBase.afastamentoDataInicio = normalizeDateOnly(dataInicio);
+        dadosBase.afastamentoDataFim = normalizeDateOnly(dataFim);
+      }
+    } else if (tipo === "INTERNALIZACAO") {
+      const { internalizacaoNovaIdEmpresa, internalizacaoNovaMatricula, internalizacaoForcada } = req.body;
+      if (!internalizacaoNovaIdEmpresa || !internalizacaoNovaMatricula?.trim()) {
+        return errorResponse(res, "Selecione a nova empresa e informe a nova matrícula", 400);
+      }
+
+      const colaborador = await validarColaboradorDisponivel(opsId, ymd(startOfDayBR()));
+
+      const novaEmpresa = await prisma.empresa.findUnique({
+        where: { idEmpresa: Number(internalizacaoNovaIdEmpresa) },
+        select: { idEmpresa: true, razaoSocial: true, ativo: true, idEstacao: true },
+      });
+      if (!novaEmpresa) {
+        return errorResponse(res, "Empresa não encontrada", 400);
+      }
+      if (!novaEmpresa.ativo) {
+        return errorResponse(res, `Empresa ${novaEmpresa.razaoSocial} não está ativa`, 400);
+      }
+      if (novaEmpresa.idEstacao !== null && novaEmpresa.idEstacao !== colaborador.idEstacao) {
+        return errorResponse(res, `Empresa ${novaEmpresa.razaoSocial} não está disponível para a estação do colaborador`, 400);
+      }
+
+      const matriculaEmUso = await prisma.colaborador.findUnique({
+        where: { matricula: internalizacaoNovaMatricula.trim() },
+        select: { opsId: true },
+      });
+      if (matriculaEmUso) {
+        return errorResponse(res, "Essa matrícula já está em uso por outro colaborador", 400);
+      }
+
+      // Nunca confia só na checagem do frontend — se o colaborador não é
+      // elegível, exige que o front tenha marcado a confirmação explícita.
+      const elegibilidade = await verificarElegibilidadeInternalizacao(opsId);
+      if (!elegibilidade.elegivel && !internalizacaoForcada) {
+        return errorResponse(
+          res,
+          `Colaborador não atende aos critérios de internalização: ${elegibilidade.motivos.join("; ")}. Confirme explicitamente para continuar mesmo assim.`,
+          400
+        );
+      }
+
+      dadosBase.opsId = opsId;
+      dadosBase.data = startOfDayBR();
+      dadosBase.internalizacaoNovaIdEmpresa = Number(internalizacaoNovaIdEmpresa);
+      dadosBase.internalizacaoNovaMatricula = internalizacaoNovaMatricula.trim();
+      dadosBase.internalizacaoForcada = !elegibilidade.elegivel && !!internalizacaoForcada;
     } else {
       return errorResponse(res, "Tipo de solicitação inválido", 400);
     }
@@ -1178,6 +1462,102 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
     return null;
   }
 
+  if (solicitacao.tipo === "TROCA_TURNO") {
+    await tx.colaborador.update({
+      where: { opsId: solicitacao.opsId },
+      data: { turno: { connect: { idTurno: solicitacao.novoIdTurno } } },
+    });
+    return null;
+  }
+
+  if (solicitacao.tipo === "FERIAS") {
+    await tx.colaborador.update({
+      where: { opsId: solicitacao.opsId },
+      data: {
+        status: "FERIAS",
+        dataInicioStatus: solicitacao.feriasDataInicio,
+        dataFimStatus: solicitacao.feriasDataFim,
+      },
+    });
+
+    const tipoFerias = await tx.tipoAusencia.findFirst({ where: { codigo: "FE" }, select: { idTipoAusencia: true } });
+    if (tipoFerias) {
+      const jaExiste = await tx.ausencia.findFirst({
+        where: { opsId: solicitacao.opsId, idTipoAusencia: tipoFerias.idTipoAusencia, dataInicio: solicitacao.feriasDataInicio },
+      });
+      if (!jaExiste) {
+        const diasCorridos = Math.round((solicitacao.feriasDataFim - solicitacao.feriasDataInicio) / 86400000) + 1;
+        await tx.ausencia.create({
+          data: {
+            opsId: solicitacao.opsId,
+            idTipoAusencia: tipoFerias.idTipoAusencia,
+            dataInicio: solicitacao.feriasDataInicio,
+            dataFim: solicitacao.feriasDataFim,
+            diasCorridos,
+            status: "ATIVO",
+            registradoPor,
+          },
+        });
+      }
+    }
+    return null;
+  }
+
+  if (solicitacao.tipo === "AFASTAMENTO") {
+    await tx.colaborador.update({
+      where: { opsId: solicitacao.opsId },
+      data: {
+        status: "AFASTADO",
+        dataInicioStatus: solicitacao.afastamentoDataInicio,
+        dataFimStatus: solicitacao.afastamentoDataFim,
+      },
+    });
+
+    const tipoAfastamento = await tx.tipoAusencia.findFirst({
+      where: { OR: [{ codigo: "AFA" }, { codigo: "AF" }] },
+      select: { idTipoAusencia: true },
+      orderBy: { codigo: "asc" },
+    });
+    if (tipoAfastamento) {
+      const jaExiste = await tx.ausencia.findFirst({
+        where: { opsId: solicitacao.opsId, idTipoAusencia: tipoAfastamento.idTipoAusencia, dataInicio: solicitacao.afastamentoDataInicio },
+      });
+      if (!jaExiste) {
+        const diasCorridos = Math.round((solicitacao.afastamentoDataFim - solicitacao.afastamentoDataInicio) / 86400000) + 1;
+        await tx.ausencia.create({
+          data: {
+            opsId: solicitacao.opsId,
+            idTipoAusencia: tipoAfastamento.idTipoAusencia,
+            dataInicio: solicitacao.afastamentoDataInicio,
+            dataFim: solicitacao.afastamentoDataFim,
+            diasCorridos,
+            status: "ATIVO",
+            registradoPor,
+          },
+        });
+      }
+    }
+    return null;
+  }
+
+  if (solicitacao.tipo === "INTERNALIZACAO") {
+    try {
+      await tx.colaborador.update({
+        where: { opsId: solicitacao.opsId },
+        data: {
+          idEmpresa: solicitacao.internalizacaoNovaIdEmpresa,
+          matricula: solicitacao.internalizacaoNovaMatricula,
+        },
+      });
+    } catch (e) {
+      if (e.code === "P2002") {
+        throw new HttpError("Essa matrícula já está em uso por outro colaborador. A internalização não foi concluída.", 409);
+      }
+      throw e;
+    }
+    return null;
+  }
+
   return null;
 }
 
@@ -1319,11 +1699,15 @@ async function processarAprovacaoSolicitacao(req, idSolicitacao) {
       throw new HttpError("Você não está cadastrado como aprovador.", 403);
     }
 
-    const TIPOS_CADASTRAIS = ["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO"];
+    const TIPOS_CADASTRAIS = ["TROCA_GESTAO", "TROCA_ESCALA", "DESLIGAMENTO", "TROCA_TURNO", "FERIAS", "AFASTAMENTO", "INTERNALIZACAO"];
     const EVENTO_POS_APROVACAO = {
       TROCA_GESTAO: "Líder do colaborador atualizado automaticamente",
       TROCA_ESCALA: "Escala do colaborador atualizada automaticamente",
       DESLIGAMENTO: "Colaborador desligado automaticamente",
+      TROCA_TURNO: "Turno do colaborador atualizado automaticamente",
+      FERIAS: "Colaborador marcado em férias e Controle de Presença atualizado",
+      AFASTAMENTO: "Colaborador marcado como afastado e Controle de Presença atualizado",
+      INTERNALIZACAO: "Empresa e matrícula do colaborador atualizadas automaticamente",
     };
 
     let regenDSR = null;
@@ -1382,6 +1766,30 @@ async function processarAprovacaoSolicitacao(req, idSolicitacao) {
         });
       } catch (e) {
         console.error(`❌ Erro ao gerar frequência de desligamento (${idSolicitacao}):`, e.message);
+      }
+    }
+
+    // Frequência de férias/afastamento fora da transação — best-effort
+    if (tipoAprovado === "FERIAS") {
+      try {
+        await gerarFrequenciaFerias({
+          opsId: solicitacaoAprovada.opsId,
+          dataInicio: solicitacaoAprovada.feriasDataInicio,
+          dataFim: solicitacaoAprovada.feriasDataFim,
+        });
+      } catch (e) {
+        console.error(`❌ Erro ao gerar frequência de férias (${idSolicitacao}):`, e.message);
+      }
+    }
+    if (tipoAprovado === "AFASTAMENTO") {
+      try {
+        await gerarFrequenciaAfastamento({
+          opsId: solicitacaoAprovada.opsId,
+          dataInicio: solicitacaoAprovada.afastamentoDataInicio,
+          dataFim: solicitacaoAprovada.afastamentoDataFim,
+        });
+      } catch (e) {
+        console.error(`❌ Erro ao gerar frequência de afastamento (${idSolicitacao}):`, e.message);
       }
     }
 

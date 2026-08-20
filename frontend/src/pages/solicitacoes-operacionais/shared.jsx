@@ -9,6 +9,10 @@ export const TIPO_LABEL = {
   TROCA_GESTAO: "Troca de Gestão",
   TROCA_ESCALA: "Troca de Escala",
   DESLIGAMENTO: "Desligamento",
+  TROCA_TURNO: "Troca de Turno",
+  FERIAS: "Férias",
+  AFASTAMENTO: "Afastamento",
+  INTERNALIZACAO: "Internalização",
 };
 
 export const DESTINO_SINERGIA_LABEL = {
