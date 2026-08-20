@@ -2,9 +2,11 @@
  * Controller de Autenticação - COMPLETO E CORRIGIDO
  */
 
+const crypto = require('crypto');
 const { prisma } = require('../config/database');
 const { hashPassword, comparePassword } = require('../utils/hash');
 const { generateToken } = require('../utils/jwt');
+const { sendPasswordResetEmail } = require('../reports/email');
 const {
   successResponse,
   errorResponse,
@@ -182,6 +184,90 @@ const changePassword = async (req, res) => {
 };
 
 /**
+ * ESQUECI MINHA SENHA — gera token e envia e-mail
+ */
+const forgotPassword = async (req, res) => {
+  const email = req.body.email?.trim().toLowerCase();
+
+  if (!email) {
+    return errorResponse(res, 'Informe o e-mail', 400);
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+  });
+
+  // Resposta sempre genérica, mesmo se o e-mail não existir (evita enumeração de usuários)
+  const mensagemGenerica =
+    'Se esse e-mail estiver cadastrado, você receberá um link para redefinir a senha.';
+
+  if (!user || !user.isActive) {
+    return successResponse(res, null, mensagemGenerica);
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: new Date(Date.now() + 60 * 60 * 1000), // 1h
+    },
+  });
+
+  try {
+    await sendPasswordResetEmail({ to: user.email, nome: user.name, token });
+  } catch (err) {
+    console.error('❌ Erro ao enviar e-mail de recuperação de senha:', err.message);
+    return errorResponse(res, 'Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.', 500);
+  }
+
+  return successResponse(res, null, mensagemGenerica);
+};
+
+/**
+ * REDEFINIR SENHA — valida token e grava nova senha
+ */
+const resetPassword = async (req, res) => {
+  const { token, novaSenha } = req.body;
+
+  if (!token || !novaSenha) {
+    return errorResponse(res, 'Token e nova senha são obrigatórios', 400);
+  }
+
+  if (novaSenha.length < 6) {
+    return errorResponse(res, 'A senha deve ter pelo menos 6 caracteres', 400);
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { gt: new Date() },
+    },
+  });
+
+  if (!user) {
+    return errorResponse(res, 'Link inválido ou expirado. Solicite uma nova recuperação de senha.', 400);
+  }
+
+  const hashed = await hashPassword(novaSenha);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      password: hashed,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
+  });
+
+  return successResponse(res, null, 'Senha redefinida com sucesso');
+};
+
+/**
  * LISTA ESTAÇÕES (público — usado no formulário de registro)
  */
 const listarEstacoesPublico = async (req, res) => {
@@ -198,5 +284,7 @@ module.exports = {
   getMe,
   updateMe,
   changePassword,
+  forgotPassword,
+  resetPassword,
   listarEstacoesPublico,
 };

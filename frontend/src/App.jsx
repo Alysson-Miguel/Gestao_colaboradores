@@ -9,6 +9,8 @@ import { ThemeContext } from "./context/ThemeContext";
 /* ================= AUTH ================= */
 import Login from "./pages/login";
 import Register from "./pages/register";
+import EsqueciSenha from "./pages/esqueci-senha";
+import RedefinirSenha from "./pages/redefinir-senha";
 
 /* ================= DASHBOARDS ================= */
 import DashboardOperacional from "./pages/dashboards/dashboardOperacional";
@@ -114,6 +116,8 @@ export default function App() {
       {/* ================= ROTAS PÚBLICAS ================= */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+      <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
       {/* ================= DASHBOARDS ================= */}
       {/* Redireciona / para o dashboard padrão */}

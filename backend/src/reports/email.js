@@ -463,10 +463,70 @@ async function sendDecisaoOperacionalEmail({ to, solicitacao, aprovada, motivoRe
   }
 }
 
+/* =====================================================
+   ENVIO DE E-MAIL — RECUPERAÇÃO DE SENHA
+===================================================== */
+
+async function sendPasswordResetEmail({ to, nome, token }) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    throw new Error("Credenciais do Gmail não configuradas (GMAIL_USER ou GMAIL_APP_PASSWORD)");
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  })
+
+  try {
+    await transporter.verify();
+  } catch (verifyError) {
+    console.error("❌ Erro ao verificar conexão SMTP:", verifyError);
+    throw new Error(`Falha na autenticação do Gmail: ${verifyError.message}`);
+  }
+
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const link = `${frontendUrl}/redefinir-senha?token=${token}`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px;">
+      <h2 style="color:#FA4C00;">Redefinição de Senha</h2>
+      <p>Olá${nome ? `, ${nome}` : ""}! Recebemos uma solicitação para redefinir a senha da sua conta no COPEOPLE.</p>
+      <p>Clique no botão abaixo para escolher uma nova senha. Este link expira em 1 hora.</p>
+      <a href="${link}" style="display:inline-block; background:#FA4C00; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-weight:bold; margin: 12px 0;">
+        Redefinir Senha
+      </a>
+      <p style="color:#888; font-size:12px; margin-top:16px;">
+        Se você não solicitou essa alteração, pode ignorar este e-mail — sua senha atual continua válida.
+      </p>
+      <p style="color:#888; font-size:12px;">
+        Este e-mail foi gerado automaticamente pelo sistema de Gestão de Colaboradores.
+      </p>
+    </div>
+  `
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"Gestão de Colaboradores" <${process.env.GMAIL_USER}>`,
+      to,
+      subject: "Redefinição de Senha — COPEOPLE",
+      html,
+    })
+    console.log(`✅ Email enviado - MessageID: ${info.messageId}`);
+    return info;
+  } catch (sendError) {
+    console.error("❌ Erro ao enviar email via Nodemailer:", sendError);
+    throw new Error(`Falha no envio do e-mail: ${sendError.message}`);
+  }
+}
+
 module.exports = {
   sendReportEmail,
   sendMedidaDisciplinarEmail,
   sendSolicitacaoTreinamentoEmail,
   sendSolicitacaoOperacionalEmail,
   sendDecisaoOperacionalEmail,
+  sendPasswordResetEmail,
 }

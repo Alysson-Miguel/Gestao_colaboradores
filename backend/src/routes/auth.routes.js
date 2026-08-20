@@ -12,6 +12,8 @@ const { asyncHandler } = require('../middlewares/error.middleware');
 // Rotas públicas
 router.post('/register', asyncHandler(authController.register));
 router.post('/login', asyncHandler(authController.login));
+router.post('/forgot-password', asyncHandler(authController.forgotPassword));
+router.post('/reset-password', asyncHandler(authController.resetPassword));
 router.get('/estacoes', asyncHandler(authController.listarEstacoesPublico));
 
 // Rotas protegidas

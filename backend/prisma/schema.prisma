@@ -121,6 +121,8 @@ model User {
   updatedAt                        DateTime                 @updatedAt
   opsId                            String?                  @map("ops_id") @db.VarChar(50)
   idEstacao                        Int?                     @map("id_estacao")
+  passwordResetToken               String?                  @unique @map("password_reset_token")
+  passwordResetExpires             DateTime?                @map("password_reset_expires")
   estacao                          Estacao?                 @relation(fields: [idEstacao], references: [idEstacao])
   folgasDominicaisCriadas          FolgaDominical[]
   solicitacoesTreinamentoCriadas   SolicitacaoTreinamento[] @relation("SolicitacaoTreinamentoSolicitante")
