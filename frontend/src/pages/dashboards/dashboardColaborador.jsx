@@ -291,7 +291,7 @@ export default function DashboardColaboradoresExecutivo() {
           </div>
 
           {/* ================= CANDIDATOS À INTERNALIZAÇÃO ================= */}
-          <CandidatosInternalizacaoTable data={candidatosInternalizacao || []} isAdmin={permissions?.isAdmin} navigate={navigate} />
+          <CandidatosInternalizacaoTable data={candidatosInternalizacao || []} isAdmin={permissions?.isAdmin} isLideranca={permissions?.isLideranca} navigate={navigate} />
 
         </main>
       </MainLayout>
@@ -414,7 +414,7 @@ function exportarCSV(data) {
   URL.revokeObjectURL(url)
 }
 
-function CandidatosInternalizacaoTable({ data, isAdmin, navigate }) {
+function CandidatosInternalizacaoTable({ data, isAdmin, isLideranca, navigate }) {
   const [filtroTurno, setFiltroTurno] = useState("ALL")
   const [filtroLider, setFiltroLider] = useState("ALL")
 
@@ -484,18 +484,20 @@ function CandidatosInternalizacaoTable({ data, isAdmin, navigate }) {
                   <td className="py-2 pr-4 text-muted">{c.dataAdmissao}</td>
                   <td className="py-2 pr-4 text-right text-[#34C759] font-semibold">{c.diasCasa}d</td>
                   <td className="py-2 text-right">
-                    <button
-                      onClick={() => isAdmin && navigate(`/colaboradores/${c.opsId}/movimentar`)}
-                      disabled={!isAdmin}
-                      title={isAdmin ? "Ir para movimentação" : "Apenas administradores"}
-                      className={`text-xs px-3 py-1 rounded-lg transition-colors ${
-                        isAdmin
-                          ? "bg-[#FA4C00]/20 text-[#FA4C00] hover:bg-[#FA4C00]/40 cursor-pointer"
-                          : "bg-[#FA4C00]/10 text-[#FA4C00] opacity-30 cursor-not-allowed"
-                      }`}
-                    >
-                      Internalizar
-                    </button>
+                    {!isLideranca && (
+                      <button
+                        onClick={() => isAdmin && navigate(`/colaboradores/${c.opsId}/movimentar`)}
+                        disabled={!isAdmin}
+                        title={isAdmin ? "Ir para movimentação" : "Apenas administradores"}
+                        className={`text-xs px-3 py-1 rounded-lg transition-colors ${
+                          isAdmin
+                            ? "bg-[#FA4C00]/20 text-[#FA4C00] hover:bg-[#FA4C00]/40 cursor-pointer"
+                            : "bg-[#FA4C00]/10 text-[#FA4C00] opacity-30 cursor-not-allowed"
+                        }`}
+                      >
+                        Internalizar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
