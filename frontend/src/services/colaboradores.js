@@ -74,4 +74,9 @@ export const ColaboradoresAPI = {
     const res = await api.post("/colaboradores/backfill-nc-pre-admissao");
     return res.data;
   },
+
+  backfillOnboarding: async () => {
+    const res = await api.post("/colaboradores/backfill-onboarding");
+    return res.data;
+  },
 };

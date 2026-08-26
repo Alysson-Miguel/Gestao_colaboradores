@@ -1819,6 +1819,63 @@ const backfillNcPreAdmissao = async (req, res) => {
   }
 };
 
+/* ================= BACKFILL ONBOARDING ================= */
+const backfillOnboardingTodos = async (req, res) => {
+  const agora = new Date();
+  const anoAtual = agora.getUTCFullYear();
+  const mesAtual = agora.getUTCMonth(); // 0-based
+
+  const inicioMes = new Date(Date.UTC(anoAtual, mesAtual, 1));
+  const fimMes    = new Date(Date.UTC(anoAtual, mesAtual + 1, 0, 23, 59, 59, 999));
+
+  res.json({ sucesso: true, mensagem: "Backfill de Onboarding iniciado em background. Verifique os logs do servidor." });
+
+  try {
+    const colaboradores = await prisma.colaborador.findMany({
+      where: {
+        dataAdmissao: { gte: inicioMes, lte: fimMes },
+      },
+      select: { opsId: true, dataAdmissao: true, nomeCompleto: true },
+    });
+
+    console.log(`[backfillOnboardingTodos] ${colaboradores.length} colaborador(es) com admissão no mês atual`);
+
+    let processados = 0;
+    let pulados = 0;
+    const erros = [];
+
+    for (const c of colaboradores) {
+      try {
+        // Só preenche quem realmente está sem registro no dia da admissão —
+        // gerarOnboardingColaborador faz upsert e sobrescreveria um dia que já
+        // tenha presença/ausência real lançada.
+        const dia1 = new Date(`${new Date(c.dataAdmissao).toISOString().slice(0, 10)}T00:00:00.000Z`);
+        const jaTemRegistro = await prisma.frequencia.findFirst({
+          where: { opsId: c.opsId, dataReferencia: dia1 },
+          select: { idFrequencia: true },
+        });
+
+        if (jaTemRegistro) {
+          pulados++;
+          continue;
+        }
+
+        await gerarOnboardingColaborador({ opsId: c.opsId, dataAdmissao: c.dataAdmissao });
+        processados++;
+        console.log(`✅ Onboarding gerado para ${c.opsId} (${c.nomeCompleto}) — admissão: ${dia1.toISOString().slice(0, 10)}`);
+      } catch (err) {
+        erros.push({ opsId: c.opsId, erro: err.message });
+        console.error(`❌ Falhou para ${c.opsId}:`, err.message);
+      }
+    }
+
+    console.log(`[backfillOnboardingTodos] Concluído. Processados: ${processados}, Pulados (já tinham registro): ${pulados}, Erros: ${erros.length}`);
+    if (erros.length) console.log("Erros:", erros);
+  } catch (err) {
+    console.error("❌ ERRO backfillOnboardingTodos:", err);
+  }
+};
+
 /* ================= FILTROS DA ESTAÇÃO ================= */
 const listarFiltrosEstacao = async (req, res) => {
   try {
@@ -2030,4 +2087,5 @@ module.exports = {
   exportarCsvColaboradores,
   backfillDSRTodos,
   backfillNcPreAdmissao,
+  backfillOnboardingTodos,
 };

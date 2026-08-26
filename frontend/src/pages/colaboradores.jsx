@@ -57,6 +57,7 @@ export default function ColaboradoresPage() {
   const [setores, setSetores] = useState([]);
   const [exportando, setExportando] = useState(false);
   const [backfillNcLoading, setBackfillNcLoading] = useState(false);
+  const [backfillOnboardingLoading, setBackfillOnboardingLoading] = useState(false);
 
   /* ---- export automático para Google Sheets (só ADMIN) ---- */
   const [exportSheetsStatus, setExportSheetsStatus] = useState(null);
@@ -257,6 +258,19 @@ export default function ColaboradoresPage() {
     }
   };
 
+  const handleBackfillOnboarding = async () => {
+    if (!window.confirm("Preencher Onboarding (dia da admissão + dia seguinte) para todos os colaboradores admitidos neste mês que ainda não têm esse registro? Esta ação não pode ser desfeita.")) return;
+    try {
+      setBackfillOnboardingLoading(true);
+      await ColaboradoresAPI.backfillOnboarding();
+      toast.success("Backfill Onboarding iniciado. Verifique os logs para acompanhar.");
+    } catch {
+      toast.error("Erro ao executar backfill Onboarding.");
+    } finally {
+      setBackfillOnboardingLoading(false);
+    }
+  };
+
   const handleExportarCsv = async () => {
     try {
       setExportando(true);
@@ -419,6 +433,18 @@ export default function ColaboradoresPage() {
                     className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-default hover:bg-surface-2 hover:border-yellow-500/40 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-muted rounded-xl transition"
                   >
                     {backfillNcLoading ? "Processando…" : "Preencher NC"}
+                  </button>
+                )}
+
+                {/* BACKFILL ONBOARDING — apenas ADMIN */}
+                {permissions.isAdmin && (
+                  <button
+                    onClick={handleBackfillOnboarding}
+                    disabled={backfillOnboardingLoading}
+                    title="Preenche Onboarding (admissão + dia seguinte) para quem ainda não tem esse registro (mês atual)"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-default hover:bg-surface-2 hover:border-yellow-500/40 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-muted rounded-xl transition"
+                  >
+                    {backfillOnboardingLoading ? "Processando…" : "Preencher Onboarding"}
                   </button>
                 )}
 

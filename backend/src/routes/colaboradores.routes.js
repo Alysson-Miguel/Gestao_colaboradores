@@ -22,6 +22,14 @@ router.post(
   asyncHandler(controller.backfillNcPreAdmissao)
 );
 
+/* ================= BACKFILL ONBOARDING ================= */
+router.post(
+  "/backfill-onboarding",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(controller.backfillOnboardingTodos)
+);
+
 /* ================= IMPORT CSV ================= */
 router.post(
   "/import",
