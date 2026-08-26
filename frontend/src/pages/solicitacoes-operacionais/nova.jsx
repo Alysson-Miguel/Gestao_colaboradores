@@ -14,6 +14,7 @@ import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { BuscaColaboradorPorCpf } from "../../components/solicitacoesOperacionais/BuscaColaboradorPorCpf";
 import { ImportarSinergiaModal } from "../../components/solicitacoesOperacionais/ImportarSinergiaModal";
+import { ImportarInternalizacaoModal } from "../../components/solicitacoesOperacionais/ImportarInternalizacaoModal";
 import { TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL } from "./shared";
 
 const TIPOS = [
@@ -693,8 +694,8 @@ export default function NovaSolicitacaoOperacional() {
                 </div>
               )}
 
-              <div className={`flex items-center pt-2 ${tipo === "SINERGIA" ? "justify-between" : "justify-end"}`}>
-                {tipo === "SINERGIA" && (
+              <div className={`flex items-center pt-2 ${["SINERGIA", "INTERNALIZACAO"].includes(tipo) ? "justify-between" : "justify-end"}`}>
+                {["SINERGIA", "INTERNALIZACAO"].includes(tipo) && (
                   <button
                     onClick={() => setImportarAberto(true)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-sm text-muted hover:text-page transition-colors cursor-pointer"
@@ -720,8 +721,11 @@ export default function NovaSolicitacaoOperacional() {
             </div>
           )}
 
-          {importarAberto && (
+          {importarAberto && tipo === "SINERGIA" && (
             <ImportarSinergiaModal onClose={() => setImportarAberto(false)} />
+          )}
+          {importarAberto && tipo === "INTERNALIZACAO" && (
+            <ImportarInternalizacaoModal onClose={() => setImportarAberto(false)} />
           )}
         </main>
       </MainLayout>

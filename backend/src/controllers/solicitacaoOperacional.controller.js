@@ -487,6 +487,178 @@ exports.importarSinergiaLote = async (req, res) => {
 };
 
 /* =====================================================
+   IMPORTAR INTERNALIZAÇÃO EM LOTE (CSV)
+   Mesmo padrão de importarSinergiaLote: cada linha é validada e criada
+   isoladamente — uma linha inválida não derruba as demais.
+===================================================== */
+exports.importarInternalizacaoLote = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return errorResponse(res, "Usuário não autenticado", 401);
+    }
+    if (!req.file) {
+      return errorResponse(res, "Nenhum arquivo enviado", 400);
+    }
+
+    const csvString = req.file.buffer.toString("utf-8");
+    const rows = await csv({ delimiter: "," }).fromString(csvString);
+
+    if (!rows.length) {
+      return errorResponse(res, "Arquivo CSV vazio", 400);
+    }
+    if (rows.length > 500) {
+      return errorResponse(res, "Máximo de 500 linhas por importação", 400);
+    }
+
+    const criadas = [];
+    const erros = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const linha = i + 2; // +2: linha 1 é o cabeçalho
+      const raw = normalizarLinhaCsv(rows[i]);
+      const cpfOriginal = raw.cpf || "";
+
+      try {
+        const cpfDigits = String(cpfOriginal).replace(/\D/g, "");
+        if (cpfDigits.length !== 11) {
+          throw new HttpError(`CPF inválido: "${cpfOriginal}"`, 400);
+        }
+
+        const motivoLinha = String(raw.motivo || "").trim();
+        if (!motivoLinha) {
+          throw new HttpError("Motivo é obrigatório", 400);
+        }
+
+        const novaMatricula = String(raw["nova matrícula"] || raw["nova matricula"] || "").trim();
+        if (!novaMatricula) {
+          throw new HttpError("Nova matrícula é obrigatória", 400);
+        }
+
+        const novaEmpresaRaw = String(raw["nova empresa"] || "").trim();
+        if (!novaEmpresaRaw) {
+          throw new HttpError("Nova empresa é obrigatória", 400);
+        }
+
+        const confirmarRaw = String(raw["confirmar mesmo assim"] || raw["confirmar"] || "").trim().toUpperCase();
+        const forcar = ["SIM", "S", "TRUE", "1"].includes(confirmarRaw);
+
+        const colaborador = await prisma.colaborador.findFirst({
+          where: { cpf: cpfDigits },
+          select: { opsId: true, nomeCompleto: true, idEstacao: true, cpf: true },
+        });
+        if (!colaborador || !pertenceAEstacaoDoUsuario(req, colaborador.idEstacao)) {
+          throw new HttpError(`Colaborador não encontrado para o CPF ${cpfOriginal}`, 400);
+        }
+
+        await validarColaboradorDisponivel(colaborador.opsId, ymd(startOfDayBR()));
+
+        const novaEmpresa = await prisma.empresa.findFirst({
+          where: {
+            razaoSocial: { equals: novaEmpresaRaw, mode: "insensitive" },
+            ativo: true,
+            OR: [{ idEstacao: colaborador.idEstacao }, { idEstacao: null }],
+          },
+          select: { idEmpresa: true, razaoSocial: true },
+        });
+        if (!novaEmpresa) {
+          throw new HttpError(`Empresa não encontrada ou não disponível: "${novaEmpresaRaw}"`, 400);
+        }
+
+        const matriculaEmUso = await prisma.colaborador.findUnique({
+          where: { matricula: novaMatricula },
+          select: { opsId: true },
+        });
+        if (matriculaEmUso) {
+          throw new HttpError(`Matrícula "${novaMatricula}" já está em uso por outro colaborador`, 400);
+        }
+
+        const elegibilidade = await verificarElegibilidadeInternalizacao(colaborador.opsId);
+        if (!elegibilidade.elegivel && !forcar) {
+          throw new HttpError(
+            `Colaborador não atende aos critérios de internalização: ${elegibilidade.motivos.join("; ")}. Marque "Confirmar Mesmo Assim" no CSV para continuar.`,
+            400
+          );
+        }
+
+        const solicitacao = await prisma.$transaction(async (tx) => {
+          const nova = await tx.solicitacaoOperacional.create({
+            data: {
+              tipo: "INTERNALIZACAO",
+              opsId: colaborador.opsId,
+              data: startOfDayBR(),
+              motivo: motivoLinha,
+              internalizacaoNovaIdEmpresa: novaEmpresa.idEmpresa,
+              internalizacaoNovaMatricula: novaMatricula,
+              internalizacaoForcada: !elegibilidade.elegivel && forcar,
+              solicitanteUserId: req.user.id,
+            },
+          });
+          await tx.solicitacaoOperacionalHistorico.create({
+            data: {
+              idSolicitacao: nova.idSolicitacao,
+              evento: `Solicitação criada por ${req.user.name} (importação em lote)`,
+            },
+          });
+          return nova;
+        });
+
+        criadas.push({
+          linha,
+          idSolicitacao: solicitacao.idSolicitacao,
+          colaboradorNome: colaborador.nomeCompleto,
+          idEstacao: colaborador.idEstacao,
+        });
+      } catch (err) {
+        const mensagem = err instanceof HttpError ? err.message : err.message || "Erro desconhecido";
+        erros.push({ linha, cpf: cpfOriginal, motivo: mensagem });
+      }
+    }
+
+    // Notificações resumidas do lote — best-effort, não bloqueia a resposta
+    if (criadas.length > 0) {
+      try {
+        const idsEstacao = [...new Set(criadas.map((c) => c.idEstacao).filter((v) => v != null))];
+        const aprovadoresAtivos = await prisma.aprovadorOperacional.findMany({
+          where: {
+            ativo: true,
+            OR: [...idsEstacao.map((id) => ({ idEstacao: id })), { idEstacao: null }],
+          },
+        });
+
+        if (aprovadoresAtivos.length > 0) {
+          const emails = [...new Set(aprovadoresAtivos.map((a) => a.email))];
+          const listaColaboradores = criadas
+            .slice(0, 15)
+            .map((c) => `- ${c.colaboradorNome} (Nº ${c.idSolicitacao})`)
+            .join("\n");
+          const resto = criadas.length > 15 ? `\n- ...e mais ${criadas.length - 15}` : "";
+
+          await sendSolicitacaoNotification(
+            `# 📋 Internalização — Importação em Lote\n\n` +
+              `- **Solicitações criadas:** ${criadas.length}\n` +
+              `- **Solicitante:** ${req.user.name}\n\n` +
+              `---\n\n${listaColaboradores}${resto}\n\n` +
+              `[Ver todas as solicitações](${(process.env.FRONTEND_URL || "http://localhost:5173")}/solicitacoes-operacionais)`,
+            { mentionEmails: emails }
+          );
+        }
+      } catch (notifErr) {
+        console.error("⚠️ Falha ao notificar importação em lote de internalização:", notifErr.message);
+      }
+    }
+
+    return successResponse(
+      res,
+      { criadas: criadas.length, totalLinhas: rows.length, erros },
+      `${criadas.length} solicitação(ões) criada(s), ${erros.length} erro(s)`
+    );
+  } catch (err) {
+    console.error("❌ importarInternalizacaoLote:", err);
+    return errorResponse(res, "Erro ao importar solicitações de internalização", 500);
+  }
+};
+
+/* =====================================================
    LISTAR ESCALAS ATIVAS (formulário de Troca de Escala)
    Escopadas pela estação do colaborador informado, incluindo
    escalas globais (idEstacao null).
@@ -1870,7 +2042,7 @@ exports.listarIdsAprovaveis = async (req, res) => {
       return successResponse(res, { ids: [], total: 0, truncado: false });
     }
 
-    const TIPOS_APROVACAO_LOTE = ["SINERGIA", "BANCO_HORAS"];
+    const TIPOS_APROVACAO_LOTE = ["SINERGIA", "BANCO_HORAS", "INTERNALIZACAO"];
     if (tipo && !TIPOS_APROVACAO_LOTE.includes(tipo)) {
       return successResponse(res, { ids: [], total: 0, truncado: false });
     }

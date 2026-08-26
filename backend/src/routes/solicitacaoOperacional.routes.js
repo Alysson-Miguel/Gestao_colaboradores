@@ -41,6 +41,16 @@ router.post(
   solicitacaoController.importarSinergiaLote
 );
 
+/* IMPORTAR INTERNALIZAÇÃO EM LOTE (CSV) */
+router.post(
+  "/internalizacao/importar",
+  authenticate,
+  authorize(...roles),
+  upload.single("file"),
+  handleMulterError,
+  solicitacaoController.importarInternalizacaoLote
+);
+
 /* CRIAR SOLICITAÇÃO */
 router.post("/", authenticate, authorize(...roles), solicitacaoController.createSolicitacao);
 
