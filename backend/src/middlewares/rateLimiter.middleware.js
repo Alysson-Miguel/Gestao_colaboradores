@@ -19,8 +19,10 @@ const handler429 = (req, res) => {
 };
 
 // Key: user ID when authenticated, fallback to IP (IPv6-safe)
-const keyByIP   = (req) => ipKeyGenerator(req);
-const keyByUser = (req) => req.user?.id ?? ipKeyGenerator(req);
+// ipKeyGenerator espera o IP em string (req.ip) — passar o req inteiro
+// faz toda requisição cair na mesma chave/objeto e o limite nunca contar certo.
+const keyByIP   = (req) => ipKeyGenerator(req.ip);
+const keyByUser = (req) => req.user?.id ?? ipKeyGenerator(req.ip);
 
 /* ─── GLOBAL ────────────────────────────────────────────
    300 req / min por IP — protege flood antes de autenticar
@@ -86,10 +88,25 @@ const writeLimiter = rateLimit({
   skip: (req) => req.method === "GET",
 });
 
+/* ─── CONSULTA PÚBLICA DE FOLGAS ─────────────────────────
+   10 tentativas / min por IP — mesma lógica do authLimiter:
+   rota pública sem login, precisa travar tentativa de
+   varredura de CPF/Ops ID.
+─────────────────────────────────────────────────────── */
+const consultaFolgasLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  keyGenerator: keyByIP,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: handler429,
+});
+
 module.exports = {
   globalLimiter,
   authLimiter,
   dashboardLimiter,
   reportLimiter,
   writeLimiter,
+  consultaFolgasLimiter,
 };
