@@ -1058,12 +1058,18 @@ const updateColaborador = async (req, res) => {
         nomeEscalaParaDSR = novaEscala?.nomeEscala ?? null;
       }
 
-      return { atualizado, dataAdmissao: atualizado.dataAdmissao };
+      return { atualizado, dataAdmissao: atualizado.dataAdmissao, hoje };
     }, { timeout: 30000 });
 
     /* =========================
        GERAR DSR FORA DA TRANSAÇÃO
        (evita timeout da tx para backfills longos)
+       dataInicio = hoje (não dataAdmissao): o backfill deve regenerar
+       DSR pela escala NOVA só a partir de hoje pra frente — usar a
+       data de admissão aqui recriava, retroativamente, dias de DSR da
+       escala nova em cima de TODO o histórico (inclusive semanas
+       passadas que já tinham DSR da escala antiga), duplicando os
+       dias de folga no mês da troca.
     ========================= */
     if (nomeEscalaParaDSR) {
       const idEstacaoColab = colaborador.atualizado?.idEstacao ?? null;
@@ -1071,7 +1077,7 @@ const updateColaborador = async (req, res) => {
       await gerarDSRBackfillColaborador({
         opsId,
         nomeEscala: nomeEscalaParaDSR,
-        dataInicio: colaborador.dataAdmissao,
+        dataInicio: colaborador.hoje,
         idEstacao: idEstacaoColab,
       });
     }
