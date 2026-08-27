@@ -11,6 +11,8 @@ import Login from "./pages/login";
 import Register from "./pages/register";
 import EsqueciSenha from "./pages/esqueci-senha";
 import RedefinirSenha from "./pages/redefinir-senha";
+import ConsultaFolgas from "./pages/consulta-folgas";
+import ConsultarFolgasInterno from "./pages/folgas/consultar";
 
 /* ================= DASHBOARDS ================= */
 import DashboardOperacional from "./pages/dashboards/dashboardOperacional";
@@ -118,6 +120,7 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/esqueci-senha" element={<EsqueciSenha />} />
       <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+      <Route path="/consulta-folgas" element={<ConsultaFolgas />} />
 
       {/* ================= DASHBOARDS ================= */}
       {/* Redireciona / para o dashboard padrão */}
@@ -456,6 +459,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <FolgaDominicalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/folgas/consultar"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
+            <ConsultarFolgasInterno />
           </ProtectedRoute>
         }
       />

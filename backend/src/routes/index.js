@@ -13,6 +13,7 @@ const {
   dashboardLimiter,
   reportLimiter,
   writeLimiter,
+  consultaFolgasLimiter,
 } = require("../middlewares/rateLimiter.middleware");
 
 // rotas
@@ -128,6 +129,13 @@ router.get("/version", (req, res) => {
 router.post(
   "/ponto/registrar",
   require("../controllers/ponto.controller").registrarPontoCPF
+);
+
+// 🔓 CONSULTA PÚBLICA DE FOLGAS — CPF + Ops ID, sem autenticação
+router.get(
+  "/consulta-folgas",
+  consultaFolgasLimiter,
+  require("../controllers/consultaFolgas.controller").consultarFolgas
 );
 
 /* =========================
