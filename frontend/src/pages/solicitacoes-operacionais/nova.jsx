@@ -14,6 +14,7 @@ import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { BuscaColaboradorPorCpf } from "../../components/solicitacoesOperacionais/BuscaColaboradorPorCpf";
 import { ImportarSinergiaModal } from "../../components/solicitacoesOperacionais/ImportarSinergiaModal";
+import { ImportarBancoHorasModal } from "../../components/solicitacoesOperacionais/ImportarBancoHorasModal";
 import { ImportarInternalizacaoModal } from "../../components/solicitacoesOperacionais/ImportarInternalizacaoModal";
 import { TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL } from "./shared";
 
@@ -694,8 +695,8 @@ export default function NovaSolicitacaoOperacional() {
                 </div>
               )}
 
-              <div className={`flex items-center pt-2 ${["SINERGIA", "INTERNALIZACAO"].includes(tipo) ? "justify-between" : "justify-end"}`}>
-                {["SINERGIA", "INTERNALIZACAO"].includes(tipo) && (
+              <div className={`flex items-center pt-2 ${["SINERGIA", "BANCO_HORAS", "INTERNALIZACAO"].includes(tipo) ? "justify-between" : "justify-end"}`}>
+                {["SINERGIA", "BANCO_HORAS", "INTERNALIZACAO"].includes(tipo) && (
                   <button
                     onClick={() => setImportarAberto(true)}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-surface-3 text-sm text-muted hover:text-page transition-colors cursor-pointer"
@@ -723,6 +724,9 @@ export default function NovaSolicitacaoOperacional() {
 
           {importarAberto && tipo === "SINERGIA" && (
             <ImportarSinergiaModal onClose={() => setImportarAberto(false)} />
+          )}
+          {importarAberto && tipo === "BANCO_HORAS" && (
+            <ImportarBancoHorasModal onClose={() => setImportarAberto(false)} />
           )}
           {importarAberto && tipo === "INTERNALIZACAO" && (
             <ImportarInternalizacaoModal onClose={() => setImportarAberto(false)} />

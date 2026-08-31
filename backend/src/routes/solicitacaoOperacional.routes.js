@@ -41,6 +41,16 @@ router.post(
   solicitacaoController.importarSinergiaLote
 );
 
+/* IMPORTAR BANCO DE HORAS EM LOTE (CSV) */
+router.post(
+  "/banco-horas/importar",
+  authenticate,
+  authorize(...roles),
+  upload.single("file"),
+  handleMulterError,
+  solicitacaoController.importarBancoHorasLote
+);
+
 /* IMPORTAR INTERNALIZAÇÃO EM LOTE (CSV) */
 router.post(
   "/internalizacao/importar",
