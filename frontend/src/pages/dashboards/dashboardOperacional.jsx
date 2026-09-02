@@ -411,10 +411,10 @@ export default function DashboardOperacional() {
         const merged = {};
         turnoNomesDisponiveis.forEach((t) => {
           (dados?.distribuicaoVinculoPorTurno?.[t] || []).forEach((v) => {
-            merged[v.vinculo || v.label] = (merged[v.vinculo || v.label] || 0) + (v.total || v.value || 0);
+            merged[v.name] = (merged[v.name] || 0) + (v.value || 0);
           });
         });
-        return Object.entries(merged).map(([label, value]) => ({ label, value, vinculo: label, total: value }));
+        return Object.entries(merged).map(([name, value]) => ({ name, value }));
       }
       return dados?.distribuicaoVinculoPorTurno?.[turnoSelecionado] || [];
     },
@@ -572,10 +572,10 @@ export default function DashboardOperacional() {
                       const merged = {};
                       turnoNomesDisponiveis.forEach((t) => {
                         (dados.generoPorTurno?.[t] || []).forEach((g) => {
-                          merged[g.genero || g.label] = (merged[g.genero || g.label] || 0) + (g.total || g.value || 0);
+                          merged[g.name] = (merged[g.name] || 0) + (g.value || 0);
                         });
                       });
-                      return Object.entries(merged).map(([label, value]) => ({ genero: label, label, total: value, value }));
+                      return Object.entries(merged).map(([name, value]) => ({ name, value }));
                     })()
                   : dados.generoPorTurno?.[turnoSelecionado] || []
               }

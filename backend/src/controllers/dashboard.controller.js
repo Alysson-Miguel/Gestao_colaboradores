@@ -434,7 +434,15 @@ const carregarDashboard = async (req, res) => {
     // Normalizado para a forma canônica (T1/T2/T3) para casar com o turno
     // resolvido por colaborador via normalizeTurno(), independente do nome
     // cadastrado ser "T1" ou por extenso ("TURNO 1").
-    const turnoNomes = [...new Set(turnos.map((t) => normalizeTurno(t.nomeTurno)))];
+    // Fallback defensivo: se a estação não tem nenhum Turno próprio cadastrado
+    // (ex: colaboradores importados apontando pro turno de outra estação),
+    // turnoNomes ficaria vazio e todo `mapaPorTurno[turno]` abaixo estouraria
+    // "Cannot read properties of undefined". Garante um bucket pra qualquer
+    // turno que realmente apareça nos colaboradores, mesmo sem Turno cadastrado.
+    const turnoNomesColaboradores = colaboradores
+      .map((c) => normalizeTurno(c.turno?.nomeTurno))
+      .filter((t) => t !== "Sem turno");
+    const turnoNomes = [...new Set([...turnos.map((t) => normalizeTurno(t.nomeTurno)), ...turnoNomesColaboradores])];
     // Prioriza o turno da estação atual; cai para idEstacao=null se não houver específico
     const _estacaoIdParaMap = req.dbContext?.isGlobal ? null : (req.dbContext?.estacaoId ?? null);
     const turnoIdMap = {};
