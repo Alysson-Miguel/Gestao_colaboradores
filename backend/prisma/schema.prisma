@@ -216,6 +216,7 @@ model Estacao {
   desligamentos          Desligamento[]
   dwPlanejados           DwPlanejado[]
   dwReais                DwReal[]
+  producaoHoraHistoricos ProducaoHoraHistorico[]
   regional               Regional?              @relation(fields: [idRegional], references: [idRegional], onUpdate: NoAction, map: "fk_estacao_regional")
   aprovadoresTreinamento AprovadorTreinamento[]
   aprovadoresOperacionais AprovadorOperacional[]
@@ -953,14 +954,19 @@ model ProducaoHoraHistorico {
   dataReferencia DateTime @map("data_referencia") @db.Date
   turno          String   @db.VarChar(10)
   hora           Int
+  // Estação a que este registro pertence — sem isso, o mesmo (data, turno,
+  // hora) era compartilhado entre todas as estações (bug: dado de uma
+  // estação vazava pro dashboard de outra).
+  idEstacao      Int?     @map("id_estacao")
   meta           Int
   realizado      Int
   percentual     Decimal  @db.Decimal(5, 2)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  estacao        Estacao? @relation(fields: [idEstacao], references: [idEstacao], onDelete: NoAction, onUpdate: NoAction, map: "fk_producao_hora_historico_estacao")
 
-  @@unique([dataReferencia, turno, hora], map: "uq_producao_hora")
-  @@index([dataReferencia, turno], map: "idx_producao_data_turno")
+  @@unique([idEstacao, dataReferencia, turno, hora], map: "uq_producao_hora")
+  @@index([idEstacao, dataReferencia, turno], map: "idx_producao_data_turno")
   @@index([dataReferencia], map: "idx_producao_data")
   @@map("producao_hora_historico")
 }

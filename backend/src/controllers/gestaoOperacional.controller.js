@@ -174,10 +174,14 @@ const carregarGestaoOperacional = async (req, res) => {
     try {
       // Para todos os turnos: tenta producaoHoraHistorico primeiro, fallback para planilha (quantidadePorHora)
       // T3 armazena todas as 8 horas (22,23,0-5) sob a mesma dataReferencia (data de início do turno)
+      // idEstacao é obrigatório no filtro — sem ele, o histórico salvo pra uma
+      // estação (hoje só Jaboatão roda o job automático) vazava pro dashboard
+      // de qualquer outra estação com o mesmo turno/hora.
       const historicoProducao = await prisma.producaoHoraHistorico.findMany({
         where: {
           dataReferencia: new Date(dataStr),
           turno: turno,
+          idEstacao: estacaoIdCtx ?? 1,
         },
         orderBy: { hora: 'asc' }
       });
@@ -609,11 +613,13 @@ const consultarHistoricoProducao = async (req, res) => {
       });
     }
 
+    const estacaoIdCtx = req.dbContext?.estacaoId ?? null;
     const where = {
       dataReferencia: {
         gte: new Date(dataInicio),
         lte: new Date(dataFim)
-      }
+      },
+      idEstacao: estacaoIdCtx ?? 1,
     };
 
     if (turno) {
@@ -707,11 +713,13 @@ const verificarStatusSalvamentos = async () => {
       }
       
       if (deveriaTerSalvo) {
-        // Verificar se existe registro no banco
+        // Verificar se existe registro no banco — job automático hoje só
+        // roda pra Jaboatão (idEstacao 1)
         const count = await prisma.producaoHoraHistorico.count({
           where: {
             dataReferencia: new Date(dataVerificar),
-            turno: turno
+            turno: turno,
+            idEstacao: 1,
           }
         });
         

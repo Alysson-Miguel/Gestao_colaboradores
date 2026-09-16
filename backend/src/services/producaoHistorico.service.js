@@ -137,10 +137,12 @@ async function salvarProducaoHistorico(turno, dataStr = null) {
 
       const percentual = meta > 0 ? ((realizadoHora / meta) * 100).toFixed(2) : 0;
 
-      // Salvar no banco usando upsert
+      // Salvar no banco usando upsert — job automático hoje só roda pra
+      // Jaboatão (idEstacao 1); ver ProducaoHoraHistorico no schema.
       await prisma.producaoHoraHistorico.upsert({
         where: {
-          dataReferencia_turno_hora: {
+          idEstacao_dataReferencia_turno_hora: {
+            idEstacao: 1,
             dataReferencia: new Date(dataStr),
             turno: turno,
             hora: h
@@ -153,6 +155,7 @@ async function salvarProducaoHistorico(turno, dataStr = null) {
           updatedAt: new Date()
         },
         create: {
+          idEstacao: 1,
           dataReferencia: new Date(dataStr),
           turno: turno,
           hora: h,
@@ -191,7 +194,8 @@ async function verificarRegistroExistente(turno, dataStr) {
     const count = await prisma.producaoHoraHistorico.count({
       where: {
         dataReferencia: new Date(dataStr),
-        turno: turno
+        turno: turno,
+        idEstacao: 1,
       }
     });
     
@@ -242,7 +246,8 @@ async function salvarHoraUnica(turno, dataStr, hora) {
 
     await prisma.producaoHoraHistorico.upsert({
       where: {
-        dataReferencia_turno_hora: {
+        idEstacao_dataReferencia_turno_hora: {
+          idEstacao: 1,
           dataReferencia: new Date(dataStr),
           turno,
           hora,
@@ -255,6 +260,7 @@ async function salvarHoraUnica(turno, dataStr, hora) {
         updatedAt: new Date(),
       },
       create: {
+        idEstacao: 1,
         dataReferencia: new Date(dataStr),
         turno,
         hora,
