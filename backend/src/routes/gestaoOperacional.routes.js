@@ -11,8 +11,8 @@ const { testarSalvamentoManual } = require("../jobs/salvarProducaoHistorico.job"
 const { adminAltaGestaoLideranca, adminOrAltaGestao } = require("../utils/roles");
 const onlyEstacao = require("../middlewares/onlyEstacao");
 
-// Exclusivo estação 1 — ADMIN global passa direto
-router.use(adminAltaGestaoLideranca, onlyEstacao([1]));
+// Exclusivo estações 1 (Jaboatão) e 6 (Recife) — ADMIN global passa direto
+router.use(adminAltaGestaoLideranca, onlyEstacao([1, 6]));
 
 router.get("/", carregarGestaoOperacional);
 router.get("/historico", consultarHistoricoProducao);

@@ -207,19 +207,19 @@ export default function Sidebar({ isOpen, onClose }) {
                 />
                 {(isGlobal || isLideranca) && (
                   <>
+                    {(isAdmin || user?.idEstacao === 1 || user?.idEstacao === 6) && (
+                      <SidebarSubItem
+                        label="Gestão Operacional"
+                        active={isActive("/dashboard/gestao-operacional")}
+                        onClick={() => go("/dashboard/gestao-operacional")}
+                      />
+                    )}
                     {(isAdmin || user?.idEstacao === 1) && (
-                      <>
-                        <SidebarSubItem
-                          label="Gestão Operacional"
-                          active={isActive("/dashboard/gestao-operacional")}
-                          onClick={() => go("/dashboard/gestao-operacional")}
-                        />
-<SidebarSubItem
-                          label="SPI"
-                          active={isActive("/spi")}
-                          onClick={() => go("/spi")}
-                        />
-                      </>
+                      <SidebarSubItem
+                        label="SPI"
+                        active={isActive("/spi")}
+                        onClick={() => go("/spi")}
+                      />
                     )}
                     <SidebarSubItem
                       label="Atestados"

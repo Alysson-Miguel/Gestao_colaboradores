@@ -199,6 +199,10 @@ model Estacao {
   dataCriacao            DateTime               @default(now()) @map("data_criacao")
   idRegional             Int?                   @map("id_regional")
   sheetsMetaProducaoId   String?                @map("sheets_meta_producao_id") @db.VarChar(200)
+  // Planilha/aba de produção realizada (OnTime) específica da estação — quando
+  // nula, cai no padrão global (planilha de Jaboatão + aba PRIMARY/BACKUP).
+  sheetsProducaoOnTimeId  String?               @map("sheets_producao_ontime_id") @db.VarChar(200)
+  sheetsProducaoOnTimeAba String?               @map("sheets_producao_ontime_aba") @db.VarChar(100)
   sheetsPresencaId       String?                @map("sheets_presenca_id") @db.VarChar(200)
   emailRh                String[]               @default([]) @map("email_rh")
   seatalkGroupId         String?                @map("seatalk_group_id") @db.VarChar(200)

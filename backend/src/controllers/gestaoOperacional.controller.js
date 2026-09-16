@@ -68,19 +68,28 @@ const carregarGestaoOperacional = async (req, res) => {
     const estacaoIdCtx = req.dbContext?.estacaoId ?? null;
     let spreadsheetId = DEFAULT_SPREADSHEET_ID;
     let producaoSpreadsheetId = DEFAULT_PRODUCAO_ONTIME_SPREADSHEET_ID;
+    // Nome da aba de produção realizada — só é sobrescrito quando a estação
+    // tem sua própria planilha configurada; sem isso, segue o PRIMARY/BACKUP
+    // global (fonteProducaoAtiva), resolvido mais abaixo.
+    let sheetNameOnTimeEstacao = null;
 
     console.log(`🔍 estacaoIdCtx: ${estacaoIdCtx} | req.user.idEstacao: ${req.user?.idEstacao}`);
 
     if (estacaoIdCtx) {
       const estacao = await prisma.estacao.findUnique({
         where: { idEstacao: estacaoIdCtx },
-        select: { sheetsMetaProducaoId: true },
+        select: { sheetsMetaProducaoId: true, sheetsProducaoOnTimeId: true, sheetsProducaoOnTimeAba: true },
       });
       if (estacao?.sheetsMetaProducaoId) {
         spreadsheetId = estacao.sheetsMetaProducaoId;
       }
-      // sheetsProducaoOnTimeId disponível após rodar: npx prisma migrate dev && npx prisma generate
-      console.log(`📊 Meta: ${spreadsheetId} | Produção: ${producaoSpreadsheetId}`);
+      if (estacao?.sheetsProducaoOnTimeId) {
+        producaoSpreadsheetId = estacao.sheetsProducaoOnTimeId;
+      }
+      if (estacao?.sheetsProducaoOnTimeAba) {
+        sheetNameOnTimeEstacao = estacao.sheetsProducaoOnTimeAba;
+      }
+      console.log(`📊 Meta: ${spreadsheetId} | Produção: ${producaoSpreadsheetId} | Aba: ${sheetNameOnTimeEstacao ?? "(padrão global)"}`);
     }
 
     // Convenção T3: "T3 do dia X" = turno que começa às 22h do dia X.
@@ -117,9 +126,12 @@ const carregarGestaoOperacional = async (req, res) => {
       console.log(`   Hora ${hora}: ${meta}`);
     }
 
-    // Buscar quantidade realizada da planilha OnTime (respeitando a fonte ativa: PRIMARY/BACKUP)
+    // Buscar quantidade realizada da planilha OnTime. Estação com planilha
+    // própria (sheetsProducaoOnTimeAba) usa a aba dela direto — o toggle
+    // PRIMARY/BACKUP é específico da planilha padrão (Jaboatão) e não se
+    // aplica nesse caso.
     const fonteProducaoAtiva = await obterFonteProducaoAtiva();
-    const sheetNameOnTime = fonteParaNomeAba(fonteProducaoAtiva);
+    const sheetNameOnTime = sheetNameOnTimeEstacao || fonteParaNomeAba(fonteProducaoAtiva);
     console.log(`📡 Fonte de produção ativa: ${fonteProducaoAtiva} (${sheetNameOnTime})`);
 
     let quantidadePorHora = {};
@@ -347,10 +359,20 @@ const carregarGestaoOperacional = async (req, res) => {
     const posicaoNoTurnoT3 = (h) => (h >= 22 ? h - 22 : h + 2);
     const posicaoAtualT3 = posicaoNoTurnoT3(horaAtual);
 
-    // Processar todas as horas que têm meta
-    for (const [horaStr, meta] of Object.entries(metasPorHora)) {
-      const h = parseInt(horaStr);
-      
+    // Processa todas as horas com meta OU com realizado (planilha/banco) —
+    // sem isso, uma estação sem a aba Meta ainda preenchida (ex: Recife no
+    // início) não mostrava nenhum realizado, mesmo já tendo produção real
+    // vindo da planilha OnTime. Meta ausente numa hora só significa
+    // meta=0 pra ela, não que a hora deve ser ignorada.
+    const horasComDado = new Set([
+      ...Object.keys(metasPorHora).map(Number),
+      ...Object.keys(quantidadePorHora).map(Number),
+      ...producaoPorHora.map((p) => Number(p.hora)),
+    ]);
+
+    for (const h of [...horasComDado].sort((a, b) => a - b)) {
+      const meta = metasPorHora[h] || 0;
+
       console.log(`\n🔍 Processando hora ${h}:`);
       console.log(`  - Meta: ${meta}`);
 
@@ -502,16 +524,14 @@ const carregarGestaoOperacional = async (req, res) => {
     console.log(`  - Verificação: ${produtividade} * ${totalPresentesSemDiaristas} = ${produtividade * totalPresentesSemDiaristas} (deve ser próximo de ${realizado})`);
     console.log(`  - Média Hora: ${realizado} / ${horasComDados} = ${mediaHoraRealizado}`);
 
-    // Capacidade por hora (mesma estrutura das metas) + dados de realizado
-    const capacidadePorHora = Object.entries(metasPorHora).map(([hora, capacidade]) => {
-      const h = parseInt(hora);
-      const prodHora = producaoComMeta.find(p => parseInt(p.hora) === h);
-      
+    // Capacidade por hora — deriva de producaoComMeta (já cobre meta OU
+    // realizado) em vez de só metasPorHora, pelo mesmo motivo acima.
+    const capacidadePorHora = producaoComMeta.map((prodHora) => {
       return {
-        hora,
-        capacidade: Math.round(capacidade),
-        realizado: prodHora ? prodHora.realizado : 0,
-        percentual: prodHora ? prodHora.percentual : 0,
+        hora: prodHora.hora,
+        capacidade: prodHora.meta,
+        realizado: prodHora.realizado,
+        percentual: prodHora.percentual,
         totalProducao: Math.round(metaDia)
       };
     });
