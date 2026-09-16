@@ -615,6 +615,7 @@ const carregarDashboard = async (req, res) => {
           presentes: 0,
           ausentes: 0,
           setores: {},
+          setoresColaboradores: {},
         };
       }
 
@@ -658,6 +659,15 @@ const carregarDashboard = async (req, res) => {
         // Conta setor apenas para presentes
         turnoSetorAgg[turno].setores[setor] =
           (turnoSetorAgg[turno].setores[setor] || 0) + 1;
+
+        if (!turnoSetorAgg[turno].setoresColaboradores[setor]) {
+          turnoSetorAgg[turno].setoresColaboradores[setor] = [];
+        }
+        turnoSetorAgg[turno].setoresColaboradores[setor].push({
+          nome: c.nomeCompleto,
+          opsId: c.opsId,
+          escala: normalize(c.escala?.nomeEscala),
+        });
       } else if (sSnap.impactaAbsenteismo) {
         turnoSetorAgg[turno].ausentes++;  
 
@@ -806,7 +816,7 @@ const carregarDashboard = async (req, res) => {
               pushStatusColab(turno, "Atestado Médico", c);
 
               if (!turnoSetorAgg[turno]) {
-                turnoSetorAgg[turno] = { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {} };
+                turnoSetorAgg[turno] = { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {}, setoresColaboradores: {} };
               }
               turnoSetorAgg[turno].totalEscalados++;
               turnoSetorAgg[turno].ausentes++;
@@ -1160,9 +1170,10 @@ const aderenciaDW =
         presencasForaEscala,
 
         distribuicaoTurnoSetor: turnoNomes.map((turno) => {
-          const t = turnoSetorAgg[turno] || { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {} };
+          const t = turnoSetorAgg[turno] || { turno, totalEscalados: 0, presentes: 0, ausentes: 0, setores: {}, setoresColaboradores: {} };
+          const { setoresColaboradores, ...tSemColaboradores } = t;
           return {
-            ...t,
+            ...tSemColaboradores,
             colaboradoresPlanejados: colaboradoresPlanejadosPorTurno[turno] || 0,
             diaristasPlanejados: diaristasPlanejadosPorTurno[turno] || 0,
             diaristasPresentes: diaristasPresentes[turno] || 0,
@@ -1170,6 +1181,7 @@ const aderenciaDW =
             setores: Object.entries(t.setores).map(([setor, quantidade]) => ({
               setor,
               quantidade,
+              colaboradores: setoresColaboradores?.[setor] || [],
             })),
           };
         }),

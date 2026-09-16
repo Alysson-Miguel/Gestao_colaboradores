@@ -173,11 +173,15 @@ export default function DashboardOperacional() {
           acc.diaristasPlanejados += t.diaristasPlanejados || 0;
           acc.diaristasPresentes += t.diaristasPresentes || 0;
           acc.aderenciaDW = 0; // calculado abaixo
-          // Mescla setores somando quantidades
+          // Mescla setores somando quantidades e concatenando colaboradores
           (t.setores || []).forEach((s) => {
             const existing = acc.setores.find((x) => x.setor === s.setor);
-            if (existing) existing.quantidade += s.quantidade;
-            else acc.setores.push({ ...s });
+            if (existing) {
+              existing.quantidade += s.quantidade;
+              existing.colaboradores = [...(existing.colaboradores || []), ...(s.colaboradores || [])];
+            } else {
+              acc.setores.push({ ...s, colaboradores: s.colaboradores || [] });
+            }
           });
           return acc;
         },
@@ -368,6 +372,7 @@ export default function DashboardOperacional() {
       (turnoData.setores || []).map((s) => ({
         label: s.setor,
         value: s.quantidade,
+        colaboradores: s.colaboradores || [],
       })),
     [turnoData]
   );
