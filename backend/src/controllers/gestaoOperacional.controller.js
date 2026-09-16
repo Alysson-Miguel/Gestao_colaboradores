@@ -15,6 +15,11 @@ const {
 const { salvarProducaoHistorico } = require("../services/producaoHistorico.service");
 const { carregarDashboard } = require("./dashboard.controller");
 
+// Mesmo range de horas usado como fallback em buscarMetasProducao (Meta sem
+// turno explícito na coluna E). T3 não usa este mapa — suas horas (22,23,0-5)
+// já são montadas explicitamente mais abaixo.
+const RANGE_HORAS_TURNO = { T1: [6, 13], T2: [14, 21] };
+
 // Chama internamente a mesma lógica do card "Colaboradores Planejados" do
 // Dashboard Operacional, para que o HC Planejado use exatamente a mesma
 // fonte de verdade (cargo elegível + desconto de DSR + ausências reais).
@@ -163,7 +168,17 @@ const carregarGestaoOperacional = async (req, res) => {
       }
     } else {
       const quantidadeResult = await buscarQuantidadeRealizada(dataStr, producaoSpreadsheetId, sheetNameOnTime);
-      quantidadePorHora = quantidadeResult.success ? quantidadeResult.data : {};
+      const dadosBrutos = quantidadeResult.success ? quantidadeResult.data : {};
+      // A planilha OnTime é uma janela rolante (últimas ~12h a partir de
+      // agora) e não sabe de turno — perto da virada do dia ela ainda inclui
+      // colunas de 00h/01h (do T3 anterior) mesmo quando o pedido é de T1/T2.
+      // Sem filtrar pelo range de horas do turno, essas horas vazavam pro
+      // gráfico de T1/T2 (união de horas logo abaixo aceita qualquer hora
+      // presente aqui).
+      const [horaMin, horaMax] = RANGE_HORAS_TURNO[turno] ?? [0, 23];
+      quantidadePorHora = Object.fromEntries(
+        Object.entries(dadosBrutos).filter(([h]) => Number(h) >= horaMin && Number(h) <= horaMax)
+      );
       ultimaAtualizacaoSheets = quantidadeResult.ultimaAtualizacaoSheets ?? null;
     }
 
