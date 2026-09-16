@@ -35,6 +35,7 @@ export default function EmployeeTable({ employees = [], onView }) {
             <tr className="bg-surface-2 text-xs uppercase tracking-wide text-muted">
               {[
                 "Nome",
+                "Ops ID",
                 "Cargo",
                 "Setor",
                 "Empresa",
@@ -74,6 +75,10 @@ export default function EmployeeTable({ employees = [], onView }) {
                 >
                   <td className="px-5 py-4 font-medium text-page">
                     {emp.nomeCompleto}
+                  </td>
+
+                  <td className="px-5 py-4 text-muted">
+                    {emp.opsId || "-"}
                   </td>
 
                   <td className="px-5 py-4 text-muted">
@@ -163,6 +168,9 @@ export default function EmployeeTable({ employees = [], onView }) {
                 <div>
                   <p className="text-page font-semibold text-sm">
                     {emp.nomeCompleto}
+                    {emp.opsId && (
+                      <span className="text-muted font-normal"> · {emp.opsId}</span>
+                    )}
                   </p>
 
                   <p className="text-xs text-muted mt-1">
