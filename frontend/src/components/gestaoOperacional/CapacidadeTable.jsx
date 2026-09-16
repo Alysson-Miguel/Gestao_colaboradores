@@ -11,7 +11,7 @@ export default function CapacidadeTable({ data }) {
   // Função para determinar cor baseada no percentual
   const getPerformanceColor = (percentual) => {
     if (percentual >= 100) return "text-green-400";
-    if (percentual >= 95) return "text-yellow-400";
+    if (percentual >= 70) return "text-yellow-400";
     return "text-red-400";
   };
 

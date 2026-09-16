@@ -850,9 +850,9 @@ export default function GestaoOperacional() {
               {(() => {
                 const performanceValor = kpis.performance || 0;
                 const corPerformance =
-                  performanceValor >= 100 ? "#22c55e" : performanceValor >= 80 ? "#eab308" : "#ef4444";
+                  performanceValor >= 100 ? "#22c55e" : performanceValor >= 70 ? "#eab308" : "#ef4444";
                 const rotuloPerformance =
-                  performanceValor >= 100 ? "na meta" : performanceValor >= 80 ? "próximo da meta" : "abaixo da meta";
+                  performanceValor >= 100 ? "na meta" : performanceValor >= 70 ? "próximo da meta" : "abaixo da meta";
                 return (
                   <div className="flex items-center justify-center">
                     <div

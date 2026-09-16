@@ -28,7 +28,7 @@ export default function ProducaoChart({ data, kpis, desabilitarAnimacoes = false
       const d = payload[0].payload;
       const getPerformanceColor = (percentual) => {
         if (percentual >= 100) return "text-green-500";
-        if (percentual >= 95) return "text-yellow-500";
+        if (percentual >= 70) return "text-yellow-500";
         return "text-red-500";
       };
       return (
@@ -120,9 +120,9 @@ export default function ProducaoChart({ data, kpis, desabilitarAnimacoes = false
                   ? "transparent"
                   : entry.percentual >= 100
                   ? "#22c55e"   // verde ≥ 100%
-                  : entry.percentual >= 95
-                  ? "#eab308"   // amarelo ≥ 95%
-                  : "#dc2626";  // vermelho < 95%
+                  : entry.percentual >= 70
+                  ? "#eab308"   // amarelo ≥ 70%
+                  : "#dc2626";  // vermelho < 70%
               return <Cell key={`cell-${index}`} fill={color} />;
             })}
           </Bar>
@@ -158,9 +158,9 @@ export default function ProducaoChart({ data, kpis, desabilitarAnimacoes = false
               ? "bg-gray-600"
               : d.percentual >= 100
               ? "bg-emerald-700" // verde ≥ 100%
-              : d.percentual >= 95
-              ? "bg-amber-700"   // amarelo ≥ 95%
-              : "bg-red-700";    // vermelho < 95%
+              : d.percentual >= 70
+              ? "bg-amber-700"   // amarelo ≥ 70%
+              : "bg-red-700";    // vermelho < 70%
 
           return (
             <div
