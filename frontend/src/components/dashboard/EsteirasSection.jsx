@@ -9,7 +9,7 @@ const BELT_STYLE = {
   termo:     { bg: "bg-green-500/10",  border: "border-green-500/30",  dot: "bg-green-500" },
 };
 
-export default function EsteirasSection({ date }) {
+export default function EsteirasSection({ date, turno }) {
   const [belts, setBelts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
@@ -21,16 +21,16 @@ export default function EsteirasSection({ date }) {
     setErro(null);
 
     api
-      .get("/esteiras/planejado", { params: { date } })
+      .get("/esteiras/planejado", { params: { date, turno } })
       .then((res) => setBelts(res.data.data?.belts || []))
       .catch(() => setErro("Não foi possível carregar os dados das esteiras."))
       .finally(() => setLoading(false));
-  }, [date]);
+  }, [date, turno]);
 
   return (
     <div className="bg-surface border border-default rounded-2xl p-6">
       <h2 className="text-sm font-semibold text-muted uppercase mb-5">
-        Configuração das Esteiras – Planejado
+        Configuração das Esteiras – Planejado {turno && turno !== "TODOS" ? `(${turno})` : "(Todos os turnos)"}
       </h2>
 
       {loading ? (

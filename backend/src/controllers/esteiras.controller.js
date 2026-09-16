@@ -4,7 +4,8 @@ const { successResponse, errorResponse } = require("../utils/response");
 const getEsteirasPlanejadas = async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString().slice(0, 10);
-    const data = await buscarEsteirasPlanejadas(date);
+    const turno = req.query.turno;
+    const data = await buscarEsteirasPlanejadas(date, turno);
     return successResponse(res, data);
   } catch (err) {
     console.error("❌ Erro ao buscar esteiras planejadas:", err);

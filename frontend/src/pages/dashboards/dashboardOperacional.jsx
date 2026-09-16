@@ -609,6 +609,7 @@ export default function DashboardOperacional() {
           {Number(estacaoEfetiva) === 1 && (
             <EsteirasSection
               date={appliedRange.from?.toISOString().slice(0, 10)}
+              turno={turnoSelecionado}
             />
           )}
 

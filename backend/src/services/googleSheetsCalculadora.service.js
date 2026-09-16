@@ -139,15 +139,16 @@ const ESTEIRAS_CONFIG = [
   { key: "esteira_b", sheetName: "Esteira B",  label: "Esteira B",            displayLabel: "🟡 Esteira B" },
   { key: "esteira_c", sheetName: "Esteira C",  label: "Esteira C",            displayLabel: "🔵 Esteira C" },
   { key: "linear",    sheetName: "Linear",     label: "Linear",               displayLabel: "🟣 Linear" },
-  { key: "termo",     sheetName: "Termo",      label: "Termo",                displayLabel: "🟢 Esteira Termoplástica" },
+  { key: "termo",     sheetName: "Termoplastica", label: "Termo",              displayLabel: "🟢 Esteira Termoplástica" },
 ];
 
 /**
- * Busca os operadores planejados por esteira para uma data.
+ * Busca os operadores planejados por esteira para uma data e turno.
  * @param {string} dataISO - "YYYY-MM-DD"
+ * @param {string} [turno] - "T1", "T2", "T3" ou "TODOS"/undefined (soma os 3 turnos)
  * @returns {Promise<{ date: string, belts: Array }>}
  */
-async function buscarEsteirasPlanejadas(dataISO) {
+async function buscarEsteirasPlanejadas(dataISO, turno) {
   const sheets = getClient();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
@@ -158,9 +159,12 @@ async function buscarEsteirasPlanejadas(dataISO) {
   const allRows = res.data.values || [];
 
   // Encontra dinamicamente a linha de headers (primeira que contém "Esteira")
-  // A planilha tem duas linhas de cabeçalho: nomes das esteiras + turno labels (T1/T2/T3)
+  // A planilha repete os nomes das esteiras em 3 blocos de colunas, um por
+  // turno — a linha seguinte tem os rótulos T1/T2/T3 de cada bloco. Sem parear
+  // as duas linhas, só dava pra enxergar a primeira ocorrência (bloco T1).
   let headerRowIndex = -1;
-  const colMap = {};
+  // colMap[turno][nomeEsteira] = índice da coluna
+  const colMap = { T1: {}, T2: {}, T3: {} };
 
   for (let i = 0; i < Math.min(6, allRows.length); i++) {
     const row = allRows[i] || [];
@@ -168,12 +172,14 @@ async function buscarEsteirasPlanejadas(dataISO) {
     const temEsteira = row.slice(6).some((cell) => cell && String(cell).trim().startsWith("Esteira"));
     if (temEsteira) {
       headerRowIndex = i;
-      // Guarda apenas a PRIMEIRA ocorrência de cada nome a partir de G (grupo T1)
-      // Normaliza espaços internos (ex: "Esteira  A" → "Esteira A")
+      const turnoRow = allRows[i + 1] || [];
       row.forEach((cell, idx) => {
         if (idx < 6) return;
         const nome = String(cell || "").trim().replace(/\s+/g, " ");
-        if (nome && !colMap[nome]) colMap[nome] = idx;
+        const turnoDoBloco = String(turnoRow[idx] || "").trim().toUpperCase();
+        if (nome && colMap[turnoDoBloco] && colMap[turnoDoBloco][nome] === undefined) {
+          colMap[turnoDoBloco][nome] = idx;
+        }
       });
       break;
     }
@@ -196,16 +202,21 @@ async function buscarEsteirasPlanejadas(dataISO) {
     }
   }
 
+  // Turno específico soma só o bloco dele; "TODOS"/ausente soma os 3 blocos
+  // — mesma convenção já usada nos outros KPIs do Dashboard Operacional.
+  const turnosASomar = ["T1", "T2", "T3"].includes(turno) ? [turno] : ["T1", "T2", "T3"];
+
   const belts = ESTEIRAS_CONFIG.map(({ key, sheetName, label, displayLabel }) => {
-    const colIdx = colMap[sheetName];
-    const plannedOperators =
-      dataRow !== null && colIdx !== undefined
-        ? parseInt(dataRow[colIdx]) || 0
-        : 0;
+    const plannedOperators = dataRow
+      ? turnosASomar.reduce((soma, t) => {
+          const colIdx = colMap[t][sheetName];
+          return soma + (colIdx !== undefined ? parseInt(dataRow[colIdx]) || 0 : 0);
+        }, 0)
+      : 0;
     return { key, label, displayLabel, plannedOperators };
   });
 
-  return { date: dataISO, belts };
+  return { date: dataISO, turno: turno || "TODOS", belts };
 }
 
 module.exports = {
