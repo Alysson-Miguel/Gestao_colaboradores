@@ -151,20 +151,21 @@ export default function ProducaoChart({ data, kpis, desabilitarAnimacoes = false
         }}
       >
         {dadosFiltrados.map((d, i) => {
-          // Mesma lógica de cores das barras
+          // Mesma lógica de cores das barras — tons -700 pra garantir contraste
+          // AA (4.5:1) com o texto branco em negrito (os -600 ficavam abaixo do mínimo)
           const bgColor =
             d.realizado === 0
               ? "bg-gray-600"
               : d.percentual >= 100
-              ? "bg-green-600"   // verde ≥ 100%
+              ? "bg-emerald-700" // verde ≥ 100%
               : d.percentual >= 95
-              ? "bg-yellow-600"  // amarelo ≥ 95%
-              : "bg-red-600";    // vermelho < 95%
-          
+              ? "bg-amber-700"   // amarelo ≥ 95%
+              : "bg-red-700";    // vermelho < 95%
+
           return (
             <div
               key={i}
-              className={`text-center font-bold text-sm py-2 rounded ${bgColor} text-white`}
+              className={`text-center font-bold text-sm py-2 rounded tabular-nums ${bgColor} text-white`}
             >
               {d.percentual.toFixed(1)}%
             </div>

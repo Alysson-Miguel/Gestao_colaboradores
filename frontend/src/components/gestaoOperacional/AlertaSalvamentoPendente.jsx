@@ -91,56 +91,56 @@ export default function AlertaSalvamentoPendente() {
 
   return (
     <div className="fixed top-20 right-4 z-50 max-w-md animate-slide-in-right">
-      <div className="bg-red-50 border-l-4 border-red-500 rounded-lg shadow-lg p-4">
+      <div className="bg-surface border border-red-500/30 border-l-4 border-l-red-500 rounded-xl shadow-2xl p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-red-600 animate-pulse" />
-            <h3 className="font-semibold text-red-800">
+            <AlertTriangle className="w-6 h-6 text-red-400 shrink-0" aria-hidden="true" />
+            <h3 className="font-semibold text-page">
               Salvamento Automático Falhou
             </h3>
           </div>
           <button
             onClick={fecharAlerta}
-            className="text-red-400 hover:text-red-600 transition-colors"
-            title="Fechar alerta"
+            aria-label="Fechar alerta"
+            className="p-1 -m-1 rounded-md text-muted hover:text-page hover:bg-surface-2 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-red-500"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
-        
+
         <div className="space-y-3">
           {turnosPendentes.map((item) => (
             <div
               key={`${item.turno}-${item.data}`}
-              className="bg-white rounded-md p-3 border border-red-200"
+              className="bg-surface-2 rounded-lg p-3 border border-default"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div>
-                  <p className="font-medium text-gray-900">{item.turno}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-medium text-page">{item.turno}</p>
+                  <p className="text-sm text-muted">
                     Data: {new Date(item.data).toLocaleDateString('pt-BR')}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted/80">
                     Esperado às {item.horarioEsperado}
                   </p>
                 </div>
                 <button
                   onClick={() => salvarManualmente(item.turno, item.data)}
                   disabled={salvando}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0 focus:outline-none focus:ring-2 focus:ring-red-500/50"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4" aria-hidden="true" />
                   {salvando ? "Salvando..." : "Salvar"}
                 </button>
               </div>
-              <p className="text-sm text-red-700">{item.mensagem}</p>
+              <p className="text-sm text-red-400">{item.mensagem}</p>
             </div>
           ))}
         </div>
-           
-        <div className="mt-3 pt-3 border-t border-red-200">
-          <p className="text-xs text-gray-600">
-            💡 Clique em "Salvar" para executar o salvamento manualmente
+
+        <div className="mt-3 pt-3 border-t border-default">
+          <p className="text-xs text-muted">
+            Clique em "Salvar" para executar o salvamento manualmente.
           </p>
         </div>
       </div>

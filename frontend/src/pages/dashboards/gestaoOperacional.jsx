@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useContext } from "react";
 import { useEstacao } from "../../context/EstacaoContext";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Package, Send, X, ArrowLeftRight } from "lucide-react";
+import { Calendar, Package, Send, X, ArrowLeftRight, Wrench, AlertTriangle, TrendingUp, TrendingDown, RotateCw } from "lucide-react";
 import api from "../../services/api";
 import { useTurnosOperacionais } from "../../hooks/useTurnosOperacionais";
 import Sidebar from "../../components/Sidebar";
@@ -390,17 +390,26 @@ export default function GestaoOperacional() {
             <Header onMenuClick={() => setSidebarOpen(true)} />
             <div className="flex flex-col items-center justify-center h-[80vh] gap-6 text-center px-4">
               <div className="w-20 h-20 rounded-full bg-surface border border-default flex items-center justify-center">
-                <span className="text-4xl">🔧</span>
+                <Wrench className="w-9 h-9 text-[#FA4C00]" aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white mb-2">Funcionalidade em configuração</h2>
+                <h2 className="text-xl font-semibold text-page mb-2">Funcionalidade em configuração</h2>
                 <p className="text-muted text-sm max-w-sm">
                   A planilha de produtividade desta estação ainda está sendo configurada.
                   Em breve os dados estarão disponíveis aqui.
                 </p>
               </div>
-              <div className="px-4 py-1.5 rounded-full bg-[#FA4C00]/10 border border-[#FA4C00]/30 text-[#FA4C00] text-xs font-medium">
-                Em breve
+              <div className="flex items-center gap-3">
+                <span className="px-4 py-1.5 rounded-full bg-[#FA4C00]/10 border border-[#FA4C00]/30 text-[#FA4C00] text-xs font-medium">
+                  Em breve
+                </span>
+                <button
+                  onClick={carregarDados}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-2 border border-default text-muted hover:text-page hover:border-[#FA4C00]/40 text-xs font-medium transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
+                >
+                  <RotateCw className="w-3.5 h-3.5" aria-hidden="true" />
+                  Verificar novamente
+                </button>
               </div>
             </div>
           </MainLayout>
@@ -409,11 +418,27 @@ export default function GestaoOperacional() {
     }
 
     return (
-      <div className="h-screen flex items-center justify-center bg-page">
-        <div className="text-center">
-          <div className="text-red-500 text-xl mb-2">Erro</div>
-          <div className="text-muted">{erro}</div>
-        </div>
+      <div className="flex min-h-screen bg-page text-page overflow-x-hidden">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <MainLayout>
+          <Header onMenuClick={() => setSidebarOpen(true)} />
+          <div className="flex flex-col items-center justify-center h-[80vh] gap-5 text-center px-4">
+            <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <AlertTriangle className="w-9 h-9 text-red-400" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-page mb-2">Não foi possível carregar o dashboard</h2>
+              <p className="text-muted text-sm max-w-md">{erro}</p>
+            </div>
+            <button
+              onClick={carregarDados}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FA4C00] hover:bg-[#D84300] text-white text-sm font-medium transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FA4C00]/50"
+            >
+              <RotateCw className="w-4 h-4" aria-hidden="true" />
+              Tentar novamente
+            </button>
+          </div>
+        </MainLayout>
       </div>
     );
   }
@@ -434,11 +459,15 @@ export default function GestaoOperacional() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center shrink-0">
-                  <span className="text-yellow-400 text-xl">⚠️</span>
+                  <AlertTriangle className="w-5 h-5 text-yellow-400" aria-hidden="true" />
                 </div>
                 <h3 className="text-base font-semibold text-page">Grupo Seatalk não configurado</h3>
               </div>
-              <button onClick={() => setModalSeatalkConfig(false)} className="text-muted hover:text-page transition">
+              <button
+                onClick={() => setModalSeatalkConfig(false)}
+                aria-label="Fechar"
+                className="p-1.5 -m-1.5 rounded-lg text-muted hover:text-page hover:bg-surface-2 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -493,7 +522,7 @@ export default function GestaoOperacional() {
           {!ocultarHeader && (
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-4">
-              <div className="bg-[#E8491D] px-6 py-3 rounded-lg flex items-center gap-2">
+              <div className="bg-[#FA4C00] px-6 py-3 rounded-lg flex items-center gap-2">
                 <Package className="w-6 h-6" />
                 <span className="text-xl font-bold">PACKING</span>
               </div>
@@ -502,8 +531,8 @@ export default function GestaoOperacional() {
                 <span className="font-semibold text-page">{turno}</span> | {new Date(data + 'T00:00:00').toLocaleDateString('pt-BR')}
                 {loading && (
                   <div className="flex items-center gap-2 ml-2">
-                    <div className="w-4 h-4 border-2 border-[#E8491D] border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-xs text-[#E8491D]">Atualizando...</span>
+                    <div className="w-4 h-4 border-2 border-[#FA4C00] border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-xs text-[#FA4C00]">Atualizando...</span>
                   </div>
                 )}
               </div>
@@ -556,15 +585,16 @@ export default function GestaoOperacional() {
               
               {/* Filtro de Turno */}
               <div className="flex items-center gap-2">
-                <label className="text-sm text-muted">Turno:</label>
+                <label htmlFor="turno-select" className="text-sm text-muted">Turno:</label>
                 <select
+                  id="turno-select"
                   value={turno}
                   onChange={(e) => {
                     const novoTurno = e.target.value;
                     setTurno(novoTurno);
                     setData(getDataDefaultParaTurno(novoTurno));
                   }}
-                  className="px-4 py-2 bg-surface border border-default rounded-lg text-page"
+                  className="px-4 py-2 bg-surface border border-default rounded-lg text-page cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
                 >
                   {turnosOperacionais.map((t) => (
                     <option key={t.idTurno} value={t.nomeTurno}>{t.nomeTurno}</option>
@@ -580,15 +610,16 @@ export default function GestaoOperacional() {
                     type="date"
                     value={data}
                     onChange={(e) => setData(e.target.value)}
-                    className="px-4 py-2 pr-10 bg-surface border border-default rounded-lg text-page"
+                    className="px-4 py-2 pr-10 bg-surface border border-default rounded-lg text-page focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
                   />
                   <button
                     type="button"
+                    aria-label="Abrir calendário"
                     onClick={() => document.getElementById("data-picker").showPicker()}
-                    className="absolute right-2 text-muted hover:text-page transition-colors"
+                    className="absolute right-1.5 p-1.5 rounded-md text-muted hover:text-page hover:bg-surface-2 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FA4C00]"
                     tabIndex={-1}
                   >
-                    <Calendar className="w-5 h-5" />
+                    <Calendar className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -597,7 +628,7 @@ export default function GestaoOperacional() {
           )}
 
           {/* KPIs Header - Estilo da imagem */}
-          <div className="bg-surface border border-default rounded-lg overflow-hidden shadow-lg">
+          <div className="bg-surface border border-default rounded-xl overflow-hidden shadow-lg">
             {/* Indicador de Turno e Data */}
             <div className="bg-surface-2 px-6 py-2 text-center">
               <span className="text-sm text-muted">
@@ -608,8 +639,9 @@ export default function GestaoOperacional() {
                   </span>
                 )}
                 {fonteProducao === "BACKUP" && (
-                  <span className="ml-4 text-xs font-semibold text-yellow-400">
-                    ⚠️ Usando base de backup (db30s)
+                  <span className="ml-4 inline-flex items-center gap-1 text-xs font-semibold text-yellow-400">
+                    <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+                    Usando base de backup (db30s)
                   </span>
                 )}
               </span>
@@ -619,7 +651,7 @@ export default function GestaoOperacional() {
               {/* Meta do Dia */}
               <div className="bg-surface text-page p-6 text-center">
                 <div className="text-sm font-semibold text-muted mb-2">META DO DIA</div>
-                <div className="text-4xl font-bold text-page">
+                <div className="text-4xl font-bold text-page tabular-nums">
                   {kpis.metaDia?.toLocaleString("pt-BR") || "0"}
                 </div>
               </div>
@@ -628,7 +660,7 @@ export default function GestaoOperacional() {
               <div className="bg-surface text-page p-6 text-center">
                 <div className="text-sm font-semibold text-muted mb-2">META HORA ATUAL {kpis.horaAtual !== undefined && `(${kpis.horaAtual}h)`}
                 </div>
-                <div className="text-4xl font-bold text-page">
+                <div className="text-4xl font-bold text-page tabular-nums">
                   {kpis.metaHoraAtual?.toLocaleString("pt-BR") || "0"}
                 </div>
               </div>
@@ -636,7 +668,7 @@ export default function GestaoOperacional() {
               {/* Meta de Produtividade */}
               <div className="bg-surface text-page p-6 text-center">
                 <div className="text-sm font-semibold text-muted mb-2">META DE PRODUTIVIDADE</div>
-                <div className="text-4xl font-bold text-page">
+                <div className="text-4xl font-bold text-page tabular-nums">
                   {metaProdutividadeTarget.toLocaleString("pt-BR")}
                 </div>
               </div>
@@ -645,7 +677,6 @@ export default function GestaoOperacional() {
 
           {/* Cards de Previsão - Separados por Dia e Hora */}
           {(() => {
-            const realizado = kpis.realizado || 0;
             const metaDia = kpis.metaDia || 0;
             const metaHoraAtual = kpis.metaHoraAtual || 0;
             const horaAtual = kpis.horaAtual || 0;
@@ -712,21 +743,27 @@ export default function GestaoOperacional() {
             return (
               <div className="space-y-4">
                 {/* Card de Projeção do Dia */}
-                <div className={`${estaPerdendoDia ? 'bg-red-500' : 'bg-green-500'} rounded-lg shadow-lg p-6 text-white text-center`}>
-                  <h2 className="text-2xl font-bold mb-4">
-                    {estaPerdendoDia ? 'Estamos perdendo. Bora lá ein! 😰' : 'Estamos ganhando! Vamos manter! 🚀'}
+                <div className={`${estaPerdendoDia ? 'bg-red-700' : 'bg-emerald-700'} rounded-xl shadow-lg p-6 text-white text-center`}>
+                  <h2 className="flex items-center justify-center gap-2.5 text-2xl font-bold mb-4">
+                    {estaPerdendoDia ? (
+                      <TrendingDown className="w-7 h-7 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <TrendingUp className="w-7 h-7 shrink-0" aria-hidden="true" />
+                    )}
+                    {estaPerdendoDia ? 'Estamos perdendo. Bora lá ein!' : 'Estamos ganhando! Vamos manter!'}
                   </h2>
-                  <p className="text-lg leading-relaxed">
+                  <p className="text-lg leading-relaxed tabular-nums">
                     Se continuarmos nesse ritmo vamos finalizar o {turno === 'T3' ? 'horário' : 'dia'} com{' '}
                     <span className="font-bold text-2xl">{projecaoFinal.toLocaleString('pt-BR')}</span> pacotes processados.
                   </p>
                 </div>
 
                 {/* Card de Projeção da Hora */}
-                <div className={`${estaPerdendoHora ? 'bg-red-500' : 'bg-green-500'} rounded-lg shadow-lg p-6 text-white text-center`}>
+                <div className={`${estaPerdendoHora ? 'bg-red-700' : 'bg-emerald-700'} rounded-xl shadow-lg p-6 text-white text-center`}>
                   {estaPerdendoHora ? (
-                    <div>
-                      <p className="text-xl font-semibold mb-3">
+                    <div className="tabular-nums">
+                      <p className="flex items-center justify-center gap-2 text-xl font-semibold mb-3">
+                        <TrendingDown className="w-5 h-5 shrink-0" aria-hidden="true" />
                         Faltam <span className="text-3xl font-bold">{faltaHora.toLocaleString('pt-BR')}</span> pacotes para completar a meta da hora
                       </p>
                       <p className="text-xl font-semibold mb-1">
@@ -737,8 +774,9 @@ export default function GestaoOperacional() {
                       </p>
                     </div>
                   ) : (
-                    <div>
-                      <p className="text-xl font-semibold mb-3">
+                    <div className="tabular-nums">
+                      <p className="flex items-center justify-center gap-2 text-xl font-semibold mb-3">
+                        <TrendingUp className="w-5 h-5 shrink-0" aria-hidden="true" />
                         <span className="text-3xl font-bold">{faltaHora.toLocaleString('pt-BR')}</span> pacotes acima da meta da hora
                       </p>
                       <p className="text-xl font-semibold mb-1">
@@ -755,23 +793,30 @@ export default function GestaoOperacional() {
           })()}
 
           {/* Card Principal - Performance e Gráfico */}
-          <div className="bg-surface border border-default rounded-lg shadow-lg p-6">
+          <div className="bg-surface border border-default rounded-xl shadow-lg p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               {/* Performance Box */}
               <div className="space-y-4">
-                <div className="bg-surface text-page p-4 rounded">
-                  <div className="text-sm font-semibold text-muted mb-2">PEFORMANCE</div>
+                <div className="bg-surface text-page p-4 rounded-lg">
+                  <div className="text-sm font-semibold text-muted mb-2">PERFORMANCE</div>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted">Média Hora Realizado</span>
-                      <span className="text-2xl font-bold">
+                      <span className="text-2xl font-bold tabular-nums">
                         {kpis.mediaHoraRealizado?.toLocaleString("pt-BR") || "0"}
                       </span>
                     </div>
                     <div className="h-px bg-default"></div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted">Produtividade</span>
-                      <span className={`text-2xl font-bold ${(kpis.produtividade || 0) >= metaProdutividadeTarget ? 'text-green-400' : 'text-red-400'}`}>
+                      <span
+                        className={`flex items-center gap-1 text-2xl font-bold tabular-nums ${(kpis.produtividade || 0) >= metaProdutividadeTarget ? 'text-emerald-400' : 'text-red-400'}`}
+                      >
+                        {(kpis.produtividade || 0) >= metaProdutividadeTarget ? (
+                          <TrendingUp className="w-4 h-4" aria-hidden="true" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4" aria-hidden="true" />
+                        )}
                         {kpis.produtividade || "0"}
                       </span>
                     </div>
@@ -784,16 +829,16 @@ export default function GestaoOperacional() {
                 <div className="text-center">
                   <div className="text-lg font-semibold text-page mb-4">
                     Meta <span className="text-muted">X</span>{" "}
-                    <span className="text-[#E8491D]">Realizado</span>
+                    <span className="text-[#FA4C00]">Realizado</span>
                   </div>
                   <div className="flex gap-12 justify-center items-baseline">
                     <div className="text-center">
-                      <div className="text-4xl font-bold text-blue-400">
+                      <div className="text-4xl font-bold text-blue-400 tabular-nums">
                         {kpis.metaDia?.toLocaleString("pt-BR") || "0"}
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-4xl font-bold text-[#E8491D]">
+                      <div className="text-4xl font-bold text-[#FA4C00] tabular-nums">
                         {kpis.realizado?.toLocaleString("pt-BR") || "0"}
                       </div>
                     </div>
@@ -801,40 +846,48 @@ export default function GestaoOperacional() {
                 </div>
               </div>
 
-              {/* Círculo de Performance */}
-              <div className="flex items-center justify-center">
-                <div className="relative w-48 h-48">
-                  <svg viewBox="0 0 100 100" className="transform -rotate-90">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="none"
-                      stroke="var(--color-border)"
-                      strokeWidth="12"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="none"
-                      stroke="#22c55e"
-                      strokeWidth="12"
-                      strokeDasharray={`${(kpis.performance || 0) * 2.51} ${251.2 - (kpis.performance || 0) * 2.51}`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl font-bold text-page">
-                      {kpis.performance?.toFixed(2) || "0"}%
-                    </span>
+              {/* Círculo de Performance — cor reflete o desempenho real, não é decorativa */}
+              {(() => {
+                const performanceValor = kpis.performance || 0;
+                const corPerformance =
+                  performanceValor >= 100 ? "#22c55e" : performanceValor >= 80 ? "#eab308" : "#ef4444";
+                const rotuloPerformance =
+                  performanceValor >= 100 ? "na meta" : performanceValor >= 80 ? "próximo da meta" : "abaixo da meta";
+                return (
+                  <div className="flex items-center justify-center">
+                    <div
+                      className="relative w-48 h-48"
+                      role="img"
+                      aria-label={`Performance de ${performanceValor.toFixed(2)}%, ${rotuloPerformance}`}
+                    >
+                      <svg viewBox="0 0 100 100" className="transform -rotate-90" aria-hidden="true">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-border)" strokeWidth="12" />
+                        <circle
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          stroke={corPerformance}
+                          strokeWidth="12"
+                          strokeDasharray={`${Math.min(performanceValor, 100) * 2.51} ${251.2 - Math.min(performanceValor, 100) * 2.51}`}
+                          strokeLinecap="round"
+                          className={desabilitarAnimacoes ? "" : "transition-all duration-500 ease-out"}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-bold text-page tabular-nums">
+                          {performanceValor.toFixed(2)}%
+                        </span>
+                        <span className="text-[11px] text-muted mt-0.5">{rotuloPerformance}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             {/* Título Produção por Hora */}
-            <div className="bg-[#E8491D] text-white text-center py-3 rounded-t-lg -mx-6 mb-6">
+            <div className="bg-[#FA4C00] text-white text-center py-3 rounded-lg -mx-6 mb-6">
               <h2 className="text-xl font-bold">Produção por Hora</h2>
             </div>
 
