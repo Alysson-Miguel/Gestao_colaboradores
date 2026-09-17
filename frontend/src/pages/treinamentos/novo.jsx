@@ -32,19 +32,26 @@ export default function NovoTreinamento() {
 
   const [setores, setSetores] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  // Líderes de treinamento que atuam em mais de uma estação (ex: alguém
+  // cadastrado em Jaboatão que também responde por treinamentos em Recife) —
+  // não vêm na listagem normal de /colaboradores porque essa já é filtrada
+  // pela estação selecionada no momento.
+  const [colaboradoresLiderExtra, setColaboradoresLiderExtra] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function loadBase() {
       try {
-        const [setoresRes, colaboradoresRes, estacoesRes] = await Promise.all([
+        const [setoresRes, colaboradoresRes, estacoesRes, lideresExtraRes] = await Promise.all([
           api.get("/setores"),
           api.get("/colaboradores", { params: { status: "ATIVO", limit: 5000 } }),
           api.get("/estacoes"),
+          api.get("/colaboradores/lideres/treinamento-extra"),
         ]);
         setSetores(setoresRes.data.data || setoresRes.data);
         setColaboradores(colaboradoresRes.data.data || colaboradoresRes.data);
         setEstacoes(estacoesRes.data.data || estacoesRes.data || []);
+        setColaboradoresLiderExtra(lideresExtraRes.data.data || lideresExtraRes.data || []);
       } catch (e) {
         if (e.response?.status === 401) { logout(); navigate("/login"); }
       }
@@ -108,8 +115,16 @@ export default function NovoTreinamento() {
     return matchBusca && matchSetor && matchTurno;
   });
 
-  const liderSelecionado = colaboradores.find(c => c.opsId === form.liderResponsavelOpsId);
-  const colaboradoresFiltradosLider = colaboradores
+  // Pool de candidatos a Líder Responsável = colaboradores da estação atual
+  // + líderes cross-estação (sem duplicar quem já aparece nos dois).
+  const colaboradoresParaLider = [
+    ...colaboradores,
+    ...colaboradoresLiderExtra.filter(
+      (extra) => !colaboradores.some((c) => c.opsId === extra.opsId)
+    ),
+  ];
+  const liderSelecionado = colaboradoresParaLider.find(c => c.opsId === form.liderResponsavelOpsId);
+  const colaboradoresFiltradosLider = colaboradoresParaLider
     .filter(c => c.nomeCompleto?.toLowerCase().includes(searchLider.toLowerCase()))
     .slice(0, 30);
 

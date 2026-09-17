@@ -5,6 +5,7 @@
 const { prisma } = require("../config/database");
 const csv = require("csvtojson");
 const XLSX = require("xlsx");
+const { OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO } = require("../config/lideresTreinamentoCrossEstacao");
 const {
   successResponse,
   createdResponse,
@@ -1259,6 +1260,32 @@ const listarLideres = async (req, res) => {
   }
 };
 
+/**
+ * Colaboradores que atuam como Líder Responsável de treinamento em mais de
+ * uma estação (lista pequena e explícita, ver config/lideresTreinamentoCrossEstacao.js).
+ * Ignora o filtro de estação de propósito — é exatamente pra isso que existe.
+ */
+const listarLideresTreinamentoExtra = async (req, res) => {
+  try {
+    const colaboradores = await prisma.colaborador.findMany({
+      where: {
+        opsId: { in: OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO },
+        status: "ATIVO",
+      },
+      select: {
+        opsId: true,
+        nomeCompleto: true,
+        cpf: true,
+      },
+      orderBy: { nomeCompleto: "asc" },
+    });
+
+    return successResponse(res, colaboradores);
+  } catch (err) {
+    return errorResponse(res, "Erro ao listar líderes adicionais", 500);
+  }
+};
+
 /* ================= MOVIMENTAR ================= */
 const movimentarColaborador = async (req, res) => {
   const { opsId } = req.params;
@@ -2112,6 +2139,7 @@ module.exports = {
   importColaboradores,
   getStatusImport,
   listarLideres,
+  listarLideresTreinamentoExtra,
   listarEscalas,
   listarSetores,
   listarFiltrosEstacao,

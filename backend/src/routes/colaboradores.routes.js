@@ -53,6 +53,15 @@ router.get(
   asyncHandler(controller.listarLideres)
 );
 
+// Líderes de treinamento que atuam em mais de uma estação — ignora o filtro
+// de estação de propósito (ver config/lideresTreinamentoCrossEstacao.js)
+router.get(
+  "/lideres/treinamento-extra",
+  authenticate,
+  authorize("ADMIN", "ALTA_GESTAO", "LIDERANCA"),
+  asyncHandler(controller.listarLideresTreinamentoExtra)
+);
+
 /* ================= ESCALAS ================= */
 
 router.get(
