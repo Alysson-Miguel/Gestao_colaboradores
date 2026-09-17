@@ -29,8 +29,25 @@ export default function EmployeeTable({ employees = [], onView }) {
     <div className="w-full">
 
       {/* ================= DESKTOP TABLE ================= */}
-      <div className="hidden md:block overflow-x-auto rounded-xl bg-surface">
-        <table className="w-full min-w-[1100px] text-sm">
+      {/* table-fixed + colgroup: largura de cada coluna soma 100% do
+          container, então a tabela nunca ultrapassa a tela e não precisa
+          de scroll lateral — texto longo quebra a linha em vez de forçar
+          a tabela a alargar (mesmo comportamento que "Nome" já tinha). */}
+      <div className="hidden md:block rounded-xl bg-surface">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[9%]" />
+            <col className="w-[10%]" />
+            <col className="w-[7%]" />
+            <col className="w-[7%]" />
+            <col className="w-[7%]" />
+            <col className="w-[7%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[9%]" />
+            <col className="w-[11%]" />
+          </colgroup>
           <thead>
             <tr className="bg-surface-2 text-xs uppercase tracking-wide text-muted">
               {[
@@ -48,7 +65,7 @@ export default function EmployeeTable({ employees = [], onView }) {
               ].map((h) => (
                 <th
                   key={h}
-                  className={`px-5 py-4 font-semibold ${
+                  className={`px-3 py-4 font-semibold whitespace-nowrap ${
                     h === "" ? "text-right" : "text-left"
                   }`}
                 >
@@ -73,27 +90,27 @@ export default function EmployeeTable({ employees = [], onView }) {
                     hover:bg-surface-3
                   `}
                 >
-                  <td className="px-5 py-4 font-medium text-page">
+                  <td className="px-3 py-4 font-medium text-page break-words">
                     {emp.nomeCompleto}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted whitespace-nowrap">
                     {emp.opsId || "-"}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted break-words">
                     {emp.cargo?.nomeCargo || "-"}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted break-words">
                     {emp.setor?.nomeSetor || "-"}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted break-words">
                     {emp.empresa?.razaoSocial || "-"}
                   </td>
 
-                  <td className="px-5 py-4">
+                  <td className="px-3 py-4">
                     {escala ? (
                       isDark ? (
                         <span
@@ -118,21 +135,21 @@ export default function EmployeeTable({ employees = [], onView }) {
                     )}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted whitespace-nowrap">
                     {emp.turno?.nomeTurno || "-"}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted whitespace-nowrap">
                     {emp.dataAdmissao
                       ? emp.dataAdmissao.slice(0, 10).split("-").reverse().join("/")
                       : "-"}
                   </td>
 
-                  <td className="px-5 py-4 text-muted">
+                  <td className="px-3 py-4 text-muted break-words">
                     {emp.email || "-"}
                   </td>
 
-                  <td className="px-5 py-4">
+                  <td className="px-3 py-4 whitespace-nowrap">
                     <Badge.Status
                       variant={status === "ATIVO" ? "success" : "danger"}
                     >
@@ -140,7 +157,7 @@ export default function EmployeeTable({ employees = [], onView }) {
                     </Badge.Status>
                   </td>
 
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-3 py-4 text-right whitespace-nowrap">
                     <Button.Secondary size="sm" onClick={() => onView(emp)}>
                       Ver Perfil
                     </Button.Secondary>

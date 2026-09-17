@@ -401,11 +401,21 @@ const registrarPontoCPF = async (req, res) => {
         return errorResponse(res, "Tipo de ausência 'P' não encontrado no banco. Contate o administrador.", 500);
       }
 
+      // Se o dia estava marcado por um ajuste manual (ex: Falta lançada pelo
+      // RH) e o colaborador bate o ponto de verdade agora, a batida é a
+      // fonte de verdade — limpa o rótulo de ajuste manual e o motivo
+      // (senão a tela continuava mostrando "Ajuste manual — por Fulano" e
+      // "Motivo: Falta injustificada" em cima de uma entrada real).
       const atualizado = await prisma.frequencia.update({
         where: { idFrequencia: frequenciaDia.idFrequencia },
         data: {
           horaEntrada: horaAgora,
           idTipoAusencia: tipoPresencaFix.idTipoAusencia,
+          ...(frequenciaDia.manual && {
+            manual: false,
+            justificativa: null,
+            registradoPor: colaborador.opsId,
+          }),
         },
       });
 
