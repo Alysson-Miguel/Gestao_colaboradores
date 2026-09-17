@@ -466,6 +466,7 @@ export default function NovaSolicitacaoOperacional() {
                         <option value="OUTRA_OPERACAO">Outra Operação</option>
                         <option value="ALMOXARIFADO">Almoxarifado</option>
                         <option value="MEIO_AMBIENTE">Meio Ambiente</option>
+                        <option value="TREINAMENTO">Treinamento</option>
                       </select>
                     </Field>
                   )}

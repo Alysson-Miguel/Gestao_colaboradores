@@ -21,6 +21,7 @@ export const DESTINO_SINERGIA_LABEL = {
   OUTRA_OPERACAO: "Outra Operação",
   ALMOXARIFADO: "Almoxarifado",
   MEIO_AMBIENTE: "Meio Ambiente",
+  TREINAMENTO: "Treinamento",
 };
 
 export const TIPO_DESLIGAMENTO_LABEL = {
@@ -96,4 +97,14 @@ export function TipoBadge({ tipo }) {
 export function formatDateOnly(str) {
   if (!str) return "—";
   return str.slice(0, 10).split("-").reverse().join("/");
+}
+
+// Para campos DateTime/Timestamp (dataCriacao, primeiraAprovacaoEm, decididoEm)
+// — diferente de formatDateOnly (campos @db.Date, sem hora), aqui precisa
+// converter pro fuso do Brasil antes de extrair o dia: um registro criado às
+// 21h-23h59 local já virou o dia seguinte em UTC, e cortar a string direto
+// pegava essa data UTC errada.
+export function formatDateTimeOnly(str) {
+  if (!str) return "—";
+  return new Date(str).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }

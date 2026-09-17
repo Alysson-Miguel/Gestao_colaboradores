@@ -9,7 +9,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
-import { StatusOperacionalBadge, TipoBadge, DESTINO_SINERGIA_LABEL, TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL, formatDateOnly } from "./shared";
+import { StatusOperacionalBadge, TipoBadge, DESTINO_SINERGIA_LABEL, TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL, formatDateOnly, formatDateTimeOnly } from "./shared";
 
 function ColaboradorCard({ titulo, colaborador }) {
   if (!colaborador) return null;
@@ -227,17 +227,17 @@ export default function DetalhesSolicitacaoOperacional() {
                 )}
 
                 <div><span className="text-muted">Solicitante</span><p>{solicitacao.solicitante?.name}</p></div>
-                <div><span className="text-muted">Data da Solicitação</span><p>{formatDateOnly(solicitacao.dataCriacao)}</p></div>
+                <div><span className="text-muted">Data da Solicitação</span><p>{formatDateTimeOnly(solicitacao.dataCriacao)}</p></div>
                 {solicitacao.primeiraAprovacaoPor && (
                   <>
                     <div><span className="text-muted">Primeira Aprovação</span><p>{solicitacao.primeiraAprovacaoPor?.name}</p></div>
-                    <div><span className="text-muted">Data da Primeira Aprovação</span><p>{formatDateOnly(solicitacao.primeiraAprovacaoEm)}</p></div>
+                    <div><span className="text-muted">Data da Primeira Aprovação</span><p>{formatDateTimeOnly(solicitacao.primeiraAprovacaoEm)}</p></div>
                   </>
                 )}
                 {solicitacao.decididoPor && (
                   <>
                     <div><span className="text-muted">Responsável pela Decisão</span><p>{solicitacao.decididoPor?.name}</p></div>
-                    <div><span className="text-muted">Data da Decisão</span><p>{formatDateOnly(solicitacao.decididoEm)}</p></div>
+                    <div><span className="text-muted">Data da Decisão</span><p>{formatDateTimeOnly(solicitacao.decididoEm)}</p></div>
                   </>
                 )}
                 <div className="md:col-span-2"><span className="text-muted">Motivo</span><p>{solicitacao.motivo}</p></div>

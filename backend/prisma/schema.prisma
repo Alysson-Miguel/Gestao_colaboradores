@@ -1175,6 +1175,7 @@ enum DestinoSinergia {
   OUTRA_OPERACAO
   ALMOXARIFADO
   MEIO_AMBIENTE
+  TREINAMENTO
 }
 
 enum StatusAcidente {

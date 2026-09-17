@@ -14,7 +14,7 @@ import Header from "../../components/Header";
 import api from "../../services/api";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 import { AuthContext } from "../../context/AuthContext";
-import { StatusOperacionalBadge, TipoBadge, TIPO_LABEL, formatDateOnly } from "./shared";
+import { StatusOperacionalBadge, TipoBadge, TIPO_LABEL, formatDateTimeOnly } from "./shared";
 import { AprovadoresOperacionaisModal } from "../../components/solicitacoesOperacionais/AprovadoresOperacionaisModal";
 
 const LIMIT = 20;
@@ -705,8 +705,8 @@ export default function SolicitacoesOperacionaisPage() {
                       <td className="px-4 py-3 text-muted text-xs">{s.colaborador?.setor?.nomeSetor || "—"}</td>
                       <td className="px-4 py-3 text-muted text-xs">{s.colaborador?.turno?.nomeTurno || "—"}</td>
                       <td className="px-4 py-3"><StatusOperacionalBadge status={s.status} /></td>
-                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">{formatDateOnly(s.dataCriacao)}</td>
-                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">{s.decididoEm ? formatDateOnly(s.decididoEm) : "—"}</td>
+                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">{formatDateTimeOnly(s.dataCriacao)}</td>
+                      <td className="px-4 py-3 text-muted text-xs whitespace-nowrap">{s.decididoEm ? formatDateTimeOnly(s.decididoEm) : "—"}</td>
                       <td className="px-4 py-3 text-xs text-muted max-w-[140px]">
                         <span className="line-clamp-1">{s.decididoPor?.name || "—"}</span>
                       </td>

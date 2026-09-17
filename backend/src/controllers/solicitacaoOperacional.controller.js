@@ -82,7 +82,7 @@ function linkSolicitacaoOperacional(idSolicitacao) {
   return `${frontendUrl}/solicitacoes-operacionais/${idSolicitacao}`;
 }
 
-const DESTINOS_SINERGIA_VALIDOS = ["FULL", "TRATATIVAS", "OUTRA_OPERACAO", "ALMOXARIFADO", "MEIO_AMBIENTE"];
+const DESTINOS_SINERGIA_VALIDOS = ["FULL", "TRATATIVAS", "OUTRA_OPERACAO", "ALMOXARIFADO", "MEIO_AMBIENTE", "TREINAMENTO"];
 
 const TIPOS_DESLIGAMENTO_VALIDOS = ["DV", "DF", "DP"];
 const MOTIVOS_DESLIGAMENTO_VALIDOS = [
@@ -392,7 +392,7 @@ exports.importarSinergiaLote = async (req, res) => {
         const destino = normalizarDestinoSinergia(raw.destino);
         if (!destino) {
           throw new HttpError(
-            `Destino inválido: "${raw.destino || ""}". Use FULL, TRATATIVAS, OUTRA_OPERACAO, ALMOXARIFADO ou MEIO_AMBIENTE`,
+            `Destino inválido: "${raw.destino || ""}". Use FULL, TRATATIVAS, OUTRA_OPERACAO, ALMOXARIFADO, MEIO_AMBIENTE ou TREINAMENTO`,
             400
           );
         }

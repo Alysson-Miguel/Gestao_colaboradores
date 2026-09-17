@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { X, Download, Upload, Loader2, CheckCircle2, AlertTriangle, FileUp, FileSpreadsheet } from "lucide-react";
 import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacionais";
 
-const DESTINOS_EXEMPLO = "FULL, TRATATIVAS, OUTRA_OPERACAO, ALMOXARIFADO, MEIO_AMBIENTE";
+const DESTINOS_EXEMPLO = "FULL, TRATATIVAS, OUTRA_OPERACAO, ALMOXARIFADO, MEIO_AMBIENTE, TREINAMENTO";
 
 function baixarModeloCsv() {
   const cabecalho = ["CPF", "Data", "Destino", "Motivo"];
