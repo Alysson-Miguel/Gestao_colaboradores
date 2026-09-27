@@ -25,6 +25,13 @@ import Sidebar from "../../components/Sidebar"
 import Header from "../../components/Header"
 import { useEstacao } from "../../context/EstacaoContext"
 
+/* ─── ICONS ──────────────────────────────────────────────────────── */
+const IconDownload = ({ s = 16 }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+)
+
 /* ─── TOKENS ─────────────────────────────────────────────────────── */
 const BRAND = "#FA4C00"
 const CHART_COLORS = ["#FA4C00","#3B82F6","#F59E0B","#22C55E","#A855F7","#EC4899","#14B8A6"]
@@ -461,6 +468,29 @@ function ColaboradoresTable({ data, loading, filtroTempoCasa, setFiltroTempoCasa
     })
   }, [data, filtroTempoCasa, filtroTurno])
 
+  function exportCSV() {
+    const rows = [
+      COLS,
+      ...filtered.map((c) => [
+        c.nome || "",
+        c.empresa || "",
+        c.setor || "",
+        c.turno || "",
+        c.escala || "",
+        c.tempoCasa || "",
+        c.totalAtestados || 0,
+      ]),
+    ]
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "colaboradores_atestados.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <Card title="Colaboradores com Atestados">
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -478,6 +508,24 @@ function ColaboradoresTable({ data, loading, filtroTempoCasa, setFiltroTempoCasa
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
+        <button
+          onClick={exportCSV}
+          disabled={loading || filtered.length === 0}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "9px 14px", borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "var(--color-surface)",
+            color: loading || filtered.length === 0 ? "var(--color-subtle)" : "var(--color-muted)",
+            fontSize: 13, fontWeight: 500, cursor: loading || filtered.length === 0 ? "not-allowed" : "pointer",
+            whiteSpace: "nowrap", transition: "border-color 0.15s, color 0.15s",
+          }}
+          onMouseEnter={(e) => { if (!loading && filtered.length > 0) { e.currentTarget.style.borderColor = "rgba(250,76,0,0.45)"; e.currentTarget.style.color = "#fff" } }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--color-border)"; e.currentTarget.style.color = loading || filtered.length === 0 ? "var(--color-subtle)" : "var(--color-muted)" }}
+        >
+          <IconDownload />
+          Exportar CSV
+        </button>
       </div>
       <div style={{ overflowX: "auto", borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700, fontSize: 13 }}>
