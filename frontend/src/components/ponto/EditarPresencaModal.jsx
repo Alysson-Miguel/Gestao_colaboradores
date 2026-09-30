@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenca";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../ConfirmDialog";
 /* =============================
    STATUS PERMITIDOS
 ============================= */
@@ -137,7 +138,7 @@ export default function EditarPresencaModal({
 
   async function handleDelete() {
     if (!registro?.idFrequencia) return;
-    if (!window.confirm("Apagar este registro de frequência? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmDialog("Apagar este registro de frequência? Esta ação não pode ser desfeita.", { danger: true }))) return;
 
     try {
       setLoading(true);

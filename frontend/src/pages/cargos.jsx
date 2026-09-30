@@ -13,6 +13,7 @@ import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../components/ConfirmDialog";
 export default function CargosPage() {
   const [cargos,      setCargos]      = useState([]);
   const [loading,     setLoading]     = useState(false);
@@ -150,7 +151,7 @@ export default function CargosPage() {
                 userEstacaoId={userEstacaoId}
                 onEdit={(c) => { setSelected(c); setModalOpen(true); }}
                 onDelete={async (c) => {
-                  if (!window.confirm(`Excluir ${c.nomeCargo}?`)) return;
+                  if (!(await confirmDialog(`Excluir ${c.nomeCargo}?`, { danger: true }))) return;
                   try {
                     await CargosAPI.excluir(c.idCargo);
                     load();

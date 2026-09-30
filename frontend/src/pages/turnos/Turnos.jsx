@@ -12,6 +12,7 @@ import { ThemeContext } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../components/ConfirmDialog";
 export default function TurnosPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -141,7 +142,7 @@ export default function TurnosPage() {
                 userEstacaoId={userEstacaoId}
                 onEdit={(t) => { setSelected(t); setModalOpen(true); }}
                 onDelete={async (t) => {
-                  if (!window.confirm(`Excluir o turno "${t.nomeTurno}"?`)) return;
+                  if (!(await confirmDialog(`Excluir o turno "${t.nomeTurno}"?`, { danger: true }))) return;
                   try {
                     await TurnosAPI.excluir(t.idTurno);
                     load();

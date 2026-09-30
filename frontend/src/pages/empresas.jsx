@@ -13,6 +13,7 @@ import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../components/ConfirmDialog";
 export default function EmpresasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -145,7 +146,7 @@ export default function EmpresasPage() {
                 userEstacaoId={userEstacaoId}
                 onEdit={(empresa) => { setSelected(empresa); setModalOpen(true); }}
                 onDelete={async (empresa) => {
-                  if (!window.confirm(`Deseja excluir a empresa "${empresa.razaoSocial}"?`)) return;
+                  if (!(await confirmDialog(`Deseja excluir a empresa "${empresa.razaoSocial}"?`, { danger: true }))) return;
                   try {
                     await EmpresasAPI.excluir(empresa.idEmpresa);
                     load();

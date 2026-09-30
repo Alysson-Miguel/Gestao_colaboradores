@@ -12,6 +12,7 @@ import { ThemeContext } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../components/ConfirmDialog";
 export default function EscalasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -143,7 +144,7 @@ export default function EscalasPage() {
                 userEstacaoId={userEstacaoId}
                 onEdit={(e) => { setSelected(e); setModalOpen(true); }}
                 onDelete={async (e) => {
-                  if (!window.confirm(`Excluir a escala "${e.nomeEscala}"?`)) return;
+                  if (!(await confirmDialog(`Excluir a escala "${e.nomeEscala}"?`, { danger: true }))) return;
                   try {
                     await EscalasAPI.excluir(e.idEscala);
                     load();

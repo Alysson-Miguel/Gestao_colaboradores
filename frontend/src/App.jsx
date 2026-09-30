@@ -3,6 +3,7 @@ import { useContext } from "react";
 import { Toaster } from "react-hot-toast";
 import { useVersionCheck } from "./hooks/useVersionCheck";
 import WhatsNewModal from "./components/WhatsNewModal";
+import { ConfirmDialogHost } from "./components/ConfirmDialog";
 import { AuthContext } from "./context/AuthContext";
 import { ThemeContext } from "./context/ThemeContext";
 
@@ -101,6 +102,7 @@ export default function App() {
   return (
     <>
       {show && isAuthenticated && <WhatsNewModal onClose={dismiss} />}
+      <ConfirmDialogHost />
       <Toaster
         position="top-right"
         toastOptions={{

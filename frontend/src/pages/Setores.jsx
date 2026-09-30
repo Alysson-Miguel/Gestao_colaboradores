@@ -12,6 +12,7 @@ import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../components/ConfirmDialog";
 export default function SetoresPage() {
   const [setores,     setSetores]     = useState([]);
   const [loading,     setLoading]     = useState(false);
@@ -142,7 +143,7 @@ export default function SetoresPage() {
                 isAdmin={isAdmin}
                 onEdit={(s) => { setSelected(s); setModalOpen(true); }}
                 onDelete={async (s) => {
-                  if (!window.confirm(`Excluir ${s.nomeSetor}?`)) return;
+                  if (!(await confirmDialog(`Excluir ${s.nomeSetor}?`, { danger: true }))) return;
                   try {
                     await SetoresAPI.excluir(s.idSetor);
                     load();

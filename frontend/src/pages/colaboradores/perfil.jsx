@@ -29,6 +29,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import LoadingScreen from "../../components/LoadingScreen";
 import api from "../../services/api";
+import { confirmDialog } from "../../components/ConfirmDialog";
 
 /* ─── helpers ─── */
 function getInitials(name = "") {
@@ -101,7 +102,7 @@ export default function PerfilColaborador() {
   }, [opsId, navigate]);
 
   async function handleDelete() {
-    if (!window.confirm("Tem certeza que deseja excluir este colaborador?")) return;
+    if (!(await confirmDialog("Tem certeza que deseja excluir este colaborador?", { danger: true }))) return;
     await api.delete(`/colaboradores/${opsId}`);
     navigate("/colaboradores");
   }

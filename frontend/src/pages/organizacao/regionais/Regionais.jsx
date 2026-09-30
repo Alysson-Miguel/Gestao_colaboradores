@@ -12,6 +12,7 @@ import { ThemeContext } from "../../../context/ThemeContext";
 import { AuthContext } from "../../../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../../components/ConfirmDialog";
 export default function RegionaisPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -142,7 +143,7 @@ export default function RegionaisPage() {
                 isAdmin={isAdmin}
                 onEdit={(regional) => { setSelected(regional); setModalOpen(true); }}
                 onDelete={async (regional) => {
-                  if (!window.confirm(`Deseja excluir a regional "${regional.nome}"?`)) return;
+                  if (!(await confirmDialog(`Deseja excluir a regional "${regional.nome}"?`, { danger: true }))) return;
                   try {
                     await RegionaisAPI.excluir(regional.idRegional);
                     load();

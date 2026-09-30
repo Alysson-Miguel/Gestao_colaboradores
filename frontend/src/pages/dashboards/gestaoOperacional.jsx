@@ -10,6 +10,7 @@ import ProducaoChart from "../../components/gestaoOperacional/ProducaoChart";
 import AlertaSalvamentoPendente from "../../components/gestaoOperacional/AlertaSalvamentoPendente";
 import domtoimage from "dom-to-image-more";
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../components/ConfirmDialog";
 import MainLayout from "../../components/MainLayout";
 import { AuthContext } from "../../context/AuthContext";
 // import CapacidadeTable from "../../components/gestaoOperacional/CapacidadeTable"; // Comentado - será usado futuramente
@@ -159,7 +160,7 @@ export default function GestaoOperacional() {
     const novaFonte = fonteProducao === "BACKUP" ? "PRIMARY" : "BACKUP";
     const labelNovaFonte = novaFonte === "BACKUP" ? "BACKUP (db30s)" : "PRINCIPAL (ProdutividadeSPX)";
 
-    if (!window.confirm(`Trocar a base de produção para ${labelNovaFonte}? Isso afeta a tela de todos os usuários.`)) {
+    if (!(await confirmDialog(`Trocar a base de produção para ${labelNovaFonte}? Isso afeta a tela de todos os usuários.`))) {
       return;
     }
 

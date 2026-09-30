@@ -12,6 +12,7 @@ import { ThemeContext } from "../../../context/ThemeContext";
 import { AuthContext } from "../../../context/AuthContext";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../../components/ConfirmDialog";
 export default function EstacoesPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -142,7 +143,7 @@ export default function EstacoesPage() {
                 isAdmin={isAdmin}
                 onEdit={(estacao) => { setSelected(estacao); setModalOpen(true); }}
                 onDelete={async (estacao) => {
-                  if (!window.confirm(`Deseja excluir a estação "${estacao.nomeEstacao || estacao.nome}"?`)) return;
+                  if (!(await confirmDialog(`Deseja excluir a estação "${estacao.nomeEstacao || estacao.nome}"?`, { danger: true }))) return;
                   try {
                     await EstacoesAPI.excluir(estacao.idEstacao);
                     load();

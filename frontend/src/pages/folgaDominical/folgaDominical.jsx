@@ -13,6 +13,7 @@ import Sidebar  from "../../components/Sidebar";
 import Header   from "../../components/Header";
 import MainLayout from "../../components/MainLayout";
 import api      from "../../services/api";
+import { confirmDialog } from "../../components/ConfirmDialog";
 import { AuthContext } from "../../context/AuthContext";
 import { ThemeContext } from "../../context/ThemeContext";
 import { useEstacao } from "../../context/EstacaoContext";
@@ -389,7 +390,7 @@ export default function FolgaDominicalPage() {
     if (!isAdmin && !isAltaGestao) return;
     if (semEstacaoSelecionada) { setErro("Selecione uma estação no menu superior antes de gerar as folgas."); return; }
     if (previewInvalido) { setErro("Existem colaboradores não alocados na simulação. Ajuste antes de gerar."); return; }
-    if (!window.confirm("Deseja gerar o planejamento deste mês?")) return;
+    if (!(await confirmDialog("Deseja gerar o planejamento deste mês?"))) return;
     setLoading(true); setErro("");
     try { await api.post("/folga-dominical", { ano, mes }); await load(); }
     catch (e) { setErro(e?.response?.data?.error || "Erro ao gerar planejamento."); }
@@ -398,7 +399,7 @@ export default function FolgaDominicalPage() {
 
   async function reprocessar() {
     if (!isAdmin) return;
-    if (!window.confirm("Isso irá remover o planejamento atual e apagar DSRs automáticos.\nDeseja continuar?")) return;
+    if (!(await confirmDialog("Isso irá remover o planejamento atual e apagar DSRs automáticos.\nDeseja continuar?", { danger: true }))) return;
     setLoading(true); setErro("");
     try {
       await api.delete(`/folga-dominical?ano=${ano}&mes=${mes}`);

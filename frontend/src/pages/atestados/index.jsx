@@ -12,6 +12,7 @@ import { AtestadosAPI } from "../../services/atestados";
 import api from "../../services/api";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../components/ConfirmDialog";
 const LIMIT = 20;
 
 /* ─── SKELETON ─────────────────────────────────────── */
@@ -196,7 +197,7 @@ export default function AtestadosPage() {
   }
 
   async function handleFinalizar(id) {
-    if (!confirm("Finalizar este atestado?")) return;
+    if (!(await confirmDialog("Finalizar este atestado?"))) return;
     try {
       await AtestadosAPI.finalizar(id);
       setPage(p => p); // re-trigger effect
@@ -207,7 +208,7 @@ export default function AtestadosPage() {
   }
 
   async function handleCancelar(id) {
-    if (!confirm("Cancelar este atestado?")) return;
+    if (!(await confirmDialog("Cancelar este atestado?", { danger: true }))) return;
     try {
       await AtestadosAPI.cancelar(id);
       setPage(p => p);

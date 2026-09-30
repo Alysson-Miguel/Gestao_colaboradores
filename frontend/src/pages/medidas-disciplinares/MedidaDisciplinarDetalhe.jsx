@@ -10,6 +10,7 @@ import MainLayout from "../../components/MainLayout";
 import api from "../../services/api";
 
 import toast from "react-hot-toast";
+import { confirmDialog } from "../../components/ConfirmDialog";
 export default function MedidaDisciplinarDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ export default function MedidaDisciplinarDetalhe() {
   }
 
   async function handleCancelar() {
-    if (!window.confirm("Tem certeza que deseja cancelar esta medida disciplinar? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmDialog("Tem certeza que deseja cancelar esta medida disciplinar? Esta ação não pode ser desfeita.", { danger: true }))) return;
     setCancelando(true);
     try {
       await MedidasDisciplinaresAPI.cancelar(id);

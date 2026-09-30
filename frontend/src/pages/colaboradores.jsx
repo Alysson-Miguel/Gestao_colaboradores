@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import MainLayout from "../components/MainLayout";
 import toast from "react-hot-toast";
+import { confirmDialog } from "../components/ConfirmDialog";
 
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -246,7 +247,7 @@ export default function ColaboradoresPage() {
 
 
   const handleBackfillNc = async () => {
-    if (!window.confirm("Preencher NC para todos os colaboradores admitidos neste mês (dias anteriores à admissão)? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmDialog("Preencher NC para todos os colaboradores admitidos neste mês (dias anteriores à admissão)? Esta ação não pode ser desfeita.", { danger: true }))) return;
     try {
       setBackfillNcLoading(true);
       await ColaboradoresAPI.backfillNcPreAdmissao();
@@ -259,7 +260,7 @@ export default function ColaboradoresPage() {
   };
 
   const handleBackfillOnboarding = async () => {
-    if (!window.confirm("Preencher Onboarding (dia da admissão + dia seguinte) para todos os colaboradores admitidos neste mês que ainda não têm esse registro? Esta ação não pode ser desfeita.")) return;
+    if (!(await confirmDialog("Preencher Onboarding (dia da admissão + dia seguinte) para todos os colaboradores admitidos neste mês que ainda não têm esse registro? Esta ação não pode ser desfeita.", { danger: true }))) return;
     try {
       setBackfillOnboardingLoading(true);
       await ColaboradoresAPI.backfillOnboarding();
@@ -477,7 +478,7 @@ export default function ColaboradoresPage() {
                   onDelete={
                     permissions.isAdmin
                       ? async (emp) => {
-                          if (!window.confirm(`Excluir ${emp.nomeCompleto}?`)) return;
+                          if (!(await confirmDialog(`Excluir ${emp.nomeCompleto}?`, { danger: true }))) return;
                           try {
                             await ColaboradoresAPI.excluir(emp.opsId);
                             load();
