@@ -11,6 +11,7 @@ import { EstacoesAPI } from "../../../services/estacoes";
 import { ThemeContext } from "../../../context/ThemeContext";
 import { AuthContext } from "../../../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function EstacoesPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -40,7 +41,7 @@ export default function EstacoesPage() {
       setEstacoes(list);
     } catch (err) {
       console.error("Erro ao carregar estações", err);
-      alert("Erro ao carregar estações");
+      toast.error("Erro ao carregar estações");
     } finally {
       setLoading(false);
     }
@@ -146,7 +147,7 @@ export default function EstacoesPage() {
                     await EstacoesAPI.excluir(estacao.idEstacao);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir estação");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir estação");
                   }
                 }}
               />
@@ -179,7 +180,7 @@ export default function EstacoesPage() {
               setModalOpen(false);
               load();
             } catch (err) {
-              alert(err?.response?.data?.message || "Erro ao salvar estação");
+              toast.error(err?.response?.data?.message || "Erro ao salvar estação");
             }
           }}
         />

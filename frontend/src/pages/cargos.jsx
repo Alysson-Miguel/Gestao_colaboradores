@@ -12,6 +12,7 @@ import { CargosAPI } from "../services/cargos";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function CargosPage() {
   const [cargos,      setCargos]      = useState([]);
   const [loading,     setLoading]     = useState(false);
@@ -154,7 +155,7 @@ export default function CargosPage() {
                     await CargosAPI.excluir(c.idCargo);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir cargo");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir cargo");
                   }
                 }}
               />
@@ -177,7 +178,7 @@ export default function CargosPage() {
               setModalOpen(false);
               load();
             } catch (err) {
-              alert(err?.response?.data?.message || "Erro ao salvar cargo");
+              toast.error(err?.response?.data?.message || "Erro ao salvar cargo");
             }
           }}
         />

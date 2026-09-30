@@ -22,6 +22,7 @@ import api from "../../services/api";
 import { TreinamentosAPI } from "../../services/treinamentos";
 import { AuthContext } from "../../context/AuthContext";
 
+import toast from "react-hot-toast";
 /* =====================================================
    PAGE — DETALHES DO TREINAMENTO
 ===================================================== */
@@ -89,7 +90,7 @@ export default function DetalhesTreinamento() {
       setTurnoFiltro(null);
       setModalOpen(true);
     } catch (e) {
-      alert("Erro ao carregar colaboradores");
+      toast.error("Erro ao carregar colaboradores");
     }
   };
 
@@ -119,7 +120,7 @@ export default function DetalhesTreinamento() {
   /* ================= SALVAR ================= */
   const salvarParticipantes = async () => {
     if (selecionados.length === 0) {
-      alert("Selecione ao menos um participante");
+      toast.error("Selecione ao menos um participante");
       return;
     }
     setSalvando(true);
@@ -128,7 +129,7 @@ export default function DetalhesTreinamento() {
       setTreinamento(updated);
       setModalOpen(false);
     } catch (e) {
-      alert("Erro ao salvar participantes");
+      toast.error("Erro ao salvar participantes");
     } finally {
       setSalvando(false);
     }
@@ -144,7 +145,7 @@ export default function DetalhesTreinamento() {
       navigate("/treinamentos");
     } catch (err) {
       console.error(err);
-      alert("Erro ao cancelar treinamento");
+      toast.error("Erro ao cancelar treinamento");
     } finally {
       setCancelando(false);
     }
@@ -152,7 +153,7 @@ export default function DetalhesTreinamento() {
 
   /* ================= FINALIZAR ================= */
   const finalizarTreinamento = async () => {
-    if (!file) { alert("Selecione o PDF da ata"); return; }
+    if (!file) { toast.error("Selecione o PDF da ata"); return; }
     setUploading(true);
     try {
       // Envia o PDF via multipart ao backend — backend faz o PUT ao R2 (sem CORS)
@@ -163,11 +164,11 @@ export default function DetalhesTreinamento() {
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
-      alert("Treinamento finalizado com sucesso");
+      toast.success("Treinamento finalizado com sucesso");
       navigate("/treinamentos");
     } catch (err) {
       console.error(err);
-      alert("Erro ao finalizar treinamento");
+      toast.error("Erro ao finalizar treinamento");
     } finally {
       setUploading(false);
     }
@@ -388,7 +389,7 @@ export default function DetalhesTreinamento() {
                         const res = await api.get(`/treinamentos/${treinamento.idTreinamento}/presign-download`);
                         window.open(res.data.data.url, "_blank");
                       } catch {
-                        alert("Erro ao abrir a ATA. Tente novamente.");
+                        toast.error("Erro ao abrir a ATA. Tente novamente.");
                       } finally {
                         setDownloadingAta(false);
                       }

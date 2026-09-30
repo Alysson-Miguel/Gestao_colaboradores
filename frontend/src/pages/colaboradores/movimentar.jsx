@@ -7,6 +7,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 export default function MovimentarColaborador() {
   const { opsId } = useParams();
   const navigate = useNavigate();
@@ -93,7 +94,7 @@ useEffect(() => {
       setRegional(payload.vinculoOrganizacional?.regional ?? "");
     } catch (err) {
       console.error("Erro ao carregar dados", err);
-      alert("Erro ao carregar dados do colaborador");
+      toast.error("Erro ao carregar dados do colaborador");
     }
   })();
 
@@ -118,7 +119,7 @@ useEffect(() => {
 
   async function handleSave() {
     if (!form.dataEfetivacao || !form.motivo) {
-      alert("Data efetiva e motivo são obrigatórios.");
+      toast.error("Data efetiva e motivo são obrigatórios.");
       return;
     }
 
@@ -139,7 +140,7 @@ useEffect(() => {
       navigate(`/colaboradores/${opsId}`);
     } catch (err) {
       console.error(err);
-      alert("Erro ao realizar movimentação");
+      toast.error("Erro ao realizar movimentação");
     } finally {
       setSaving(false);
     }

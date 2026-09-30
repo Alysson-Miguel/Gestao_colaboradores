@@ -14,6 +14,7 @@ import {
 import { AcidentesAPI } from "../services/acidentes";
 import { AuthContext } from "../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function AcidenteCardCompact({ acidente, onCancelado }) {
   
   const { user } = useContext(AuthContext);
@@ -34,7 +35,7 @@ export default function AcidenteCardCompact({ acidente, onCancelado }) {
       if (onCancelado) onCancelado(acidente.idAcidente);
     } catch (err) {
       console.error(err);
-      alert("Erro ao cancelar acidente");
+      toast.error("Erro ao cancelar acidente");
     } finally {
       setCancelando(false);
     }

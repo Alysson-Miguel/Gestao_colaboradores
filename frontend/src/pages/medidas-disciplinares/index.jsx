@@ -8,6 +8,7 @@ import MedidaDisciplinarCard from "../../components/MedidaDisciplinarCard";
 import { MedidasDisciplinaresAPI } from "../../services/medidasDisciplinares";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 const selectClass = "bg-surface border border-default rounded-xl px-3 py-2 text-sm text-page outline-none cursor-pointer";
 
 export default function MedidasDisciplinaresPage() {
@@ -44,7 +45,7 @@ export default function MedidasDisciplinaresPage() {
       setMedidas(data);
     } catch (err) {
       console.error(err);
-      alert("Erro ao carregar medidas disciplinares");
+      toast.error("Erro ao carregar medidas disciplinares");
     } finally {
       setLoading(false);
     }

@@ -7,6 +7,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 /* ================= CONSTANTES ================= */
 
 const NIVEIS_VIOLACAO = [
@@ -98,7 +99,7 @@ export default function NovaMedidaDisciplinar() {
   async function salvar(forcarCriacao = false) {
 
     if (!colaborador) {
-      alert("Informe um CPF válido.");
+      toast.error("Informe um CPF válido.");
       return;
     }
 
@@ -109,7 +110,7 @@ export default function NovaMedidaDisciplinar() {
       !form.motivo ||
       !form.dataAplicacao
     ) {
-      alert("Preencha todos os campos obrigatórios.");
+      toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -140,7 +141,7 @@ export default function NovaMedidaDisciplinar() {
         return;
       }
 
-      alert(err?.response?.data?.message || "Erro ao criar medida disciplinar.");
+      toast.error(err?.response?.data?.message || "Erro ao criar medida disciplinar.");
 
     } finally {
 

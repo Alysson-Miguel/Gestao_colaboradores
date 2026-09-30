@@ -5,6 +5,7 @@ import { SegundosAprovadoresOperacionaisAPI } from "../../services/segundosAprov
 import { AuthContext } from "../../context/AuthContext";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 const TODAS_AS_ESTACOES = "TODAS";
 
 const ABAS = [
@@ -85,11 +86,11 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
 
   const salvar = async () => {
     if (!form.nome.trim() || !form.email.trim()) {
-      alert("Nome e email são obrigatórios");
+      toast.error("Nome e email são obrigatórios");
       return;
     }
     if (isAdmin && !form.idEstacao) {
-      alert("Selecione a estação do aprovador (ou \"Todas as estações\")");
+      toast.error("Selecione a estação do aprovador (ou \"Todas as estações\")");
       return;
     }
 
@@ -110,7 +111,7 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
       setFormOpen(false);
       await load();
     } catch (e) {
-      alert(e.response?.data?.message || "Erro ao salvar aprovador");
+      toast.error(e.response?.data?.message || "Erro ao salvar aprovador");
     } finally {
       setSalvando(false);
     }
@@ -122,7 +123,7 @@ export function AprovadoresOperacionaisModal({ open, onClose }) {
       else await SegundosAprovadoresOperacionaisAPI.atualizar(a.idAprovador, { ativo: !a.ativo });
       await load();
     } catch {
-      alert("Erro ao atualizar aprovador");
+      toast.error("Erro ao atualizar aprovador");
     }
   };
 

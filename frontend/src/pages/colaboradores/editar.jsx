@@ -7,6 +7,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 const TIPOS_DESLIGAMENTO = [
   { value: "DV", label: "DV: Desligamento Voluntário" },
   { value: "DF", label: "DF: Desligamento Forçado" },
@@ -113,7 +114,7 @@ export default function EditarColaborador() {
         });
       } catch (err) {
         console.error(err);
-        alert("Erro ao carregar colaborador");
+        toast.error("Erro ao carregar colaborador");
         navigate("/colaboradores");
       } finally {
         setLoading(false);
@@ -177,13 +178,13 @@ export default function EditarColaborador() {
 
       // 🔥 ===== VALIDAÇÃO FRONT =====
       if (form.status === "INATIVO" && !form.dataDemissao) {
-        return alert("Informe a data de demissão.");
+        return toast.error("Informe a data de demissão.");
       }
       if (form.status === "INATIVO" && !form.motivoDesligamento) {
-        return alert("Informe o motivo do desligamento.");
+        return toast.error("Informe o motivo do desligamento.");
       }
       if (form.status === "INATIVO" && !form.tipoDesligamento) {
-        return alert("Informe o tipo de desligamento (DV, DF ou DP).");
+        return toast.error("Informe o tipo de desligamento (DV, DF ou DP).");
       }
       if (
         form.status === "INATIVO" &&
@@ -191,14 +192,14 @@ export default function EditarColaborador() {
         form.dataDemissao &&
         form.dataDemissao < form.dataAdmissao
       ) {
-        return alert("Data de demissão não pode ser anterior à admissão.");
+        return toast.error("Data de demissão não pode ser anterior à admissão.");
       }
 
       if (
         (form.status === "FERIAS" || form.status === "AFASTADO") &&
         (!form.dataInicioStatus || !form.dataFimStatus)
       ) {
-        return alert("Informe data início e data fim.");
+        return toast.error("Informe data início e data fim.");
       }
       const payload = {
         nomeCompleto: form.nomeCompleto || null,
@@ -228,7 +229,7 @@ export default function EditarColaborador() {
       navigate(`/colaboradores/${opsId}`);
     } catch (err) {
       console.error(err);
-      alert("Erro ao atualizar colaborador");
+      toast.error("Erro ao atualizar colaborador");
     }
   }
 

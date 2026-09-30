@@ -11,6 +11,7 @@ import Header from "../../components/Header";
 import { AtestadosAPI } from "../../services/atestados";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 const LIMIT = 20;
 
 /* ─── SKELETON ─────────────────────────────────────── */
@@ -175,7 +176,7 @@ export default function AtestadosPage() {
           total: res.pagination?.total ?? 0,
         });
       } catch {
-        if (!cancelled) alert("Erro ao carregar atestados médicos");
+        if (!cancelled) toast.error("Erro ao carregar atestados médicos");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -190,7 +191,7 @@ export default function AtestadosPage() {
       const res = await api.get(`/atestados-medicos/${id}/presign-download`);
       window.open(res.data.data.url, "_blank");
     } catch {
-      alert("Erro ao abrir o PDF do atestado.");
+      toast.error("Erro ao abrir o PDF do atestado.");
     }
   }
 
@@ -201,7 +202,7 @@ export default function AtestadosPage() {
       setPage(p => p); // re-trigger effect
       AtestadosAPI.stats().then(setStats).catch(() => {});
     } catch {
-      alert("Erro ao finalizar atestado.");
+      toast.error("Erro ao finalizar atestado.");
     }
   }
 
@@ -212,7 +213,7 @@ export default function AtestadosPage() {
       setPage(p => p);
       AtestadosAPI.stats().then(setStats).catch(() => {});
     } catch {
-      alert("Erro ao cancelar atestado.");
+      toast.error("Erro ao cancelar atestado.");
     }
   }
 

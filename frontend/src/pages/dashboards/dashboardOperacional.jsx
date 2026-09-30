@@ -28,6 +28,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { useEstacao } from "../../context/EstacaoContext";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 export default function DashboardOperacional() {
   /* =====================================================
      STATES
@@ -121,7 +122,7 @@ export default function DashboardOperacional() {
       });
     } catch (err) {
       console.error("Erro ao exportar relatório:", err);
-      alert("Erro ao gerar relatório");
+      toast.error("Erro ao gerar relatório");
     }
   }
 

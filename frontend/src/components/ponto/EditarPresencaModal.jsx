@@ -2,6 +2,7 @@ import { X, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ajustarPresencaManual, deletarFrequencia } from "../../services/presenca";
 
+import toast from "react-hot-toast";
 /* =============================
    STATUS PERMITIDOS
 ============================= */
@@ -141,12 +142,12 @@ export default function EditarPresencaModal({
     try {
       setLoading(true);
       await deletarFrequencia(registro.idFrequencia);
-      alert("Registro apagado com sucesso");
+      toast.success("Registro apagado com sucesso");
       onDelete?.({ opsId: colaborador.opsId, dataReferencia: dia.date });
       onClose();
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || "Erro ao apagar registro");
+      toast.error(err?.response?.data?.message || "Erro ao apagar registro");
     } finally {
       setLoading(false);
     }
@@ -154,28 +155,28 @@ export default function EditarPresencaModal({
 
   async function handleSave() {
     if (!status) {
-      alert("Status é obrigatório");
+      toast.error("Status é obrigatório");
       return;
     }
 
     if (!justificativa && !isFolga && !isSuspensao && !isAbonado && !isPE2) {
-      alert("Justificativa é obrigatória");
+      toast.error("Justificativa é obrigatória");
       return;
     }
 
     if (isLideranca && CODIGOS_SOMENTE_SOLICITACAO.includes(status)) {
-      alert("Folga, Banco de Horas e Sinergia agora são feitas por Solicitação Operacional.");
+      toast.error("Folga, Banco de Horas e Sinergia agora são feitas por Solicitação Operacional.");
       return;
     }
 
     if (mostrarHorario && permiteHorario) {
       if (status === "P" && !horaEntrada) {
-        alert("Horário de entrada é obrigatório para status 'Presente'");
+        toast.error("Horário de entrada é obrigatório para status 'Presente'");
         return;
       }
 
       if (horaSaida && !horaEntrada) {
-        alert("Hora de saída não pode existir sem hora de entrada");
+        toast.error("Hora de saída não pode existir sem hora de entrada");
         return;
       }
 
@@ -185,7 +186,7 @@ export default function EditarPresencaModal({
         let minutos = (hS * 60 + mS) - (hE * 60 + mE);
         if (minutos < 0) minutos += 24 * 60;
         if (minutos <= 0 || minutos > 16 * 60) {
-          alert("Jornada inválida. Verifique os horários informados.");
+          toast.error("Jornada inválida. Verifique os horários informados.");
           return;
         }
       }
@@ -203,7 +204,7 @@ export default function EditarPresencaModal({
         horaSaida: (mostrarHorario && permiteHorario) ? horaSaida || null : null,
       });
 
-      alert("Presença ajustada com sucesso");
+      toast.success("Presença ajustada com sucesso");
 
       onSuccess?.({
         opsId: colaborador.opsId,
@@ -217,7 +218,7 @@ export default function EditarPresencaModal({
 
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || "Erro ao ajustar presença");
+      toast.error(err?.response?.data?.message || "Erro ao ajustar presença");
     } finally {
       setLoading(false);
     }

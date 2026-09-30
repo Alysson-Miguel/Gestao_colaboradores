@@ -9,6 +9,7 @@ import { printCartaMedidaDisciplinar } from "../../utils/Printcartamedidadiscipl
 import MainLayout from "../../components/MainLayout";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 export default function MedidaDisciplinarDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -48,12 +49,12 @@ export default function MedidaDisciplinarDetalhe() {
 
   async function enviarPdf() {
     if (!file) {
-      alert("Selecione um arquivo PDF");
+      toast.error("Selecione um arquivo PDF");
       return;
     }
 
     if (file.type !== "application/pdf") {
-      alert("Por favor, selecione apenas arquivos PDF");
+      toast.error("Por favor, selecione apenas arquivos PDF");
       return;
     }
 
@@ -71,11 +72,11 @@ export default function MedidaDisciplinarDetalhe() {
 
       await MedidasDisciplinaresAPI.finalizar(id, { documentoKey: key });
 
-      alert("✅ Documento enviado e medida finalizada com sucesso!");
+      toast.success("Documento enviado e medida finalizada com sucesso!");
       load();
     } catch (err) {
       console.error(err);
-      alert("❌ Erro ao enviar documento. Tente novamente.");
+      toast.error("Erro ao enviar documento. Tente novamente.");
     } finally {
       setUploading(false);
     }
@@ -86,7 +87,7 @@ export default function MedidaDisciplinarDetalhe() {
       await MedidasDisciplinaresAPI.baixarCarta(id);
     } catch (err) {
       console.error(err);
-      alert("❌ Erro ao baixar carta. Tente novamente.");
+      toast.error("Erro ao baixar carta. Tente novamente.");
     }
   }
 
@@ -95,7 +96,7 @@ export default function MedidaDisciplinarDetalhe() {
       await MedidasDisciplinaresAPI.baixarDocumentoAssinado(id);
     } catch (err) {
       console.error(err);
-      alert("❌ Erro ao baixar documento. Tente novamente.");
+      toast.error("Erro ao baixar documento. Tente novamente.");
     }
   }
 
@@ -116,11 +117,11 @@ export default function MedidaDisciplinarDetalhe() {
   function adicionarEmail() {
     const email = emailInput.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      alert("Informe um e-mail válido.");
+      toast.error("Informe um e-mail válido.");
       return;
     }
     if (emailsRh.includes(email)) {
-      alert("Este e-mail já está na lista.");
+      toast.error("Este e-mail já está na lista.");
       return;
     }
     setEmailsRh((prev) => [...prev, email]);
@@ -139,7 +140,7 @@ export default function MedidaDisciplinarDetalhe() {
       await load();
     } catch (err) {
       console.error(err);
-      alert("❌ Erro ao cancelar medida. Tente novamente.");
+      toast.error("Erro ao cancelar medida. Tente novamente.");
     } finally {
       setCancelando(false);
     }
@@ -149,18 +150,18 @@ export default function MedidaDisciplinarDetalhe() {
     setEnviandoEmail(true);
     try {
       await MedidasDisciplinaresAPI.enviarEmailEvidencia(id);
-      alert("✅ Evidência enviada por e-mail com sucesso!");
+      toast.success("Evidência enviada por e-mail com sucesso!");
     } catch (err) {
       const data = err.response?.data;
       if (data?.semRh) {
         if (permissions?.isAdmin) {
           await abrirModalRh();
         } else {
-          alert("❌ RH local não configurado. Por favor, entrar em contato com um administrador.");
+          toast.error("RH local não configurado. Por favor, entrar em contato com um administrador.");
         }
       } else {
         console.error(err);
-        alert("❌ Erro ao enviar e-mail. Tente novamente.");
+        toast.error("Erro ao enviar e-mail. Tente novamente.");
       }
     } finally {
       setEnviandoEmail(false);
@@ -171,17 +172,17 @@ export default function MedidaDisciplinarDetalhe() {
     const idEstacao = medida?.colaborador?.idEstacao;
     if (!idEstacao) return;
     if (emailsRh.length === 0) {
-      alert("Adicione ao menos um e-mail.");
+      toast.error("Adicione ao menos um e-mail.");
       return;
     }
     setSalvandoRh(true);
     try {
       await api.put(`/estacoes/${idEstacao}`, { emailRh: emailsRh });
       setModalRhOpen(false);
-      alert("✅ E-mails do RH configurados com sucesso!");
+      toast.success("E-mails do RH configurados com sucesso!");
     } catch (err) {
       console.error(err);
-      alert("❌ Erro ao salvar configuração.");
+      toast.error("Erro ao salvar configuração.");
     } finally {
       setSalvandoRh(false);
     }

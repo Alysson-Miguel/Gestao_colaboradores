@@ -17,6 +17,7 @@ import { ArrowLeft } from "lucide-react"
 import domtoimage from "dom-to-image-more"
 import api from "../services/api"
 import { useNavigate } from "react-router-dom"
+import toast from "react-hot-toast";
 /* ================= ROOT ================= */
 export default function OperationalReport({ report, estacaoId }) {
   const {
@@ -44,7 +45,7 @@ export default function OperationalReport({ report, estacaoId }) {
     const original = document.getElementById("operational-report")
     if (!original) {
       console.error("❌ Elemento #operational-report não encontrado")
-      alert("Erro: Elemento do relatório não encontrado")
+      toast.error("Erro: Elemento do relatório não encontrado")
       return
     }
 
@@ -107,7 +108,7 @@ export default function OperationalReport({ report, estacaoId }) {
       })
 
       console.log("✅ Resposta do backend:", response.data)
-      alert("Relatório enviado para o Seatalk com sucesso ✅")
+      toast.success("Relatório enviado para o Seatalk com sucesso")
     } catch (err) {
       console.error("❌ Erro completo:", err)
       console.error("❌ Resposta do servidor:", err.response?.data)
@@ -115,7 +116,7 @@ export default function OperationalReport({ report, estacaoId }) {
       console.error("❌ URL chamada:", err.config?.url)
       
       const errorMsg = err.response?.data?.message || err.message || "Erro desconhecido"
-      alert(`Erro ao enviar relatório para o Seatalk: ${errorMsg}`)
+      toast.error(`Erro ao enviar relatório para o Seatalk: ${errorMsg}`)
     } finally {
       document.body.removeChild(clone)
       document.body.classList.remove("exporting-report")
@@ -172,10 +173,10 @@ export default function OperationalReport({ report, estacaoId }) {
         turno: report.header.turno,
         estacaoId: estacaoId ?? null,
       })
-      alert("Relatório enviado com sucesso ✅")
+      toast.success("Relatório enviado com sucesso")
     } catch (err) {
       console.error("Erro ao exportar:", err)
-      alert("Erro ao exportar relatório")
+      toast.error("Erro ao exportar relatório")
     } finally {
       document.body.removeChild(clone)
       document.body.classList.remove("exporting-report")

@@ -7,6 +7,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 export default function NovoColaborador() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -69,7 +70,7 @@ export default function NovoColaborador() {
         setLideres(colab.data.data || colab.data || []);
       } catch (err) {
         console.error(err);
-        alert("Erro ao carregar dados auxiliares");
+        toast.error("Erro ao carregar dados auxiliares");
       }
     }
 
@@ -94,7 +95,7 @@ export default function NovoColaborador() {
 
   async function handleSave() {
   if (!form.idEscala) {
-    alert("Selecione uma escala");
+    toast.error("Selecione uma escala");
     return;
   }
 
@@ -114,7 +115,7 @@ export default function NovoColaborador() {
       "Erro ao salvar colaborador";
 
     const status = err?.response?.status ? ` (${err.response.status})` : "";
-    alert(`Erro ao salvar colaborador${status}:\n${msg}`);
+    toast.error(`Erro ao salvar colaborador${status}:\n${msg}`);
   }
 }
 

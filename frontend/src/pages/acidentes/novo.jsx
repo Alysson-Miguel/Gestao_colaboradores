@@ -9,6 +9,7 @@ import Header from "../../components/Header";
 import api from "../../services/api";
 import { AcidentesAPI } from "../../services/acidentes";
 
+import toast from "react-hot-toast";
 const ACCEPTED_TYPES = ["application/pdf"];
 
 function isAcceptedType(type) {
@@ -99,7 +100,7 @@ export default function NovoAcidente() {
 
     const invalid = next.find((f) => !isAcceptedType(f.type));
     if (invalid) {
-      alert(`Arquivo inválido: "${invalid.name}". Apenas arquivos PDF são aceitos.`);
+      toast.error(`Arquivo inválido: "${invalid.name}". Apenas arquivos PDF são aceitos.`);
       return;
     }
 
@@ -209,7 +210,7 @@ export default function NovoAcidente() {
       navigate("/acidentes");
       } catch (err) {
         console.error("Erro ao salvar acidente:", err);
-        alert("Erro ao salvar acidente.");
+        toast.error("Erro ao salvar acidente.");
       } finally {
         setUploading(false);
         setSaving(false);

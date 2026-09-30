@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MedidasDisciplinaresAPI } from "../services/medidasDisciplinares";
 
 
+import toast from "react-hot-toast";
 export default function MedidaDisciplinarCard({ medida }) {
   const navigate = useNavigate();
 
@@ -11,11 +12,11 @@ export default function MedidaDisciplinarCard({ medida }) {
     try {
       const res = await MedidasDisciplinaresAPI.presignDownload(medida.idMedida);
       const url = res?.data?.data?.url;
-      if (!url) { alert("Documento não disponível"); return; }
+      if (!url) { toast.error("Documento não disponível"); return; }
       window.open(url, "_blank");
     } catch (err) {
       console.error(err);
-      alert("Erro ao baixar documento");
+      toast.error("Erro ao baixar documento");
     }
   }
 

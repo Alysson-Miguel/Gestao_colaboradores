@@ -8,6 +8,7 @@ import api from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import MainLayout from "../../components/MainLayout";
 
+import toast from "react-hot-toast";
 export default function NovoTreinamento() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -88,17 +89,17 @@ export default function NovoTreinamento() {
 
   const submit = async () => {
     if (!form.dataTreinamento || !form.tema || !form.processo || !form.liderResponsavelOpsId) {
-      alert("Preencha os campos obrigatórios (Data, Tema, Processo e Líder Responsável)");
+      toast.error("Preencha os campos obrigatórios (Data, Tema, Processo e Líder Responsável)");
       return;
     }
-    if (form.participantes.length === 0) { alert("Selecione ao menos um participante"); return; }
+    if (form.participantes.length === 0) { toast.error("Selecione ao menos um participante"); return; }
     setLoading(true);
     try {
       const treinamento = await TreinamentosAPI.criar(form);
       navigate(`/treinamentos/${treinamento.idTreinamento}`);
     } catch (err) {
       const msg = err.response?.data?.message || "Erro ao criar treinamento";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

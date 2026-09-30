@@ -7,6 +7,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import api from "../../services/api";
 
+import toast from "react-hot-toast";
 function dateOnlyBrasil(dateStr) {
   if (!dateStr) return null;
 
@@ -60,22 +61,22 @@ const [uploading, setUploading] = useState(false);
     const cpfLimpo = form.cpf.replace(/\D/g, "");
 
     if (!cpfLimpo || cpfLimpo.length !== 11) {
-      alert("Informe um CPF válido do colaborador.");
+      toast.error("Informe um CPF válido do colaborador.");
       return;
     }
 
     if (!form.dataInicio || !form.dataFim) {
-      alert("Informe o período do atestado.");
+      toast.error("Informe o período do atestado.");
       return;
     }
 
     if (!file) {
-      alert("O PDF do atestado é obrigatório.");
+      toast.error("O PDF do atestado é obrigatório.");
       return;
     }
 
     if (file.type !== "application/pdf") {
-      alert("Arquivo inválido. Envie apenas PDF.");
+      toast.error("Arquivo inválido. Envie apenas PDF.");
       return;
     }
 
@@ -109,7 +110,7 @@ const [uploading, setUploading] = useState(false);
       if (!uploadRes.ok) {
         const uploadErr = await uploadRes.text();
         console.error("2️⃣ Upload falhou:", uploadErr);
-        alert(`Falha ao enviar o PDF (${uploadRes.status}): ${uploadErr}`);
+        toast.error(`Falha ao enviar o PDF (${uploadRes.status}): ${uploadErr}`);
         return;
       }
 
@@ -130,7 +131,7 @@ const [uploading, setUploading] = useState(false);
       console.error("❌ ERRO COMPLETO:", err);
       console.error("❌ RESPONSE DATA:", err?.response?.data);
       const msg = err?.response?.data?.message || err?.message || "Erro ao salvar atestado médico.";
-      alert(`Erro: ${msg}`);
+      toast.error(`Erro: ${msg}`);
     } finally {
       setUploading(false);
       setSaving(false);

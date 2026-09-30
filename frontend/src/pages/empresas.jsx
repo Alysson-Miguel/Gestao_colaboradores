@@ -12,6 +12,7 @@ import { EmpresasAPI } from "../services/empresas";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function EmpresasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -42,7 +43,7 @@ export default function EmpresasPage() {
       setEmpresas(list);
     } catch (err) {
       console.error("Erro ao carregar empresas", err);
-      alert("Erro ao carregar empresas");
+      toast.error("Erro ao carregar empresas");
     } finally {
       setLoading(false);
     }
@@ -149,7 +150,7 @@ export default function EmpresasPage() {
                     await EmpresasAPI.excluir(empresa.idEmpresa);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir empresa");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir empresa");
                   }
                 }}
               />
@@ -172,7 +173,7 @@ export default function EmpresasPage() {
               setModalOpen(false);
               load();
             } catch (err) {
-              alert(err?.response?.data?.message || "Erro ao salvar empresa");
+              toast.error(err?.response?.data?.message || "Erro ao salvar empresa");
             }
           }}
         />

@@ -11,6 +11,7 @@ import { SetoresAPI } from "../services/setores";
 import { ThemeContext } from "../context/ThemeContext";
 import { AuthContext } from "../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function SetoresPage() {
   const [setores,     setSetores]     = useState([]);
   const [loading,     setLoading]     = useState(false);
@@ -146,7 +147,7 @@ export default function SetoresPage() {
                     await SetoresAPI.excluir(s.idSetor);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir setor");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir setor");
                   }
                 }}
               />
@@ -170,7 +171,7 @@ export default function SetoresPage() {
               load();
             } catch (err) {
               console.error("Erro ao salvar setor:", err);
-              alert(err?.response?.data?.message || "Erro ao salvar setor");
+              toast.error(err?.response?.data?.message || "Erro ao salvar setor");
             }
           }}
         />

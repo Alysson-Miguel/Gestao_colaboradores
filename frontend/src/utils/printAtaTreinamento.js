@@ -6,6 +6,7 @@
 
 import logoShopeeXpress from "../assets/spx-logo-orange.png";
 
+import toast from "react-hot-toast";
 /**
  * Formata uma data-only (string "YYYY-MM-DD" ou ISO timestamp) para "DD/MM/AAAA"
  * sem passar por `new Date(...)`, evitando o shift de 1 dia causado por fuso horário
@@ -62,7 +63,7 @@ function calcCargaHoraria(treinamento) {
 ===================================================== */
 export function printAtaTreinamento(treinamento) {
   if (!treinamento) {
-    alert("Treinamento inválido");
+    toast.error("Treinamento inválido");
     return;
   }
 

@@ -11,6 +11,7 @@ import { SolicitacoesTreinamentoAPI } from "../../../services/solicitacoesTreina
 import { AuthContext } from "../../../context/AuthContext";
 import { StatusSolicitacaoBadge } from "./index";
 
+import toast from "react-hot-toast";
 export default function DetalhesSolicitacaoTreinamento() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ export default function DetalhesSolicitacaoTreinamento() {
       await SolicitacoesTreinamentoAPI.aprovar(id);
       await load();
     } catch (e) {
-      alert(e.response?.data?.message || "Erro ao aprovar solicitação");
+      toast.error(e.response?.data?.message || "Erro ao aprovar solicitação");
       await load();
     } finally {
       setProcessando(false);
@@ -59,7 +60,7 @@ export default function DetalhesSolicitacaoTreinamento() {
       setNegarModalOpen(false);
       await load();
     } catch (e) {
-      alert(e.response?.data?.message || "Erro ao negar solicitação");
+      toast.error(e.response?.data?.message || "Erro ao negar solicitação");
       await load();
     } finally {
       setProcessando(false);

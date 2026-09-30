@@ -11,6 +11,7 @@ import { SolicitacoesTreinamentoAPI } from "../../../services/solicitacoesTreina
 import api from "../../../services/api";
 import { AuthContext } from "../../../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function NovaSolicitacaoTreinamento() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -125,7 +126,7 @@ export default function NovaSolicitacaoTreinamento() {
 
   const submit = async () => {
     if (!isFormValid) {
-      alert("Preencha todos os campos obrigatórios de Informações Gerais");
+      toast.error("Preencha todos os campos obrigatórios de Informações Gerais");
       return;
     }
     setLoading(true);
@@ -134,7 +135,7 @@ export default function NovaSolicitacaoTreinamento() {
       navigate(`/treinamentos/solicitacoes/${solicitacao.idSolicitacao}`);
     } catch (err) {
       const msg = err.response?.data?.message || "Erro ao criar solicitação";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

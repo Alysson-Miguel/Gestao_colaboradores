@@ -11,6 +11,7 @@ import { EscalasAPI } from "../../services/escalas";
 import { ThemeContext } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function EscalasPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -147,7 +148,7 @@ export default function EscalasPage() {
                     await EscalasAPI.excluir(e.idEscala);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir escala");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir escala");
                   }
                 }}
               />
@@ -170,7 +171,7 @@ export default function EscalasPage() {
               setModalOpen(false);
               load();
             } catch (err) {
-              alert(err?.response?.data?.message || "Erro ao salvar escala");
+              toast.error(err?.response?.data?.message || "Erro ao salvar escala");
             }
           }}
         />

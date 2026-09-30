@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import CartaMedidaDisciplinarTemplate from "../components/medidas_disciplinares/CartamedidaDisciplinarTemplate";
 import CartaAdeccoTemplate from "../components/medidas_disciplinares/CartaAdeccoTemplate";
 
+import toast from "react-hot-toast";
 // Empresas que usam o template Adecco/Adillis
 const EMPRESAS_ADECCO = ["adecco", "adillis", "adilis"];
 
@@ -58,7 +59,7 @@ export function printCartaMedidaDisciplinar(medida) {
     const printWindow = window.open("", "_blank");
 
     if (!printWindow) {
-      alert("Por favor, permita pop-ups para imprimir a carta");
+      toast.error("Por favor, permita pop-ups para imprimir a carta");
       return;
     }
 
@@ -72,6 +73,6 @@ export function printCartaMedidaDisciplinar(medida) {
 
   } catch (error) {
     console.error("Erro ao gerar carta de medida disciplinar:", error);
-    alert("Erro ao gerar carta. Verifique o console para mais detalhes.");
+    toast.error("Erro ao gerar carta. Verifique o console para mais detalhes.");
   }
 }

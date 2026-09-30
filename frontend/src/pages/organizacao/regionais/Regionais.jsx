@@ -11,6 +11,7 @@ import { RegionaisAPI } from "../../../services/regionais";
 import { ThemeContext } from "../../../context/ThemeContext";
 import { AuthContext } from "../../../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function RegionaisPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -40,7 +41,7 @@ export default function RegionaisPage() {
       setRegionais(list);
     } catch (err) {
       console.error("Erro ao carregar regionais", err);
-      alert("Erro ao carregar regionais");
+      toast.error("Erro ao carregar regionais");
     } finally {
       setLoading(false);
     }
@@ -146,7 +147,7 @@ export default function RegionaisPage() {
                     await RegionaisAPI.excluir(regional.idRegional);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir regional");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir regional");
                   }
                 }}
               />
@@ -169,7 +170,7 @@ export default function RegionaisPage() {
               setModalOpen(false);
               load();
             } catch (err) {
-              alert(err?.response?.data?.message || "Erro ao salvar regional");
+              toast.error(err?.response?.data?.message || "Erro ao salvar regional");
             }
           }}
         />

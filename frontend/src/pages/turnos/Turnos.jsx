@@ -11,6 +11,7 @@ import { TurnosAPI } from "../../services/turnos";
 import { ThemeContext } from "../../context/ThemeContext";
 import { AuthContext } from "../../context/AuthContext";
 
+import toast from "react-hot-toast";
 export default function TurnosPage() {
   const navigate = useNavigate();
   const { isDark } = useContext(ThemeContext);
@@ -145,7 +146,7 @@ export default function TurnosPage() {
                     await TurnosAPI.excluir(t.idTurno);
                     load();
                   } catch (err) {
-                    alert(err?.response?.data?.message || "Erro ao excluir turno");
+                    toast.error(err?.response?.data?.message || "Erro ao excluir turno");
                   }
                 }}
               />
@@ -168,7 +169,7 @@ export default function TurnosPage() {
               setModalOpen(false);
               load();
             } catch (err) {
-              alert(err?.response?.data?.message || "Erro ao salvar turno");
+              toast.error(err?.response?.data?.message || "Erro ao salvar turno");
             }
           }}
         />

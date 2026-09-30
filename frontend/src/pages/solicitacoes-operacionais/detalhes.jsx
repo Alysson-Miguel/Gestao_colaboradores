@@ -11,6 +11,7 @@ import { SolicitacoesOperacionaisAPI } from "../../services/solicitacoesOperacio
 import { AuthContext } from "../../context/AuthContext";
 import { StatusOperacionalBadge, TipoBadge, DESTINO_SINERGIA_LABEL, TIPO_DESLIGAMENTO_LABEL, MOTIVO_DESLIGAMENTO_LABEL, formatDateOnly, formatDateTimeOnly } from "./shared";
 
+import toast from "react-hot-toast";
 function ColaboradorCard({ titulo, colaborador }) {
   if (!colaborador) return null;
   return (
@@ -62,7 +63,7 @@ export default function DetalhesSolicitacaoOperacional() {
       await SolicitacoesOperacionaisAPI.aprovar(id);
       await load();
     } catch (e) {
-      alert(e.response?.data?.message || "Erro ao aprovar solicitação");
+      toast.error(e.response?.data?.message || "Erro ao aprovar solicitação");
       await load();
     } finally {
       setProcessando(false);
@@ -77,7 +78,7 @@ export default function DetalhesSolicitacaoOperacional() {
       setReprovarModalOpen(false);
       await load();
     } catch (e) {
-      alert(e.response?.data?.message || "Erro ao reprovar solicitação");
+      toast.error(e.response?.data?.message || "Erro ao reprovar solicitação");
       await load();
     } finally {
       setProcessando(false);

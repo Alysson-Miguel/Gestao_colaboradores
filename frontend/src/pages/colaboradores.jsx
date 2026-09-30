@@ -482,7 +482,7 @@ export default function ColaboradoresPage() {
                             await ColaboradoresAPI.excluir(emp.opsId);
                             load();
                           } catch {
-                            alert("Erro ao excluir colaborador.");
+                            toast.error("Erro ao excluir colaborador.");
                           }
                         }
                       : null

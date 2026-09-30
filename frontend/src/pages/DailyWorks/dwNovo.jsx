@@ -10,6 +10,7 @@ import api from "../../services/api";
 import { useEstacao } from "../../context/EstacaoContext";
 import { useTurnosOperacionais } from "../../hooks/useTurnosOperacionais";
 
+import toast from "react-hot-toast";
 /* ==============================
    EMPRESAS FIXAS
 ============================== */
@@ -101,25 +102,25 @@ export default function DwNovoPage() {
 
   const handleSave = async () => {
     if (!form.data || !form.idTurno) {
-      alert("Data e Turno são obrigatórios");
+      toast.error("Data e Turno são obrigatórios");
       return;
     }
 
     if (!idEstacao) {
-      alert("Você precisa estar vinculado a uma estação ou selecionar uma estação (ADMIN) para salvar o Daily Work");
+      toast.error("Você precisa estar vinculado a uma estação ou selecionar uma estação (ADMIN) para salvar o Daily Work");
       return;
     }
 
     const valores = Object.values(form.quantidades);
     if (valores.some((v) => v === "")) {
-      alert("Informe a quantidade real de todas as empresas");
+      toast.error("Informe a quantidade real de todas as empresas");
       return;
     }
 
     // Estação 1: planejado vem do Sheets (pode estar vazio se não configurado)
     // Outras estações: planejado é obrigatório
     if (!isEstacaoSheets && form.planejado === "") {
-      alert("Informe a quantidade planejada");
+      toast.error("Informe a quantidade planejada");
       return;
     }
 
@@ -153,7 +154,7 @@ export default function DwNovoPage() {
       navigate("/dw");
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar Daily Work");
+      toast.error("Erro ao salvar Daily Work");
     } finally {
       setSaving(false);
     }

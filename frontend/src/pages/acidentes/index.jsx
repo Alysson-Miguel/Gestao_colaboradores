@@ -11,6 +11,7 @@ import Header from "../../components/Header";
 import { AcidentesAPI } from "../../services/acidentes";
 import { AuthContext } from "../../context/AuthContext";
 
+import toast from "react-hot-toast";
 const LIMIT = 20;
 
 /* ─── SKELETON ─────────────────────────────────────── */
@@ -100,7 +101,7 @@ function CancelModal({ acidenteId, onClose, onConfirm }) {
       await AcidentesAPI.cancelar(acidenteId, motivo);
       onConfirm();
     } catch {
-      alert("Erro ao cancelar acidente.");
+      toast.error("Erro ao cancelar acidente.");
     } finally {
       setSalvando(false);
     }
@@ -229,7 +230,7 @@ export default function AcidentesPage() {
           total: res.pagination?.total ?? 0,
         });
       } catch {
-        if (!cancelled) alert("Erro ao carregar acidentes.");
+        if (!cancelled) toast.error("Erro ao carregar acidentes.");
       } finally {
         if (!cancelled) setLoading(false);
       }
