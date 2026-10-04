@@ -55,8 +55,8 @@ useEffect(() => {
         colabRes,
         liderRes,
       ] = await Promise.all([
-        api.get("/empresas"),
-        api.get("/setores"),
+        api.get("/empresas", { params: { limit: 1000 } }),
+        api.get("/setores", { params: { limit: 1000 } }),
         api.get("/cargos", {
           params: { page: 1, limit: 1000, ativo: true },
         }),

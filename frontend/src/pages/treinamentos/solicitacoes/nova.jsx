@@ -47,7 +47,7 @@ export default function NovaSolicitacaoTreinamento() {
     async function loadBase() {
       try {
         const [setoresRes, turnosRes, colaboradoresRes] = await Promise.all([
-          api.get("/setores"),
+          api.get("/setores", { params: { limit: 1000 } }),
           api.get("/turnos"),
           api.get("/colaboradores", { params: { status: "ATIVO", limit: 9999 }, _skipEstacao: true }),
         ]);

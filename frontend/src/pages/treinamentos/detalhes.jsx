@@ -75,7 +75,7 @@ export default function DetalhesTreinamento() {
     try {
       const [colabRes, setoresRes, turnosRes] = await Promise.all([
         api.get("/colaboradores", { params: { status: "ATIVO", limit: 9999 }, _skipEstacao: true }),
-        api.get("/setores"),
+        api.get("/setores", { params: { limit: 1000 } }),
         api.get("/turnos"),
       ]);
       setColaboradores(colabRes.data.data || colabRes.data);

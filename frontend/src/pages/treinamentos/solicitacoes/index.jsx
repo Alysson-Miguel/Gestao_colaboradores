@@ -131,7 +131,7 @@ export default function SolicitacoesTreinamentoPage() {
   };
 
   useEffect(() => {
-    Promise.all([api.get("/setores"), api.get("/turnos")])
+    Promise.all([api.get("/setores", { params: { limit: 1000 } }), api.get("/turnos")])
       .then(([setoresRes, turnosRes]) => {
         setSetores(setoresRes.data.data || setoresRes.data || []);
         setTurnos(turnosRes.data.data || turnosRes.data || []);

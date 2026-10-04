@@ -50,7 +50,7 @@ export default function ImportarColaboradores() {
       try {
         const [empresas, setores, turnos, escalasRaw, cargos, estacoes, lideres] = await Promise.all([
           EmpresasAPI.listar(),
-          SetoresAPI.listar(),
+          SetoresAPI.listar({ limit: 1000 }),
           TurnosAPI.listar(),
           EscalasAPI.listar(),
           CargosAPI.listar({ limit: 200 }),
