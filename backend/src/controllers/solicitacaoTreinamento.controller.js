@@ -233,8 +233,14 @@ exports.statsSolicitacoes = async (req, res) => {
   try {
     const estacaoWhere = estacaoWhereSolicitacao(req);
 
+    // Estação do líder OU de algum participante (ver treinamento.controller)
     const treinamentoWhere = !req.dbContext?.isGlobal && req.dbContext?.estacaoId
-      ? { liderResponsavel: { idEstacao: req.dbContext.estacaoId } }
+      ? {
+          OR: [
+            { liderResponsavel: { idEstacao: req.dbContext.estacaoId } },
+            { participantes: { some: { colaborador: { idEstacao: req.dbContext.estacaoId } } } },
+          ],
+        }
       : {};
 
     const hoje = new Date();

@@ -5,6 +5,7 @@
  */
 
 const { prisma } = require("../config/database");
+const { comAuditoriaStatus } = require("../services/auditoriaStatusColaborador.service");
 const {
   successResponse,
   createdResponse,
@@ -277,10 +278,11 @@ const createAtestado = async (req, res) => {
       });
 
       if (dias >= 16) {
-        await tx.colaborador.update({
-          where: { opsId },
-          data: { status: "AFASTADO" },
-        });
+        await comAuditoriaStatus(
+          tx,
+          { opsId, userId: req.user?.id ?? null, origem: "ATESTADO_AFASTAMENTO", detalhe: `Atestado de ${dias} dias` },
+          () => tx.colaborador.update({ where: { opsId }, data: { status: "AFASTADO" } })
+        );
       }
 
       // 🔁 Atualiza frequência dia a dia (preserva DSR)
@@ -599,10 +601,11 @@ const cancelarAtestado = async (req, res) => {
          4️⃣ Atualiza status do colaborador
       =============================== */
       if (!aindaINSS) {
-        await tx.colaborador.update({
-          where: { opsId },
-          data: { status: "ATIVO" },
-        });
+        await comAuditoriaStatus(
+          tx,
+          { opsId, userId: req.user?.id ?? null, origem: "ATESTADO_CANCELADO", detalhe: "Atestado cancelado: status revalidado" },
+          () => tx.colaborador.update({ where: { opsId }, data: { status: "ATIVO" } })
+        );
       }
     });
 

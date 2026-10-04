@@ -763,6 +763,107 @@ async function gerarFolgaDominical({ ano, mes, userId, estacaoId = null }) {
 }
 
 /* =====================================================
+   GERAR FOLGA DOMINICAL — INCREMENTAL (COMPLEMENTAR)
+   Preenche só quem é elegível AGORA e ainda não tem folga em domingo do mês,
+   usando apenas domingos que ainda não passaram. Não apaga nem altera o
+   que já foi gerado; as folgas existentes entram na conta de capacidade.
+   Cobre quem mudou de escala, entrou ou passou a ser elegível depois da
+   geração mensal.
+===================================================== */
+function hojeBrasilISO() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+async function gerarFolgaDominicalIncremental({ ano, mes, userId, estacaoId = null, simular = false }) {
+  if (!ano || !mes) throw new Error("Ano e mês são obrigatórios.");
+  if (!userId) throw new Error("Usuário não autenticado.");
+
+  const {
+    domingos,
+    totalAtivosTurno,
+    elegiveis,
+    freqMap,
+    capacidade,
+    ultimaFolgaPorOpsId,
+  } = await carregarContextoPlanejamento({ ano, mes, estacaoId });
+
+  const hoje = hojeBrasilISO();
+  const domingosFuturos = domingos.filter((d) => isoDate(d) >= hoje);
+
+  if (!domingosFuturos.length) {
+    return {
+      modo: "incremental", ano, mes,
+      domingos: 0, elegiveis: elegiveis.length, geradas: 0, naoAlocados: 0,
+      mensagem: "Todos os domingos do mês já passaram; nada a complementar.",
+    };
+  }
+
+  // Tipos que contam como "folga": DSR, FO (folga) e BH (banco de horas)
+  const tiposFolga = await prisma.tipoAusencia.findMany({
+    where: { codigo: { in: ["DSR", "FO", "BH"] } },
+    select: { idTipoAusencia: true },
+  });
+  const idsFolga = new Set(tiposFolga.map((t) => t.idTipoAusencia));
+  idsFolga.add(DSR_ID);
+
+  const jaTemFolga = new Set();
+
+  for (const f of freqMap.values()) {
+    if (f.idTipoAusencia && idsFolga.has(f.idTipoAusencia)) jaTemFolga.add(f.opsId);
+
+    // Folgas automáticas já geradas ocupam a capacidade do turno naquele domingo
+    if (f.idTipoAusencia === DSR_ID && f.justificativa === JUSTIFICATIVA_AUTO) {
+      const turno = getTurnoNome(f.colaborador?.turno);
+      const slot = turno ? capacidade[turno]?.[isoDate(f.dataReferencia)] : null;
+      if (slot) {
+        slot.folgasPlanejadas += 1;
+        slot.saldoDisponivel = Math.max(0, slot.saldoDisponivel - 1);
+      }
+    }
+  }
+
+  const semFolga = elegiveis.filter((c) => !jaTemFolga.has(c.opsId));
+
+  if (!semFolga.length) {
+    return {
+      modo: "incremental", ano, mes,
+      domingos: domingosFuturos.length, elegiveis: elegiveis.length,
+      semFolga: 0, geradas: 0, naoAlocados: 0,
+      mensagem: "Todos os elegíveis já têm folga em algum domingo do mês.",
+    };
+  }
+
+  const { planejamentos, naoAlocados } = montarPlanejamento({
+    ano,
+    mes,
+    userId,
+    domingos: domingosFuturos,
+    elegiveis: semFolga,
+    freqMap,
+    capacidade,
+    ultimaFolgaPorOpsId,
+  });
+
+  if (!simular) await processarPlanejamentosEmLotes(planejamentos, userId);
+
+  return {
+    modo: "incremental",
+    simulacao: simular,
+    ano,
+    mes,
+    domingos: domingosFuturos.length,
+    elegiveis: elegiveis.length,
+    semFolga: semFolga.length,
+    geradas: planejamentos.length,
+    naoAlocados: naoAlocados.length,
+    detalheNaoAlocados: naoAlocados.map((n) => ({ opsId: n.opsId, nomeCompleto: n.nomeCompleto, motivo: n.motivo })),
+    mensagem: simular
+      ? `Simulação: ${planejamentos.length} folga(s) dominical(is) seriam geradas.`
+      : `${planejamentos.length} folga(s) dominical(is) complementada(s).`,
+  };
+}
+
+/* =====================================================
    LISTAR FOLGA DOMINICAL
 ===================================================== */
 async function listarFolgaDominical({ ano, mes, estacaoId = null }) {
@@ -982,6 +1083,7 @@ async function previewFolgaDominical({ ano, mes, estacaoId = null }) {
 
 module.exports = {
   gerarFolgaDominical,
+  gerarFolgaDominicalIncremental,
   listarFolgaDominical,
   deletarFolgaDominical,
   previewFolgaDominical,

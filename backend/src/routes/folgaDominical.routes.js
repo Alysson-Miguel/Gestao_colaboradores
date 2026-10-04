@@ -33,6 +33,16 @@ router.post(
 );
 
 /* =====================================================
+  COMPLEMENTAR → ADMIN + ALTA_GESTAO
+  (só elegíveis sem folga, só domingos futuros; não apaga o já gerado)
+===================================================== */
+router.post(
+  "/complementar",
+  authorizeRoles("ADMIN", "ALTA_GESTAO"),
+  controller.complementar
+);
+
+/* =====================================================
   DELETE (usado pelo "Reprocessar") → exclusivo ADMIN
 ===================================================== */
 router.delete(

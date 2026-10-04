@@ -1,5 +1,6 @@
 const {
   gerarFolgaDominical,
+  gerarFolgaDominicalIncremental,
   listarFolgaDominical,
   deletarFolgaDominical,
   previewFolgaDominical,
@@ -116,6 +117,51 @@ async function gerar(req, res) {
       success: false,
       error: "Erro interno ao gerar folga dominical.",
     });
+  }
+}
+
+/* =====================================================
+   POST /folga-dominical/complementar
+   Complementa o planejamento do mês: só elegíveis sem folga, só domingos
+   futuros; não apaga nem altera o que já foi gerado.
+===================================================== */
+async function complementar(req, res) {
+  try {
+    const parsed = validarAnoMes(req.body?.ano, req.body?.mes);
+    if (!parsed) {
+      return res.status(400).json({ success: false, error: "Ano e mês são obrigatórios e devem ser válidos." });
+    }
+
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: "Usuário não autenticado." });
+    }
+
+    const estacaoId = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
+      ? req.dbContext.estacaoId
+      : null;
+
+    const resultado = await gerarFolgaDominicalIncremental({
+      ano: parsed.anoNum,
+      mes: parsed.mesNum,
+      userId,
+      estacaoId,
+      simular: Boolean(req.body?.simular),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: resultado.mensagem || "Planejamento complementado.",
+      data: resultado,
+    });
+  } catch (error) {
+    console.error("❌ Erro ao complementar folga dominical:", error.message);
+
+    if ((error.message || "").includes("elegível") || (error.message || "").includes("obrigatórios")) {
+      return res.status(422).json({ success: false, type: "DADOS_INSUFICIENTES", error: error.message });
+    }
+
+    return res.status(500).json({ success: false, error: "Erro interno ao complementar folga dominical." });
   }
 }
 
@@ -314,6 +360,7 @@ async function preview(req, res) {
 
 module.exports = {
   gerar,
+  complementar,
   listar,
   deletar,
   preview,

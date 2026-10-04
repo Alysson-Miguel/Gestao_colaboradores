@@ -122,6 +122,21 @@ router.get(
   asyncHandler(controller.getColaboradorHistorico)
 );
 
+/* ================= AUDITORIA DE STATUS / TRANSFERIR LIDERADOS ================= */
+router.get(
+  "/:opsId/auditoria-status",
+  authenticate,
+  authorize("ADMIN", "MANAGER", "ALTA_GESTAO"),
+  asyncHandler(controller.getAuditoriaStatus)
+);
+
+router.post(
+  "/:opsId/transferir-liderados",
+  authenticate,
+  authorize("ADMIN", "MANAGER", "ALTA_GESTAO"),
+  asyncHandler(controller.transferirLiderados)
+);
+
 /* ================= GET / UPDATE / DELETE POR OPS ID ================= */
 router.get(
   "/:opsId",

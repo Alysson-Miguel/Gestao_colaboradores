@@ -86,4 +86,7 @@ router.post("/:id/aprovar", authenticate, authorize(...roles), solicitacaoContro
 /* REPROVAR SOLICITAÇÃO */
 router.post("/:id/reprovar", authenticate, authorize(...roles), solicitacaoController.reprovarSolicitacao);
 
+/* CORRIGIR DATA DE SOLICITAÇÃO APROVADA (somente ADMIN) */
+router.patch("/:id/data", authenticate, authorize("ADMIN"), solicitacaoController.corrigirDataSolicitacao);
+
 module.exports = router;

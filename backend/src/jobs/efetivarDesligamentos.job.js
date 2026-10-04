@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const { prisma } = require("../config/database");
 const logger = require("../utils/logger");
+const { comAuditoriaStatus } = require("../services/auditoriaStatusColaborador.service");
 
 function agoraBrasil() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -57,21 +58,25 @@ async function executarEfetivacaoDesligamentos() {
 
     for (const d of pendentes) {
       try {
-        await prisma.$transaction([
-          prisma.colaborador.updateMany({
-            where: { opsId: d.opsId, status: "ATIVO" },
-            data: {
-              status: "INATIVO",
-              dataDesligamento: d.dataDesligamento,
-              motivoDesligamento: d.motivo,
-              tipoDesligamento: d.tipo,
-            },
-          }),
-          prisma.desligamento.update({
-            where: { id_desligamento: d.id_desligamento },
-            data: { efetivadoEm: new Date() },
-          }),
-        ]);
+        await comAuditoriaStatus(
+          prisma,
+          { opsId: d.opsId, userId: null, origem: "JOB_DESLIGAMENTO_AGENDADO", detalhe: `Desligamento #${d.id_desligamento} agendado para ${d.dataDesligamento.toISOString().slice(0, 10)}` },
+          () => prisma.$transaction([
+            prisma.colaborador.updateMany({
+              where: { opsId: d.opsId, status: "ATIVO" },
+              data: {
+                status: "INATIVO",
+                dataDesligamento: d.dataDesligamento,
+                motivoDesligamento: d.motivo,
+                tipoDesligamento: d.tipo,
+              },
+            }),
+            prisma.desligamento.update({
+              where: { id_desligamento: d.id_desligamento },
+              data: { efetivadoEm: new Date() },
+            }),
+          ])
+        );
         efetivados++;
       } catch (e) {
         erros++;

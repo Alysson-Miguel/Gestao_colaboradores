@@ -196,7 +196,7 @@ export default function EditarPresencaModal({
     try {
       setLoading(true);
 
-      await ajustarPresencaManual({
+      const resposta = await ajustarPresencaManual({
         opsId: colaborador.opsId,
         dataReferencia: dia.date,
         status,
@@ -206,6 +206,11 @@ export default function EditarPresencaModal({
       });
 
       toast.success("Presença ajustada com sucesso");
+
+      // O dia tinha a folga dominical automática do colaborador e foi substituído
+      if (resposta?.aviso) {
+        toast(resposta.aviso, { icon: "⚠️", duration: 10000 });
+      }
 
       onSuccess?.({
         opsId: colaborador.opsId,

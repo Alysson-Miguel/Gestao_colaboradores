@@ -7,6 +7,7 @@ const {
   paginatedResponse,
 } = require("../utils/response");
 const { isDiaDSR, preservarFolgaDominicalWhere } = require("../utils/dsr");
+const { comAuditoriaStatus } = require("../services/auditoriaStatusColaborador.service");
 const { getEstacoesDoGrupo } = require("../config/estacaoGrupos");
 const {
   sendSolicitacaoOperacionalEmail,
@@ -82,6 +83,8 @@ function linkSolicitacaoOperacional(idSolicitacao) {
   return `${frontendUrl}/solicitacoes-operacionais/${idSolicitacao}`;
 }
 
+// Marca no FrequenciaHistorico as alterações feitas por solicitação operacional (usada na restauração)
+const TAG_HISTORICO_SOLICITACAO = "SOLICITACAO_OPERACIONAL #";
 const DESTINOS_SINERGIA_VALIDOS = ["FULL", "TRATATIVAS", "OUTRA_OPERACAO", "ALMOXARIFADO", "MEIO_AMBIENTE", "TREINAMENTO"];
 
 const TIPOS_DESLIGAMENTO_VALIDOS = ["DV", "DF", "DP"];
@@ -1779,12 +1782,43 @@ async function aplicarNaFrequencia(tx, solicitacao, registradoPor) {
     select: { idTipoAusencia: true, codigo: true },
   });
   const idPorCodigo = Object.fromEntries(tipos.map((t) => [t.codigo, t.idTipoAusencia]));
+  const todosTipos = await tx.tipoAusencia.findMany({ select: { idTipoAusencia: true, codigo: true } });
+  const codigoPorId = new Map(todosTipos.map((t) => [t.idTipoAusencia, t.codigo]));
 
   async function upsertFrequencia(opsId, dataReferencia, idTipoAusencia, extra = {}) {
-    await tx.frequencia.upsert({
+    const anterior = await tx.frequencia.findUnique({
+      where: { opsId_dataReferencia: { opsId, dataReferencia } },
+      select: { idTipoAusencia: true, horaEntrada: true, horaSaida: true, horasTrabalhadas: true, manual: true, justificativa: true },
+    });
+
+    const registro = await tx.frequencia.upsert({
       where: { opsId_dataReferencia: { opsId, dataReferencia } },
       update: { idTipoAusencia, manual: true, justificativa: "SOLICITACAO_OPERACIONAL", registradoPor, ...extra },
       create: { opsId, dataReferencia, idTipoAusencia, manual: true, justificativa: "SOLICITACAO_OPERACIONAL", registradoPor, ...extra },
+    });
+
+    // Histórico: guarda o estado anterior (status e batidas) para permitir restaurar
+    // — o upsert acima sobrescreve o status e pode zerar as batidas do dia.
+    const hhmmss = (d) => (d ? d.toISOString().slice(11, 19) : null);
+    const estadoAnterior = anterior
+      ? {
+          tipo: anterior.idTipoAusencia ? codigoPorId.get(anterior.idTipoAusencia) ?? null : null,
+          manual: anterior.manual,
+          justificativa: anterior.justificativa,
+          horaEntrada: hhmmss(anterior.horaEntrada),
+          horaSaida: hhmmss(anterior.horaSaida),
+          horasTrabalhadas: anterior.horasTrabalhadas != null ? Number(anterior.horasTrabalhadas) : null,
+        }
+      : null;
+
+    await tx.frequenciaHistorico.create({
+      data: {
+        idFrequencia: registro.idFrequencia,
+        statusAnterior: estadoAnterior?.tipo ?? null,
+        statusNovo: idTipoAusencia ? codigoPorId.get(idTipoAusencia) ?? null : null,
+        justificativa: `${TAG_HISTORICO_SOLICITACAO}${solicitacao.idSolicitacao} (${solicitacao.tipo}) | anterior: ${JSON.stringify(estadoAnterior)}`,
+        alteradoPor: registradoPor ? String(registradoPor).slice(0, 50) : null,
+      },
     });
   }
 
@@ -1919,15 +1953,19 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
     const dataJaChegou = dataEfetiva <= hoje;
 
     if (dataJaChegou) {
-      await tx.colaborador.update({
-        where: { opsId: solicitacao.opsId },
-        data: {
-          status: "INATIVO",
-          dataDesligamento: solicitacao.dataDesligamentoSolicitada,
-          motivoDesligamento: solicitacao.motivoDesligamentoSolicitado,
-          tipoDesligamento: solicitacao.tipoDesligamentoSolicitado,
-        },
-      });
+      await comAuditoriaStatus(
+        tx,
+        { opsId: solicitacao.opsId, userId: registradoPor, origem: "SOLICITACAO_DESLIGAMENTO", detalhe: `Solicitação #${solicitacao.idSolicitacao}` },
+        () => tx.colaborador.update({
+          where: { opsId: solicitacao.opsId },
+          data: {
+            status: "INATIVO",
+            dataDesligamento: solicitacao.dataDesligamentoSolicitada,
+            motivoDesligamento: solicitacao.motivoDesligamentoSolicitado,
+            tipoDesligamento: solicitacao.tipoDesligamentoSolicitado,
+          },
+        })
+      );
     }
 
     const jaExiste = await tx.desligamento.findFirst({
@@ -1962,14 +2000,18 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
   }
 
   if (solicitacao.tipo === "FERIAS") {
-    await tx.colaborador.update({
-      where: { opsId: solicitacao.opsId },
-      data: {
-        status: "FERIAS",
-        dataInicioStatus: solicitacao.feriasDataInicio,
-        dataFimStatus: solicitacao.feriasDataFim,
-      },
-    });
+    await comAuditoriaStatus(
+      tx,
+      { opsId: solicitacao.opsId, userId: registradoPor, origem: "SOLICITACAO_FERIAS", detalhe: `Solicitação #${solicitacao.idSolicitacao}` },
+      () => tx.colaborador.update({
+        where: { opsId: solicitacao.opsId },
+        data: {
+          status: "FERIAS",
+          dataInicioStatus: solicitacao.feriasDataInicio,
+          dataFimStatus: solicitacao.feriasDataFim,
+        },
+      })
+    );
 
     const tipoFerias = await tx.tipoAusencia.findFirst({ where: { codigo: "FE" }, select: { idTipoAusencia: true } });
     if (tipoFerias) {
@@ -1995,14 +2037,18 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
   }
 
   if (solicitacao.tipo === "AFASTAMENTO") {
-    await tx.colaborador.update({
-      where: { opsId: solicitacao.opsId },
-      data: {
-        status: "AFASTADO",
-        dataInicioStatus: solicitacao.afastamentoDataInicio,
-        dataFimStatus: solicitacao.afastamentoDataFim,
-      },
-    });
+    await comAuditoriaStatus(
+      tx,
+      { opsId: solicitacao.opsId, userId: registradoPor, origem: "SOLICITACAO_AFASTAMENTO", detalhe: `Solicitação #${solicitacao.idSolicitacao}` },
+      () => tx.colaborador.update({
+        where: { opsId: solicitacao.opsId },
+        data: {
+          status: "AFASTADO",
+          dataInicioStatus: solicitacao.afastamentoDataInicio,
+          dataFimStatus: solicitacao.afastamentoDataFim,
+        },
+      })
+    );
 
     const tipoAfastamento = await tx.tipoAusencia.findFirst({
       where: { OR: [{ codigo: "AFA" }, { codigo: "AF" }] },
@@ -2526,5 +2572,149 @@ exports.reprovarSolicitacao = async (req, res) => {
     }
     console.error("❌ reprovarSolicitacao (operacional):", err);
     return errorResponse(res, "Erro ao reprovar solicitação", 500);
+  }
+};
+
+/* =====================================================
+   CORRIGIR DATA DE SOLICITAÇÃO APROVADA (somente ADMIN)
+   Folga / Sinergia / Banco de Horas (dia completo): move a solicitação para
+   a data correta e reaplica o Controle de Presença —
+   1) desfaz o dia antigo usando o estado anterior gravado no
+      FrequenciaHistorico (status e batidas) na aprovação;
+   2) aplica o status no dia novo, com histórico.
+   Aprovações feitas antes do histórico existir não têm o estado anterior
+   guardado: o dia antigo volta para DSR (se for DSR da escala) ou fica
+   sem status e a resposta traz um aviso para ajuste manual.
+===================================================== */
+const TIPOS_CORRECAO_DATA = { FOLGA: "FO", SINERGIA: "S1", BANCO_HORAS: "BH" };
+
+exports.corrigirDataSolicitacao = async (req, res) => {
+  try {
+    const idSolicitacao = Number(req.params.id);
+    const novaDataStr = String(req.body?.novaData ?? "").trim();
+    const motivo = String(req.body?.motivo ?? "").trim();
+
+    if (!idSolicitacao) return errorResponse(res, "Solicitação inválida", 400);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(novaDataStr)) return errorResponse(res, "Informe a nova data no formato AAAA-MM-DD", 400);
+    if (motivo.length < 5) return errorResponse(res, "Informe o motivo da correção (mínimo 5 caracteres)", 400);
+
+    const novaData = new Date(`${novaDataStr}T00:00:00.000Z`);
+    if (isNaN(novaData.getTime())) return errorResponse(res, "Nova data inválida", 400);
+
+    const solicitacao = await prisma.solicitacaoOperacional.findUnique({
+      where: { idSolicitacao },
+      include: { colaborador: { select: { idEstacao: true, escala: { select: { nomeEscala: true } } } } },
+    });
+
+    if (!solicitacao) return errorResponse(res, "Solicitação não encontrada", 404);
+    if (solicitacao.status !== "APROVADA") return errorResponse(res, "Só é possível corrigir a data de solicitação APROVADA", 400);
+
+    const codigoEsperado = TIPOS_CORRECAO_DATA[solicitacao.tipo];
+    if (!codigoEsperado || (solicitacao.tipo === "BANCO_HORAS" && !solicitacao.bhDiaCompleto)) {
+      return errorResponse(res, "Correção de data disponível para Folga, Sinergia e Banco de Horas (dia completo)", 400);
+    }
+
+    if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId && solicitacao.colaborador?.idEstacao !== req.dbContext.estacaoId) {
+      return errorResponse(res, "Solicitação não pertence à sua estação", 403);
+    }
+
+    const dataAntiga = solicitacao.data;
+    if (dataAntiga.getTime() === novaData.getTime()) return errorResponse(res, "A nova data é igual à data atual", 400);
+
+    const avisos = [];
+
+    await prisma.$transaction(async (tx) => {
+      const tipos = await tx.tipoAusencia.findMany({ select: { idTipoAusencia: true, codigo: true } });
+      const idPorCodigo = Object.fromEntries(tipos.map((t) => [t.codigo, t.idTipoAusencia]));
+      const codigoPorId = new Map(tipos.map((t) => [t.idTipoAusencia, t.codigo]));
+      const paraHora = (v) => (v ? new Date(`1970-01-01T${v}Z`) : null);
+
+      /* ---------- 1) desfaz o dia antigo ---------- */
+      const freqAntiga = await tx.frequencia.findUnique({
+        where: { opsId_dataReferencia: { opsId: solicitacao.opsId, dataReferencia: dataAntiga } },
+      });
+
+      if (freqAntiga) {
+        const codigoAtual = freqAntiga.idTipoAusencia ? codigoPorId.get(freqAntiga.idTipoAusencia) : null;
+
+        if (codigoAtual !== codigoEsperado) {
+          avisos.push(`O dia ${ymd(dataAntiga)} está com status ${codigoAtual ?? "vazio"} (diferente de ${codigoEsperado}); foi mantido como está.`);
+        } else {
+          const registro = await tx.frequenciaHistorico.findFirst({
+            where: { idFrequencia: freqAntiga.idFrequencia, justificativa: { startsWith: `${TAG_HISTORICO_SOLICITACAO}${idSolicitacao} (` } },
+            orderBy: { dataAlteracao: "desc" },
+          });
+
+          let anterior = null;
+          const m = registro?.justificativa?.match(/\| anterior: (.*)$/s);
+          if (m) {
+            try { anterior = JSON.parse(m[1]); } catch { anterior = null; }
+          }
+
+          let dadosRestauracao;
+          let statusRestaurado;
+
+          if (anterior) {
+            statusRestaurado = anterior.tipo;
+            dadosRestauracao = {
+              idTipoAusencia: anterior.tipo ? idPorCodigo[anterior.tipo] ?? null : null,
+              manual: anterior.manual ?? false,
+              justificativa: anterior.justificativa ?? null,
+              horaEntrada: paraHora(anterior.horaEntrada),
+              horaSaida: paraHora(anterior.horaSaida),
+              horasTrabalhadas: anterior.horasTrabalhadas ?? null,
+            };
+          } else {
+            const ehDsr = await isDiaDSR(dataAntiga, solicitacao.colaborador?.escala?.nomeEscala, tx);
+            statusRestaurado = ehDsr ? "DSR" : null;
+            dadosRestauracao = ehDsr
+              ? { idTipoAusencia: idPorCodigo.DSR, manual: false, justificativa: "DSR_AUTO", horaEntrada: null, horaSaida: null, horasTrabalhadas: null }
+              : { idTipoAusencia: null, manual: false, justificativa: null, horaEntrada: null, horaSaida: null, horasTrabalhadas: null };
+            avisos.push(
+              ehDsr
+                ? `Estado anterior de ${ymd(dataAntiga)} não estava registrado; voltou para DSR (dia de DSR da escala). Confira as batidas do dia.`
+                : `Estado anterior de ${ymd(dataAntiga)} não estava registrado; o dia ficou sem status. Ajuste manualmente (status e batidas).`
+            );
+          }
+
+          await tx.frequencia.update({ where: { idFrequencia: freqAntiga.idFrequencia }, data: dadosRestauracao });
+          await tx.frequenciaHistorico.create({
+            data: {
+              idFrequencia: freqAntiga.idFrequencia,
+              statusAnterior: codigoAtual,
+              statusNovo: statusRestaurado,
+              justificativa: `Correção de data da solicitação #${idSolicitacao}: ${ymd(dataAntiga)} -> ${novaDataStr}. Motivo: ${motivo}`.slice(0, 1000),
+              alteradoPor: String(req.user.id).slice(0, 50),
+            },
+          });
+        }
+      }
+
+      /* ---------- 2) dia novo ---------- */
+      const freqNova = await tx.frequencia.findUnique({
+        where: { opsId_dataReferencia: { opsId: solicitacao.opsId, dataReferencia: novaData } },
+        select: { idTipoAusencia: true },
+      });
+      const codigoNovoAntes = freqNova?.idTipoAusencia ? codigoPorId.get(freqNova.idTipoAusencia) : null;
+      if (codigoNovoAntes && !["P", "DSR", "NC"].includes(codigoNovoAntes)) {
+        avisos.push(`O dia ${novaDataStr} tinha status ${codigoNovoAntes}, que foi substituído por ${codigoEsperado}.`);
+      }
+
+      await tx.solicitacaoOperacional.update({ where: { idSolicitacao }, data: { data: novaData } });
+      await aplicarNaFrequencia(tx, { ...solicitacao, data: novaData }, req.user.id);
+
+      await tx.solicitacaoOperacionalHistorico.create({
+        data: {
+          idSolicitacao,
+          evento: `Data corrigida de ${ymd(dataAntiga)} para ${novaDataStr} por ${req.user.name}. Motivo: ${motivo}`.slice(0, 500),
+        },
+      });
+    }, { timeout: 30000 });
+
+    return successResponse(res, { avisos }, "Data da solicitação corrigida e Controle de Presença atualizado");
+  } catch (err) {
+    if (err instanceof HttpError) return errorResponse(res, err.message, err.statusCode);
+    console.error("❌ corrigirDataSolicitacao (operacional):", err);
+    return errorResponse(res, "Erro ao corrigir data da solicitação", 500);
   }
 };

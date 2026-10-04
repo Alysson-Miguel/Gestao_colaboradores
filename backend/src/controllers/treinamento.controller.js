@@ -17,14 +17,39 @@ function normalizeDateOnly(dateStr) {
 }
 
 /**
- * true se o treinamento pertence à estação do usuário logado
- * (ou o usuário tem acesso global / a todas as estações).
+ * Filtro Prisma de estação para treinamentos: vale se o líder responsável OU
+ * algum participante é da estação. (O front permite líder de outra estação;
+ * filtrar só pelo líder fazia o treinamento "sumir" da estação dos participantes.)
+ * Vazio para quem tem acesso global.
  */
-function pertenceAEstacaoDoUsuario(req, idEstacaoTreinamento) {
-  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId && idEstacaoTreinamento) {
-    return idEstacaoTreinamento === req.dbContext.estacaoId;
-  }
-  return true;
+function whereEstacaoTreinamento(req) {
+  const idEstacao = !req.dbContext?.isGlobal ? req.dbContext?.estacaoId : null;
+  if (!idEstacao) return {};
+
+  return {
+    OR: [
+      { liderResponsavel: { idEstacao } },
+      { participantes: { some: { colaborador: { idEstacao } } } },
+    ],
+  };
+}
+
+/**
+ * true se o treinamento pertence à estação do usuário logado (líder ou
+ * participante da estação) ou se o usuário tem acesso global.
+ * `treinamento` precisa ter idTreinamento e liderResponsavel.idEstacao.
+ */
+async function pertenceAEstacaoDoUsuario(req, treinamento) {
+  const idEstacao = !req.dbContext?.isGlobal ? req.dbContext?.estacaoId : null;
+  if (!idEstacao) return true;
+
+  if (treinamento?.liderResponsavel?.idEstacao === idEstacao) return true;
+
+  const participantesDaEstacao = await prisma.treinamentoParticipante.count({
+    where: { idTreinamento: treinamento.idTreinamento, colaborador: { idEstacao } },
+  });
+
+  return participantesDaEstacao > 0;
 }
 
 exports.createTreinamento = async (req, res) => {
@@ -181,7 +206,7 @@ exports.getTreinamento = async (req, res) => {
     }
 
     // Bloqueia acesso a treinamento de outra estação (não-admin/global)
-    if (!pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
+    if (!(await pertenceAEstacaoDoUsuario(req, treinamento))) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -198,9 +223,7 @@ exports.getTreinamento = async (req, res) => {
 ===================================================== */
 exports.statsTreinamentos = async (req, res) => {
   try {
-    const estacaoWhere = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
-      ? { liderResponsavel: { idEstacao: req.dbContext.estacaoId } }
-      : {};
+    const estacaoWhere = whereEstacaoTreinamento(req);
 
     const [total, finalizados, pendentes, cancelados] = await Promise.all([
       prisma.treinamento.count({ where: estacaoWhere }),
@@ -224,9 +247,7 @@ exports.listTreinamentos = async (req, res) => {
     const limitNum = Math.min(100, Math.max(1, Number(limit)));
     const skip = (pageNum - 1) * limitNum;
 
-    const where = (!req.dbContext?.isGlobal && req.dbContext?.estacaoId)
-      ? { liderResponsavel: { idEstacao: req.dbContext.estacaoId } }
-      : {};
+    const where = whereEstacaoTreinamento(req);
 
     if (tema)    where.tema     = { contains: tema,    mode: "insensitive" };
     if (processo) where.processo = { contains: processo, mode: "insensitive" };
@@ -315,7 +336,7 @@ exports.uploadAta = async (req, res) => {
       include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
+    if (!treinamento || !(await pertenceAEstacaoDoUsuario(req, treinamento))) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -383,7 +404,7 @@ exports.finalizarTreinamento = async (req, res) => {
       include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamentoAtual || !pertenceAEstacaoDoUsuario(req, treinamentoAtual.liderResponsavel?.idEstacao)) {
+    if (!treinamentoAtual || !(await pertenceAEstacaoDoUsuario(req, treinamentoAtual))) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -522,7 +543,7 @@ exports.atualizarParticipantes = async (req, res) => {
       include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
+    if (!treinamento || !(await pertenceAEstacaoDoUsuario(req, treinamento))) {
       return res.status(404).json({
         success: false,
         message: "Treinamento não encontrado",
@@ -630,7 +651,7 @@ exports.presignDownloadAta = async (req, res) => {
       include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
+    if (!treinamento || !(await pertenceAEstacaoDoUsuario(req, treinamento))) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 
@@ -680,7 +701,7 @@ exports.cancelarTreinamento = async (req, res) => {
       include: { liderResponsavel: { select: { idEstacao: true } } },
     });
 
-    if (!treinamento || !pertenceAEstacaoDoUsuario(req, treinamento.liderResponsavel?.idEstacao)) {
+    if (!treinamento || !(await pertenceAEstacaoDoUsuario(req, treinamento))) {
       return res.status(404).json({ success: false, message: "Treinamento não encontrado" });
     }
 

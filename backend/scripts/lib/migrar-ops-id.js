@@ -6,7 +6,7 @@
  * atualiza colaborador (cascata) e as tabelas sem FK, e restaura as FKs como eram.
  * Qualquer erro desfaz tudo.
  */
-const TABELAS_SEM_FK = ["users", "producao_colaborador_historico"];
+const TABELAS_SEM_FK = ["users", "producao_colaborador_historico", "colaborador_status_auditoria"];
 
 const aspas = (s) => `"${String(s).replace(/"/g, '""')}"`;
 const lista = (arr) => arr.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(",");
@@ -49,6 +49,8 @@ async function planejar(prisma, mapa) {
 
   const semFk = [];
   for (const t of TABELAS_SEM_FK) {
+    const [{ existe }] = await prisma.$queryRawUnsafe(`SELECT to_regclass('public.${t}') IS NOT NULL AS existe`);
+    if (!existe) continue; // tabela ainda não migrada
     const [{ n }] = await prisma.$queryRawUnsafe(`SELECT count(*)::int AS n FROM ${aspas(t)} WHERE ops_id IN (${lista(antigos)})`);
     if (n > 0) semFk.push({ tabela: t, linhas: n });
   }

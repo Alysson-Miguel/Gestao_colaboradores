@@ -973,6 +973,84 @@ const getControlePresenca = async (req, res) => {
   }
 };
 
+/* =====================================================
+   AJUSTE MANUAL — HISTÓRICO E AVISO DE FOLGA DOMINICAL
+   O upsert do ajuste sobrescreve o dia (status e batidas). Para não perder
+   o rastro: grava o estado anterior no FrequenciaHistorico e, se o dia
+   tinha folga dominical automática que foi substituída, devolve um aviso.
+===================================================== */
+const JUSTIFICATIVA_FOLGA_DOMINICAL_AUTO = "DSR_FOLGA_DOMINICAL_AUTOMATICA";
+
+async function lerEstadoAnteriorFrequencia(opsId, dataRef) {
+  return prisma.frequencia.findUnique({
+    where: { opsId_dataReferencia: { opsId, dataReferencia: dataRef } },
+    select: {
+      idTipoAusencia: true,
+      horaEntrada: true,
+      horaSaida: true,
+      horasTrabalhadas: true,
+      manual: true,
+      justificativa: true,
+      tipoAusencia: { select: { codigo: true } },
+    },
+  });
+}
+
+async function registrarHistoricoAjusteManual({ registro, anterior, statusNovo, justificativa, userId }) {
+  const hhmmss = (d) => (d ? d.toISOString().slice(11, 19) : null);
+  const estadoAnterior = anterior
+    ? {
+        tipo: anterior.tipoAusencia?.codigo ?? null,
+        manual: anterior.manual,
+        justificativa: anterior.justificativa,
+        horaEntrada: hhmmss(anterior.horaEntrada),
+        horaSaida: hhmmss(anterior.horaSaida),
+        horasTrabalhadas: anterior.horasTrabalhadas != null ? Number(anterior.horasTrabalhadas) : null,
+      }
+    : null;
+
+  await prisma.frequenciaHistorico.create({
+    data: {
+      idFrequencia: registro.idFrequencia,
+      statusAnterior: estadoAnterior?.tipo ?? null,
+      statusNovo: statusNovo,
+      justificativa: `AJUSTE_MANUAL ${justificativa} | anterior: ${JSON.stringify(estadoAnterior)}`.slice(0, 2000),
+      alteradoPor: userId ? String(userId).slice(0, 50) : null,
+    },
+  });
+}
+
+/**
+ * Se o ajuste substituiu uma folga dominical automática, devolve o texto do aviso
+ * (indicando se o colaborador ainda tem outra folga em domingo no mês).
+ */
+async function avisoFolgaDominicalSubstituida({ anterior, statusNovo, opsId, dataRef }) {
+  if (!anterior || anterior.justificativa !== JUSTIFICATIVA_FOLGA_DOMINICAL_AUTO || statusNovo === "DSR") return null;
+
+  const ano = dataRef.getFullYear();
+  const mes = dataRef.getMonth();
+  const inicio = new Date(Date.UTC(ano, mes, 1));
+  const fim = new Date(Date.UTC(ano, mes + 1, 0));
+
+  const folgasNoMes = await prisma.frequencia.findMany({
+    where: {
+      opsId,
+      dataReferencia: { gte: inicio, lte: fim },
+      tipoAusencia: { codigo: { in: ["DSR", "FO", "BH"] } },
+    },
+    select: { dataReferencia: true },
+  });
+
+  const dataRefISO = new Date(Date.UTC(dataRef.getFullYear(), dataRef.getMonth(), dataRef.getDate())).getTime();
+  const outraFolgaDominical = folgasNoMes.some(
+    (f) => f.dataReferencia.getUTCDay() === 0 && f.dataReferencia.getTime() !== dataRefISO
+  );
+
+  return outraFolgaDominical
+    ? "Este dia tinha a folga dominical automática do colaborador, que foi substituída. Ele ainda tem folga em outro domingo do mês."
+    : "ATENÇÃO: este dia tinha a folga dominical automática do colaborador e foi substituído. Ele ficou SEM folga em domingo neste mês — use \"Complementar\" na Folga Dominical para gerar outra.";
+}
+
 const ajusteManualPresenca = async (req, res) => {
   try {
     const {
@@ -1096,6 +1174,8 @@ const ajusteManualPresenca = async (req, res) => {
     ===================================================== */
 
     if (status === "ON") {
+      const anteriorON = await lerEstadoAnteriorFrequencia(opsId, dataRef);
+
       const registro = await prisma.frequencia.upsert({
         where: {
           opsId_dataReferencia: {
@@ -1124,6 +1204,8 @@ const ajusteManualPresenca = async (req, res) => {
           registradoPor: req.user?.id || "GESTAO",
         },
       });
+
+      await registrarHistoricoAjusteManual({ registro, anterior: anteriorON, statusNovo: "ON", justificativa: "ON", userId: req.user?.id });
 
       return successResponse(res, registro, "Onboarding registrado com sucesso");
     }
@@ -1206,6 +1288,8 @@ const ajusteManualPresenca = async (req, res) => {
        UPSERT FREQUÊNCIA
     =============================== */
 
+    const anterior = await lerEstadoAnteriorFrequencia(opsId, dataRef);
+
     const registro = await prisma.frequencia.upsert({
       where: {
         opsId_dataReferencia: {
@@ -1237,6 +1321,12 @@ const ajusteManualPresenca = async (req, res) => {
       },
     });
 
+    await registrarHistoricoAjusteManual({
+      registro, anterior, statusNovo: status, justificativa: justificativaNormalizada, userId: req.user?.id,
+    });
+
+    const aviso = await avisoFolgaDominicalSubstituida({ anterior, statusNovo: status, opsId, dataRef });
+
     /* =====================================================
        DETECTOR DISCIPLINAR AUTOMÁTICO
     ===================================================== */
@@ -1253,11 +1343,12 @@ const ajusteManualPresenca = async (req, res) => {
 
     }
 
-    return successResponse(
-      res,
-      registro,
-      "Ajuste manual realizado com sucesso"
-    );
+    return res.status(200).json({
+      success: true,
+      message: "Ajuste manual realizado com sucesso",
+      data: registro,
+      ...(aviso ? { aviso } : {}),
+    });
 
   } catch (err) {
 

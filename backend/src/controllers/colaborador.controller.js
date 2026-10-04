@@ -17,6 +17,7 @@ const {
 } = require("../utils/validacaoCadastro");
 const { getEstacoesDoGrupo } = require("../config/estacaoGrupos");
 const { processarImportacao } = require("../services/importColaboradores.service");
+const { comAuditoriaStatus, listarAuditoriaStatus } = require("../services/auditoriaStatusColaborador.service");
 const { OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO } = require("../config/lideresTreinamentoCrossEstacao");
 const {
   successResponse,
@@ -842,6 +843,7 @@ const updateColaborador = async (req, res) => {
       dataInicioStatus,
       dataFimStatus,
       idLider,
+      idLiderSubstituto,
       cipa,
       gestante,
     } = req.body;
@@ -891,13 +893,6 @@ const updateColaborador = async (req, res) => {
     if (dataAdmissao !== undefined && dataAdmissao) {
       const dt = new Date(`${dataAdmissao}T00:00:00`);
       if (!isNaN(dt.getTime())) data.dataAdmissao = dt;
-    }
-
-    if (horarioInicioJornada !== undefined && horarioInicioJornada) {
-      const parsed = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
-      if (!isNaN(parsed.getTime())) {
-        data.horarioInicioJornada = parsed;
-      }
     }
 
     if (idTurno !== undefined) {
@@ -966,6 +961,94 @@ const updateColaborador = async (req, res) => {
       }
     }
 
+    /* =============================
+       HORÁRIO x TURNO
+       O horário de início é definido pelo turno (ADM 08:00, T1 05:25,
+       T2 13:20, T3 21:00): trocar o turno atualiza o horário e um horário
+       diferente do turno é recusado.
+    ============================== */
+    const colaboradorAtual = await prisma.colaborador.findUnique({
+      where: { opsId },
+      select: {
+        idTurno: true,
+        idEstacao: true,
+        status: true,
+        horarioInicioJornada: true,
+        turno: { select: { nomeTurno: true } },
+      },
+    });
+
+    if (!colaboradorAtual) return notFoundResponse(res, "Colaborador não encontrado");
+
+    const turnoMudou = Boolean(idTurno) && Number(idTurno) !== colaboradorAtual.idTurno;
+    const horarioAtualHHMM = colaboradorAtual.horarioInicioJornada
+      ? colaboradorAtual.horarioInicioJornada.toISOString().slice(11, 16)
+      : null;
+    const horarioInformadoMudou =
+      Boolean(horarioInicioJornada) && String(horarioInicioJornada).slice(0, 5) !== horarioAtualHHMM;
+
+    if (turnoMudou || horarioInformadoMudou) {
+      let nomeTurnoAlvo = colaboradorAtual.turno?.nomeTurno;
+
+      if (turnoMudou) {
+        const turnoNovo = await prisma.turno.findUnique({
+          where: { idTurno: Number(idTurno) },
+          select: { nomeTurno: true },
+        });
+        if (!turnoNovo) return errorResponse(res, "Turno inválido", 400);
+        nomeTurnoAlvo = turnoNovo.nomeTurno;
+      }
+
+      const { horario, erro: erroHorario } = resolverHorarioJornada(
+        nomeTurnoAlvo,
+        turnoMudou && !horarioInformadoMudou ? undefined : horarioInicioJornada
+      );
+
+      if (erroHorario) return errorResponse(res, erroHorario, 400);
+
+      data.horarioInicioJornada = horario;
+    }
+
+    /* =============================
+       INATIVAR LÍDER COM LIDERADOS ATIVOS
+       Quem lidera gente ativa só pode ser inativado indicando o
+       substituto (os liderados são transferidos junto, com histórico).
+    ============================== */
+    let liderSubstituto = null;
+    let liderados = [];
+
+    if (status === "INATIVO" && colaboradorAtual.status !== "INATIVO") {
+      liderados = await prisma.colaborador.findMany({
+        where: { idLider: opsId, status: "ATIVO" },
+        select: { opsId: true, idSetor: true, idCargo: true, idTurno: true, idEstacao: true },
+      });
+
+      if (liderados.length > 0) {
+        if (!idLiderSubstituto) {
+          return res.status(409).json({
+            success: false,
+            code: "LIDER_COM_LIDERADOS",
+            message: `Este colaborador lidera ${liderados.length} pessoa(s) ativa(s). Informe o líder substituto (idLiderSubstituto) para transferi-las antes de inativar.`,
+            data: { liderados: liderados.length },
+          });
+        }
+
+        liderSubstituto = await prisma.colaborador.findUnique({
+          where: { opsId: String(idLiderSubstituto).trim() },
+          select: { opsId: true, status: true, idEstacao: true },
+        });
+
+        const grupoEstacao = getEstacoesDoGrupo(colaboradorAtual.idEstacao);
+
+        if (!liderSubstituto) return errorResponse(res, "Líder substituto não encontrado", 400);
+        if (liderSubstituto.opsId === opsId) return errorResponse(res, "O líder substituto não pode ser o próprio colaborador", 400);
+        if (liderSubstituto.status !== "ATIVO") return errorResponse(res, "O líder substituto precisa estar ATIVO", 400);
+        if (!grupoEstacao.includes(liderSubstituto.idEstacao)) {
+          return errorResponse(res, "O líder substituto não pertence à estação do colaborador", 400);
+        }
+      }
+    }
+
     console.log("📦 DATA FINAL:", data);
 
     let nomeEscalaParaDSR = null;
@@ -989,10 +1072,33 @@ const updateColaborador = async (req, res) => {
         },
       });
 
-      const atualizado = await tx.colaborador.update({
-        where: { opsId },
-        data,
-      });
+      if (liderSubstituto && liderados.length) {
+        await tx.colaborador.updateMany({
+          where: { opsId: { in: liderados.map((l) => l.opsId) } },
+          data: { idLider: liderSubstituto.opsId },
+        });
+
+        await tx.historicoMovimentacao.createMany({
+          data: liderados.map((l) => ({
+            opsId: l.opsId,
+            tipoMovimentacao: "ORGANIZACIONAL",
+            setorAnterior: l.idSetor, setorNovo: l.idSetor,
+            cargoAnterior: l.idCargo, cargoNovo: l.idCargo,
+            turnoAnterior: l.idTurno, turnoNovo: l.idTurno,
+            estacaoAnterior: l.idEstacao, estacaoNova: l.idEstacao,
+            liderAnterior: opsId, liderNovo: liderSubstituto.opsId,
+            dataEfetivacao: hoje,
+            motivo: `Líder ${opsId} inativado: liderados transferidos`,
+            registradoPor: req.user?.id ?? null,
+          })),
+        });
+      }
+
+      const atualizado = await comAuditoriaStatus(
+        tx,
+        { opsId, userId: req.user?.id ?? null, origem: "EDICAO_COLABORADOR" },
+        () => tx.colaborador.update({ where: { opsId }, data })
+      );
 
       /* =========================
          REGISTRAR DESLIGAMENTO
@@ -1588,6 +1694,77 @@ const getStatusImport = async (req, res) => {
   return res.json(estado);
 };
 
+/* ================= AUDITORIA DE STATUS ================= */
+const getAuditoriaStatus = async (req, res) => {
+  const { opsId } = req.params;
+
+  const colaborador = await prisma.colaborador.findUnique({ where: { opsId }, select: { idEstacao: true } });
+  if (!colaborador) return notFoundResponse(res, "Colaborador não encontrado");
+
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId && colaborador.idEstacao !== req.dbContext.estacaoId) {
+    return forbiddenResponse(res, "Colaborador não pertence à sua estação");
+  }
+
+  const registros = await listarAuditoriaStatus(opsId);
+
+  if (registros === null) {
+    return errorResponse(res, "Auditoria de status indisponível: aplique a migração colaborador_status_auditoria.", 503);
+  }
+
+  return successResponse(res, registros);
+};
+
+/* ================= TRANSFERIR LIDERADOS ================= */
+const transferirLiderados = async (req, res) => {
+  const { opsId } = req.params;
+  const idNovoLider = String(req.body?.idNovoLider ?? "").trim();
+
+  if (!idNovoLider) return errorResponse(res, "Informe o novo líder (idNovoLider)", 400);
+  if (idNovoLider === opsId) return errorResponse(res, "O novo líder não pode ser o mesmo colaborador", 400);
+
+  const [atual, novo] = await Promise.all([
+    prisma.colaborador.findUnique({ where: { opsId }, select: { idEstacao: true } }),
+    prisma.colaborador.findUnique({ where: { opsId: idNovoLider }, select: { status: true, idEstacao: true } }),
+  ]);
+
+  if (!atual) return notFoundResponse(res, "Colaborador não encontrado");
+  if (!novo) return errorResponse(res, "Novo líder não encontrado", 400);
+  if (novo.status !== "ATIVO") return errorResponse(res, "O novo líder precisa estar ATIVO", 400);
+  if (!getEstacoesDoGrupo(atual.idEstacao).includes(novo.idEstacao)) {
+    return errorResponse(res, "O novo líder não pertence à estação do colaborador", 400);
+  }
+  if (!req.dbContext?.isGlobal && req.dbContext?.estacaoId && atual.idEstacao !== req.dbContext.estacaoId) {
+    return forbiddenResponse(res, "Colaborador não pertence à sua estação");
+  }
+
+  const liderados = await prisma.colaborador.findMany({
+    where: { idLider: opsId, status: "ATIVO" },
+    select: { opsId: true, idSetor: true, idCargo: true, idTurno: true, idEstacao: true },
+  });
+
+  if (!liderados.length) return successResponse(res, { transferidos: 0 }, "Nenhum liderado ativo para transferir");
+
+  await prisma.$transaction([
+    prisma.colaborador.updateMany({ where: { opsId: { in: liderados.map((l) => l.opsId) } }, data: { idLider: idNovoLider } }),
+    prisma.historicoMovimentacao.createMany({
+      data: liderados.map((l) => ({
+        opsId: l.opsId,
+        tipoMovimentacao: "ORGANIZACIONAL",
+        setorAnterior: l.idSetor, setorNovo: l.idSetor,
+        cargoAnterior: l.idCargo, cargoNovo: l.idCargo,
+        turnoAnterior: l.idTurno, turnoNovo: l.idTurno,
+        estacaoAnterior: l.idEstacao, estacaoNova: l.idEstacao,
+        liderAnterior: opsId, liderNovo: idNovoLider,
+        dataEfetivacao: new Date(),
+        motivo: "Transferência de liderados",
+        registradoPor: req.user?.id ?? null,
+      })),
+    }),
+  ]);
+
+  return successResponse(res, { transferidos: liderados.length }, `${liderados.length} liderado(s) transferido(s)`);
+};
+
 /* ================= GET BY OPS ID (DUPLICADO - MANTER SE NECESSÁRIO) ================= */
 const getByOpsId = async (req, res) => {
   // ✅ Delega para getColaboradorById se for o mesmo
@@ -1950,6 +2127,8 @@ const exportarCsvColaboradores = async (req, res) => {
 };
 
 module.exports = {
+  getAuditoriaStatus,
+  transferirLiderados,
   getAllColaboradores,
   getColaboradorByCpf,
   getColaboradorById,

@@ -37,6 +37,9 @@ export default function EditarColaborador() {
   const [escalas, setEscalas] = useState([]);
   const [turnos, setTurnos] = useState([]);
   const [lideres, setLideres] = useState([]);
+  // Preenchido quando o servidor informa que o colaborador lidera pessoas ativas (ao inativar)
+  const [qtdLiderados, setQtdLiderados] = useState(null);
+  const [liderSubstituto, setLiderSubstituto] = useState("");
 
   const [form, setForm] = useState({
     nomeCompleto: "",
@@ -216,6 +219,7 @@ export default function EditarColaborador() {
         dataAdmissao: form.dataAdmissao || null,
         horarioInicioJornada: form.horarioInicioJornada || null,
         status: form.status,
+        ...(form.status === "INATIVO" && liderSubstituto ? { idLiderSubstituto: liderSubstituto } : {}),
         dataDesligamento: form.dataDemissao || null,
         motivoDesligamento: form.motivoDesligamento || null,
         tipoDesligamento: form.tipoDesligamento || null,
@@ -229,7 +233,14 @@ export default function EditarColaborador() {
       navigate(`/colaboradores/${opsId}`);
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao atualizar colaborador");
+
+      // Líder com liderados ativos: pede o substituto antes de inativar
+      if (err?.response?.status === 409 && err?.response?.data?.code === "LIDER_COM_LIDERADOS") {
+        setQtdLiderados(err.response.data.data?.liderados ?? 1);
+        return toast.error(err.response.data.message);
+      }
+
+      toast.error(err?.response?.data?.message || "Erro ao atualizar colaborador");
     }
   }
 
@@ -414,6 +425,18 @@ export default function EditarColaborador() {
                   onChange={handleChange}
                   options={TIPOS_DESLIGAMENTO}
                 />
+
+                {qtdLiderados !== null && (
+                  <Select
+                    name="liderSubstituto"
+                    label={`Líder substituto * (lidera ${qtdLiderados} pessoa(s) ativa(s))`}
+                    value={liderSubstituto}
+                    onChange={(e) => setLiderSubstituto(e.target.value)}
+                    options={lideres
+                      .filter((l) => l.opsId !== opsId)
+                      .map((l) => ({ value: l.opsId, label: `${l.nomeCompleto} — ${l.opsId}` }))}
+                  />
+                )}
               </>
             )}
 
