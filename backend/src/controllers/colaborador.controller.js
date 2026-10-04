@@ -7,6 +7,8 @@ const csv = require("csvtojson");
 const XLSX = require("xlsx");
 const { preservarFolgaDominicalWhere } = require("../utils/dsr");
 const { resolverHorarioJornada } = require("../utils/horarioTurno");
+const { validarCpf, validarVinculos } = require("../utils/validacaoCadastro");
+const { getEstacoesDoGrupo } = require("../config/estacaoGrupos");
 const { OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO } = require("../config/lideresTreinamentoCrossEstacao");
 const {
   successResponse,
@@ -447,12 +449,40 @@ const createColaborador = async (req, res) => {
        VALIDAÇÕES BÁSICAS
     =============================== */
 
-    if (!opsId || !nomeCompleto || !matricula || !dataAdmissao) {
+    // Mesma lista de obrigatórios da importação em massa
+    const faltando = [
+      !opsId && "OPS ID",
+      !nomeCompleto && "Nome",
+      !matricula && "Matrícula",
+      !dataAdmissao && "Data de Admissão",
+      !cpf && "CPF",
+      !idLider && "Líder",
+      !idSetor && "Setor",
+      !idCargo && "Cargo",
+      !idEmpresa && "Empresa",
+      !idTurno && "Turno",
+      !idEscala && "Escala",
+    ].filter(Boolean);
+
+    if (faltando.length) {
       return errorResponse(
         res,
-        "OPS ID, Nome, Matrícula e Data de Admissão são obrigatórios",
+        `Campos obrigatórios não informados: ${faltando.join(", ")}`,
         400
       );
+    }
+
+    // Estação vem do contexto (selecionada pelo ADMIN ou fixada para ALTA_GESTAO)
+    const idEstacaoFinal = req.dbContext?.estacaoId ?? null;
+
+    if (!idEstacaoFinal) {
+      return errorResponse(res, "Selecione a estação antes de cadastrar o colaborador", 400);
+    }
+
+    const cpfValidado = validarCpf(cpf);
+
+    if (cpfValidado.erro) {
+      return errorResponse(res, `CPF ${cpfValidado.erro}`, 400);
     }
 
     /* ===============================
@@ -525,6 +555,20 @@ const createColaborador = async (req, res) => {
       return errorResponse(res, erroHorario, 400);
     }
 
+    const errosVinculos = await validarVinculos(prisma, {
+      idEstacao: idEstacaoFinal,
+      idLider: String(idLider).trim(),
+      idSetor: Number(idSetor),
+      idCargo: Number(idCargo),
+      idEmpresa: Number(idEmpresa),
+      idTurno: Number(idTurno),
+      idEscala: escalaId,
+    });
+
+    if (errosVinculos.length) {
+      return errorResponse(res, errosVinculos.join("; "), 400);
+    }
+
     /* ===============================
        CONTATO EMERGÊNCIA
     =============================== */
@@ -539,13 +583,10 @@ const createColaborador = async (req, res) => {
        DATA COLABORADOR
     =============================== */
 
-    // Estação: usa a do dbContext (estação selecionada pelo ADMIN ou fixada para ALTA_GESTAO)
-    const idEstacaoFinal = req.dbContext?.estacaoId ?? null;
-
     const data = {
       opsId,
       nomeCompleto,
-      cpf: cpf || null,
+      cpf: cpfValidado.cpf,
       telefone: telefone || null,
       email: email || null,
       genero: genero || null,
@@ -1446,6 +1487,7 @@ const importColaboradores = async (req, res) => {
       const updatedDetails = [];
       const errorDetails = [];
 
+      const cacheVinculos = new Map();
       const nomeTurnoPorId = new Map(
         (await prisma.turno.findMany({ select: { idTurno: true, nomeTurno: true } }))
           .map((t) => [t.idTurno, t.nomeTurno])
@@ -1501,27 +1543,28 @@ const importColaboradores = async (req, res) => {
           const idEmpresa = row["id_empresa"] ? Number(row["id_empresa"]) : null;
           const idTurno = row["id_turno"] ? Number(row["id_turno"]) : null;
           const idEscala = row["id_escala"] ? Number(row["id_escala"]) : null;
-          const idEstacao = row["id_estacao"] ? Number(row["id_estacao"]) : null;
+          const idEstacaoCsv = row["id_estacao"] ? Number(row["id_estacao"]) : null;
 
-          // Validação de estação para ALTA_GESTAO (Admin não é bloqueado)
-          if (userRoleSnapshot === "ALTA_GESTAO") {
-            if (!idEstacao) {
-              skipped++;
-              skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Id_estação está vazio." });
-              continue;
-            }
-            if (dbContextSnapshot.estacaoId && idEstacao !== dbContextSnapshot.estacaoId) {
-              skipped++;
-              skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "A estação informada não condiz com a estação atual." });
-              continue;
-            }
+          // A estação do contexto (selecionada/fixada) manda; o CSV só é usado
+          // quando não há contexto (ADMIN global) e nunca pode divergir dele.
+          if (dbContextSnapshot.estacaoId && idEstacaoCsv && idEstacaoCsv !== dbContextSnapshot.estacaoId) {
+            skipped++;
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "A estação informada não condiz com a estação atual." });
+            continue;
           }
 
-          // Validação de CPF - deve ter exatamente 11 dígitos
-          const cpfLimpo = cpf.replace(/\D/g, "");
-          if (cpfLimpo.length !== 11) {
+          const idEstacao = dbContextSnapshot.estacaoId ?? idEstacaoCsv;
+          if (!idEstacao) {
             skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "CPF inválido - deve conter exatamente 11 dígitos" });
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Estação não definida: selecione a estação ou preencha id_estacao." });
+            continue;
+          }
+
+          // Validação de CPF (11 dígitos + dígitos verificadores)
+          const cpfValidado = validarCpf(cpf);
+          if (cpfValidado.erro) {
+            skipped++;
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: `CPF ${cpfValidado.erro}` });
             continue;
           }
 
@@ -1564,11 +1607,35 @@ const importColaboradores = async (req, res) => {
           const existing = await prisma.colaborador.findUnique({
             where: { opsId },
             select: {
-              opsId: true, nomeCompleto: true, matricula: true,
+              opsId: true, nomeCompleto: true, matricula: true, status: true, idEstacao: true,
               idEscala: true, idCargo: true, idTurno: true,
               idSetor: true, idEmpresa: true, idLider: true,
             },
           });
+
+          // A importação não reativa nem move colaborador: INATIVO exige o fluxo
+          // próprio de reativação e outra estação exige movimentação.
+          if (existing?.status === "INATIVO") {
+            skipped++;
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Colaborador INATIVO: a importação não reativa. Use a reativação no cadastro." });
+            continue;
+          }
+          if (existing?.idEstacao && !getEstacoesDoGrupo(idEstacao).includes(existing.idEstacao)) {
+            skipped++;
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Colaborador já cadastrado em outra estação." });
+            continue;
+          }
+
+          const errosVinculos = await validarVinculos(
+            prisma,
+            { idEstacao, idLider, idSetor, idCargo, idEmpresa, idTurno, idEscala },
+            cacheVinculos
+          );
+          if (errosVinculos.length) {
+            skipped++;
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: errosVinculos.join("; ") });
+            continue;
+          }
 
           const data = {
             opsId,
@@ -1577,8 +1644,7 @@ const importColaboradores = async (req, res) => {
             matricula,
             dataAdmissao,
             horarioInicioJornada,
-            status: "ATIVO",
-            cpf: row["cpf"] ? String(row["cpf"]) : null,
+            cpf: cpfValidado.cpf,
             dataNascimento: parseDate(row["data_nascimento"]),
             email: row["email"] || null,
             telefone: row["telefone"] ? String(row["telefone"]) : null,
@@ -1593,10 +1659,12 @@ const importColaboradores = async (req, res) => {
             idLider: idLider || null,
           };
 
+          // Status só é definido na criação: reimportar não pode sobrescrever
+          // o status de quem já existe (ex.: férias/afastado).
           const colab = await prisma.colaborador.upsert({
             where: { opsId },
             update: data,
-            create: data,
+            create: { ...data, status: "ATIVO" },
           });
 
           /* =========================
