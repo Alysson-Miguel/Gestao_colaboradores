@@ -69,4 +69,17 @@ function isDiaDSRSync(data, diasDsr = []) {
   return diasDsr.includes(dow);
 }
 
-module.exports = { getDiasDsr, isDiaDSR, isDiaDSRSync };
+// Escalas elegíveis à folga dominical automática (mesma regra do folgaDominical.service)
+const ESCALAS_FOLGA_DOMINICAL = ["B", "C", "G"];
+const JUSTIFICATIVA_FOLGA_DOMINICAL = "DSR_FOLGA_DOMINICAL_AUTOMATICA";
+
+/**
+ * Filtro extra para o deleteMany de DSR futuro em troca de escala: se a nova
+ * escala também participa da folga dominical, preserva a folga já gerada.
+ */
+function preservarFolgaDominicalWhere(nomeNovaEscala) {
+  if (!ESCALAS_FOLGA_DOMINICAL.includes(String(nomeNovaEscala).toUpperCase())) return {};
+  return { OR: [{ justificativa: null }, { justificativa: { not: JUSTIFICATIVA_FOLGA_DOMINICAL } }] };
+}
+
+module.exports = { getDiasDsr, isDiaDSR, isDiaDSRSync, preservarFolgaDominicalWhere };

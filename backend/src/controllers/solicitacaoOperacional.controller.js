@@ -6,7 +6,7 @@ const {
   notFoundResponse,
   paginatedResponse,
 } = require("../utils/response");
-const { isDiaDSR } = require("../utils/dsr");
+const { isDiaDSR, preservarFolgaDominicalWhere } = require("../utils/dsr");
 const { getEstacoesDoGrupo } = require("../config/estacaoGrupos");
 const {
   sendSolicitacaoOperacionalEmail,
@@ -1876,11 +1876,21 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
       });
     }
 
-    // Remove DSR futuro gerado automaticamente pela escala antiga
+    const novaEscala = await tx.escala.findUnique({ where: { idEscala: solicitacao.novaIdEscala }, select: { nomeEscala: true } });
+
+    // Remove DSR futuro gerado automaticamente pela escala antiga. A folga
+    // dominical automática só é removida se a nova escala não participa
+    // dela (B/C/G); caso contrário o colaborador perderia a folga do mês.
     const tipoDSR = await tx.tipoAusencia.findFirst({ where: { codigo: "DSR" }, select: { idTipoAusencia: true } });
     if (tipoDSR) {
       await tx.frequencia.deleteMany({
-        where: { opsId: solicitacao.opsId, dataReferencia: { gte: hoje }, idTipoAusencia: tipoDSR.idTipoAusencia, manual: false },
+        where: {
+          opsId: solicitacao.opsId,
+          dataReferencia: { gte: hoje },
+          idTipoAusencia: tipoDSR.idTipoAusencia,
+          manual: false,
+          ...preservarFolgaDominicalWhere(novaEscala?.nomeEscala),
+        },
       });
     }
 
@@ -1889,7 +1899,6 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
       data: { escala: { connect: { idEscala: solicitacao.novaIdEscala } } },
     });
 
-    const novaEscala = await tx.escala.findUnique({ where: { idEscala: solicitacao.novaIdEscala }, select: { nomeEscala: true } });
     return { nomeEscalaParaDSR: novaEscala?.nomeEscala ?? null, idEstacao: atual?.idEstacao ?? null };
   }
 

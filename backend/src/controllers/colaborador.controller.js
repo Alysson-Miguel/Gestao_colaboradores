@@ -5,6 +5,7 @@
 const { prisma } = require("../config/database");
 const csv = require("csvtojson");
 const XLSX = require("xlsx");
+const { preservarFolgaDominicalWhere } = require("../utils/dsr");
 const { OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO } = require("../config/lideresTreinamentoCrossEstacao");
 const {
   successResponse,
@@ -1038,6 +1039,11 @@ const updateColaborador = async (req, res) => {
         /* =========================
            REMOVER DSR FUTURO ANTIGO
         ========================= */
+        const novaEscala = await tx.escala.findUnique({
+          where: { idEscala: novaEscalaId },
+          select: { nomeEscala: true },
+        });
+
         if (tipoDSR) {
           await tx.frequencia.deleteMany({
             where: {
@@ -1045,17 +1051,10 @@ const updateColaborador = async (req, res) => {
               dataReferencia: { gte: hoje },
               idTipoAusencia: tipoDSR.idTipoAusencia,
               manual: false,
+              ...preservarFolgaDominicalWhere(novaEscala?.nomeEscala),
             },
           });
         }
-
-        /* =========================
-           BUSCAR NOVA ESCALA
-        ========================= */
-        const novaEscala = await tx.escala.findUnique({
-          where: { idEscala: novaEscalaId },
-          select: { nomeEscala: true },
-        });
 
         nomeEscalaParaDSR = novaEscala?.nomeEscala ?? null;
       }
@@ -1637,6 +1636,11 @@ const importColaboradores = async (req, res) => {
               select: { idTipoAusencia: true },
             });
 
+            const escala = await prisma.escala.findUnique({
+              where: { idEscala: data.idEscala },
+              select: { nomeEscala: true, idEstacao: true },
+            });
+
             if (tipoDSR) {
               await prisma.frequencia.deleteMany({
                 where: {
@@ -1644,15 +1648,12 @@ const importColaboradores = async (req, res) => {
                   dataReferencia: { gte: hoje },
                   idTipoAusencia: tipoDSR.idTipoAusencia,
                   manual: false,
+                  ...preservarFolgaDominicalWhere(escala?.nomeEscala),
                 },
               });
             }
 
             /* ESCALA */
-            const escala = await prisma.escala.findUnique({
-              where: { idEscala: data.idEscala },
-              select: { nomeEscala: true, idEstacao: true },
-            });
 
             const nomeEscala = escala?.nomeEscala;
             const idEstacaoEscala = escala?.idEstacao ?? null;
