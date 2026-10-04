@@ -1224,3 +1224,21 @@ enum StatusAtestado {
   FINALIZADO
   CANCELADO
 }
+
+// Trilha de auditoria das mudanças de status do colaborador (quem, de qual para qual,
+// quando e por qual fluxo). Sem FK de propósito: o histórico precisa sobreviver a
+// exclusões/renomeações; o script de troca de OPS ID atualiza esta tabela explicitamente.
+model ColaboradorStatusAuditoria {
+  id             Int      @id @default(autoincrement())
+  opsId          String   @map("ops_id") @db.VarChar(50)
+  statusAnterior String?  @map("status_anterior") @db.VarChar(20)
+  statusNovo     String   @map("status_novo") @db.VarChar(20)
+  alteradoPor    String?  @map("alterado_por") @db.VarChar(50)
+  origem         String   @db.VarChar(60)
+  detalhe        String?
+  criadoEm       DateTime @default(now()) @map("criado_em") @db.Timestamp(6)
+
+  @@index([opsId, criadoEm], map: "idx_colab_status_aud_ops")
+  @@index([criadoEm], map: "idx_colab_status_aud_data")
+  @@map("colaborador_status_auditoria")
+}
