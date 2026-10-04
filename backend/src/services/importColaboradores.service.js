@@ -13,6 +13,7 @@ const { prisma } = require("../config/database");
 const { preservarFolgaDominicalWhere } = require("../utils/dsr");
 const { resolverHorarioJornada } = require("../utils/horarioTurno");
 const {
+  normalizarOpsId,
   validarCpf,
   validarEmail,
   validarTelefone,
@@ -100,7 +101,7 @@ async function processarImportacao({ rows, estacaoContexto, simular = false, sta
   };
 
   /* ---------- pré-carga em lote ---------- */
-  const opsIds = [...new Set(rows.map((r) => txt(r["ops_id"])).filter(Boolean))];
+  const opsIds = [...new Set(rows.map((r) => normalizarOpsId(r["ops_id"]).opsId).filter(Boolean))];
   const cpfsArquivo = [...new Set(rows.map((r) => validarCpf(r["cpf"]).cpf).filter(Boolean))];
   const matriculasArquivo = [...new Set(rows.map((r) => txt(r["matricula"])).filter(Boolean))];
 
@@ -140,8 +141,11 @@ async function processarImportacao({ rows, estacaoContexto, simular = false, sta
     onProgresso?.(i, rows.length);
 
     try {
-      const opsId = txt(row["ops_id"]);
-      if (!opsId) { ignorar(i, "N/A", "ops_id ausente"); continue; }
+      const opsBruto = txt(row["ops_id"]);
+      if (!opsBruto) { ignorar(i, "N/A", "ops_id ausente"); continue; }
+      const opsNormalizado = normalizarOpsId(opsBruto);
+      if (opsNormalizado.erro) { ignorar(i, opsBruto, opsNormalizado.erro); continue; }
+      const opsId = opsNormalizado.opsId;
 
       const nomeCompleto = txt(row["nome_completo"]);
       const matricula = txt(row["matricula"]);

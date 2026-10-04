@@ -8,6 +8,7 @@ const XLSX = require("xlsx");
 const { preservarFolgaDominicalWhere } = require("../utils/dsr");
 const { resolverHorarioJornada } = require("../utils/horarioTurno");
 const {
+  normalizarOpsId,
   validarCpf,
   validarEmail,
   validarTelefone,
@@ -450,7 +451,7 @@ const createColaborador = async (req, res) => {
     // Remove espaços/tabs acidentais (ex.: copiado de uma planilha) antes de
     // validar/gravar — ops_id é a chave primária, então qualquer whitespace
     // sobrando cria um colaborador "fantasma" com ID visualmente idêntico.
-    const opsId = typeof opsIdRaw === "string" ? opsIdRaw.trim() : opsIdRaw;
+    const opsIdTrim = typeof opsIdRaw === "string" ? opsIdRaw.trim() : opsIdRaw;
 
     /* ===============================
        VALIDAÇÕES BÁSICAS
@@ -458,7 +459,7 @@ const createColaborador = async (req, res) => {
 
     // Mesma lista de obrigatórios da importação em massa
     const faltando = [
-      !opsId && "OPS ID",
+      !opsIdTrim && "OPS ID",
       !nomeCompleto && "Nome",
       !matricula && "Matrícula",
       !dataAdmissao && "Data de Admissão",
@@ -478,6 +479,15 @@ const createColaborador = async (req, res) => {
         400
       );
     }
+
+    // Formato "Ops" + números (a caixa é normalizada)
+    const opsIdValidado = normalizarOpsId(opsIdTrim);
+
+    if (opsIdValidado.erro) {
+      return errorResponse(res, opsIdValidado.erro, 400);
+    }
+
+    const opsId = opsIdValidado.opsId;
 
     // Estação vem do contexto (selecionada pelo ADMIN ou fixada para ALTA_GESTAO)
     const idEstacaoFinal = req.dbContext?.estacaoId ?? null;

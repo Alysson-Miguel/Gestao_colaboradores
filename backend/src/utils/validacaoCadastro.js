@@ -6,6 +6,18 @@
 const { getEstacoesDoGrupo } = require("../config/estacaoGrupos");
 
 /**
+ * OPS ID válido = "Ops" + números (ex.: Ops123456). A caixa é normalizada
+ * ("OPS123", "ops123" -> "Ops123"), pois a chave é comparada como texto em
+ * planilhas, ponto e produção. Retorna { opsId } ou { erro }.
+ */
+function normalizarOpsId(valor) {
+  const bruto = String(valor ?? "").trim();
+  const m = bruto.match(/^ops(\d+)$/i);
+  if (!m) return { erro: `OPS ID "${bruto}" inválido: use "Ops" seguido apenas de números (ex.: Ops123456)` };
+  return { opsId: `Ops${m[1]}` };
+}
+
+/**
  * Valida CPF: 11 dígitos, não repetidos e com dígitos verificadores corretos.
  * Retorna { cpf } (somente dígitos) ou { erro }.
  */
@@ -108,4 +120,4 @@ async function validarVinculos(prisma, { idEstacao, idLider, idSetor, idCargo, i
   return erros;
 }
 
-module.exports = { validarCpf, validarEmail, validarTelefone, validarDataAdmissao, validarVinculos };
+module.exports = { normalizarOpsId, validarCpf, validarEmail, validarTelefone, validarDataAdmissao, validarVinculos };
