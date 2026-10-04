@@ -6,6 +6,7 @@ const { prisma } = require("../config/database");
 const csv = require("csvtojson");
 const XLSX = require("xlsx");
 const { preservarFolgaDominicalWhere } = require("../utils/dsr");
+const { resolverHorarioJornada } = require("../utils/horarioTurno");
 const { OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO } = require("../config/lideresTreinamentoCrossEstacao");
 const {
   successResponse,
@@ -500,16 +501,28 @@ const createColaborador = async (req, res) => {
        HORÁRIO
     =============================== */
 
-    let horario = null;
+    // O horário é definido pelo turno (ADM 08:00, T1 05:25, T2 13:20, T3 21:00):
+    // sem turno não há como definir, e um horário diferente do turno é recusado.
+    if (!idTurno) {
+      return errorResponse(res, "Turno é obrigatório", 400);
+    }
 
-    if (horarioInicioJornada) {
-      if (!/^\d{2}:\d{2}$/.test(horarioInicioJornada)) {
-        return errorResponse(res, "Horário inválido. Use o formato HH:MM", 400);
-      }
+    const turnoCadastro = await prisma.turno.findUnique({
+      where: { idTurno: Number(idTurno) },
+      select: { nomeTurno: true },
+    });
 
-      horario = new Date(`1970-01-01T${horarioInicioJornada}:00Z`);
-    } else {
-      horario = new Date(`1970-01-01T05:25:00Z`);
+    if (!turnoCadastro) {
+      return errorResponse(res, "Turno inválido", 400);
+    }
+
+    const { horario, erro: erroHorario } = resolverHorarioJornada(
+      turnoCadastro.nomeTurno,
+      horarioInicioJornada
+    );
+
+    if (erroHorario) {
+      return errorResponse(res, erroHorario, 400);
     }
 
     /* ===============================
@@ -1433,16 +1446,10 @@ const importColaboradores = async (req, res) => {
       const updatedDetails = [];
       const errorDetails = [];
 
-      const parseHorario = (v) => {
-        if (!v) return null;
-        const parts = String(v).trim().split(":");
-        if (parts.length !== 2) return null;
-
-        const hora = parts[0].padStart(2, "0");
-        const min = parts[1].padStart(2, "0");
-
-        return new Date(`1970-01-01T${hora}:${min}:00`);
-      };
+      const nomeTurnoPorId = new Map(
+        (await prisma.turno.findMany({ select: { idTurno: true, nomeTurno: true } }))
+          .map((t) => [t.idTurno, t.nomeTurno])
+      );
 
       const parseDate = (v) => {
         if (!v) return null;
@@ -1542,9 +1549,17 @@ const importColaboradores = async (req, res) => {
             continue;
           }
 
-          const horarioInicioJornada =
-            parseHorario(row["hora_inicio_jornada"]) ||
-            new Date("1970-01-01T05:25:00");
+          // Horário definido pelo turno; informado diferente (ou turno sem
+          // padrão) recusa a linha — nunca grava null nem o horário errado.
+          const { horario: horarioInicioJornada, erro: erroHorario } = resolverHorarioJornada(
+            nomeTurnoPorId.get(idTurno),
+            row["hora_inicio_jornada"]
+          );
+          if (erroHorario) {
+            skipped++;
+            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: erroHorario });
+            continue;
+          }
 
           const existing = await prisma.colaborador.findUnique({
             where: { opsId },
