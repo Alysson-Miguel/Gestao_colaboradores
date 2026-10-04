@@ -25,6 +25,43 @@ function validarCpf(valor) {
 }
 
 /**
+ * E-mail opcional: vazio é aceito. Retorna { email } (minúsculo) ou { erro }.
+ */
+function validarEmail(valor) {
+  const email = String(valor ?? "").trim().toLowerCase();
+  if (!email) return { email: null };
+  if (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { erro: "inválido" };
+  return { email };
+}
+
+/**
+ * Telefone opcional (DDD + número, 10 ou 11 dígitos; aceita +55).
+ * Retorna { telefone } (somente dígitos) ou { erro }.
+ */
+function validarTelefone(valor) {
+  let tel = String(valor ?? "").replace(/\D/g, "");
+  if (!tel) return { telefone: null };
+  if ((tel.length === 12 || tel.length === 13) && tel.startsWith("55")) tel = tel.slice(2);
+  if (tel.length !== 10 && tel.length !== 11) return { erro: "inválido (use DDD + número, 10 ou 11 dígitos)" };
+  return { telefone: tel };
+}
+
+const TOLERANCIA_ADMISSAO_FUTURA_DIAS = 7;
+
+/**
+ * Admissão pode ser lançada com até 7 dias de antecedência (contratação
+ * registrada antes do início); acima disso é quase certamente erro de digitação.
+ */
+function validarDataAdmissao(data, hoje = new Date()) {
+  if (!(data instanceof Date) || isNaN(data.getTime())) return { erro: "inválida" };
+  const limite = new Date(hoje);
+  limite.setHours(0, 0, 0, 0);
+  limite.setDate(limite.getDate() + TOLERANCIA_ADMISSAO_FUTURA_DIAS);
+  if (data > limite) return { erro: `não pode ser mais de ${TOLERANCIA_ADMISSAO_FUTURA_DIAS} dias no futuro` };
+  return { ok: true };
+}
+
+/**
  * Confere se líder, turno, setor, cargo, empresa e escala existem e pertencem
  * à estação do colaborador ou a uma estação irmã do mesmo grupo (vínculo sem estação = compartilhado, aceito).
  * O líder precisa estar ATIVO. Retorna lista de mensagens de erro (vazia = ok).
@@ -71,4 +108,4 @@ async function validarVinculos(prisma, { idEstacao, idLider, idSetor, idCargo, i
   return erros;
 }
 
-module.exports = { validarCpf, validarVinculos };
+module.exports = { validarCpf, validarEmail, validarTelefone, validarDataAdmissao, validarVinculos };

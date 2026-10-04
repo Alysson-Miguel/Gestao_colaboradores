@@ -7,8 +7,15 @@ const csv = require("csvtojson");
 const XLSX = require("xlsx");
 const { preservarFolgaDominicalWhere } = require("../utils/dsr");
 const { resolverHorarioJornada } = require("../utils/horarioTurno");
-const { validarCpf, validarVinculos } = require("../utils/validacaoCadastro");
+const {
+  validarCpf,
+  validarEmail,
+  validarTelefone,
+  validarDataAdmissao,
+  validarVinculos,
+} = require("../utils/validacaoCadastro");
 const { getEstacoesDoGrupo } = require("../config/estacaoGrupos");
+const { processarImportacao } = require("../services/importColaboradores.service");
 const { OPS_IDS_LIDERES_TREINAMENTO_CROSS_ESTACAO } = require("../config/lideresTreinamentoCrossEstacao");
 const {
   successResponse,
@@ -485,6 +492,44 @@ const createColaborador = async (req, res) => {
       return errorResponse(res, `CPF ${cpfValidado.erro}`, 400);
     }
 
+    const emailValidado = validarEmail(email);
+
+    if (emailValidado.erro) {
+      return errorResponse(res, `E-mail ${emailValidado.erro}`, 400);
+    }
+
+    const telefoneValidado = validarTelefone(telefone);
+
+    if (telefoneValidado.erro) {
+      return errorResponse(res, `Telefone ${telefoneValidado.erro}`, 400);
+    }
+
+    const cpfEmUso = await prisma.colaborador.findFirst({
+      where: { cpf: cpfValidado.cpf },
+      select: { opsId: true, nomeCompleto: true },
+    });
+
+    if (cpfEmUso) {
+      return errorResponse(
+        res,
+        `CPF já cadastrado para o colaborador "${cpfEmUso.nomeCompleto}" (${cpfEmUso.opsId})`,
+        409
+      );
+    }
+
+    const matriculaEmUso = await prisma.colaborador.findUnique({
+      where: { matricula: String(matricula).trim() },
+      select: { opsId: true, nomeCompleto: true },
+    });
+
+    if (matriculaEmUso) {
+      return errorResponse(
+        res,
+        `Matrícula "${matricula}" já está em uso pelo colaborador "${matriculaEmUso.nomeCompleto}" (${matriculaEmUso.opsId})`,
+        409
+      );
+    }
+
     /* ===============================
        VERIFICAR OPS DUPLICADO
     =============================== */
@@ -522,6 +567,12 @@ const createColaborador = async (req, res) => {
 
       if (isNaN(dt.getTime())) {
         return errorResponse(res, "Data de admissão inválida", 400);
+      }
+
+      const admissaoValidada = validarDataAdmissao(dt);
+
+      if (admissaoValidada.erro) {
+        return errorResponse(res, `Data de admissão ${admissaoValidada.erro}`, 400);
       }
 
       dataAdmissaoDate = dt;
@@ -587,15 +638,15 @@ const createColaborador = async (req, res) => {
       opsId,
       nomeCompleto,
       cpf: cpfValidado.cpf,
-      telefone: telefone || null,
-      email: email || null,
+      telefone: telefoneValidado.telefone,
+      email: emailValidado.email,
       genero: genero || null,
       contatoEmergenciaNome: contatoEmergenciaNomeLimpo,
       contatoEmergenciaTelefone: contatoEmergenciaTelefoneLimpo,
       matricula,
       dataAdmissao: dataAdmissaoDate,
       horarioInicioJornada: horario,
-      status: status || "ATIVO",
+      status: "ATIVO", // cadastro novo sempre nasce ATIVO
 
       ...(idEstacaoFinal
         ? { estacao: { connect: { idEstacao: idEstacaoFinal } } }
@@ -1406,7 +1457,10 @@ const movimentarColaborador = async (req, res) => {
   return successResponse(res, null, "Movimentação realizada com sucesso");
 };
 
-let ultimoResultadoImport = null;
+// Estado da importação por usuário (evita que duas importações/usuários se
+// sobreponham): userId -> { status: "processing"|"completed", ... }
+const importacoesPorUsuario = new Map();
+
 /* ================= IMPORT CSV (ASYNC) ================= */
 const importColaboradores = async (req, res) => {
   if (!req.file) {
@@ -1457,375 +1511,49 @@ const importColaboradores = async (req, res) => {
       return errorResponse(res, "CSV vazio", 400);
     }
 
-    // Zera o resultado da importação anterior — sem isso, o front pode
-    // consultar /import-status logo após iniciar uma nova importação e
-    // ainda encontrar (e exibir) o resultado "finalizado" da importação
-    // passada, antes do processamento desta terminar.
-    ultimoResultadoImport = null;
+    const userId = req.user?.id ?? "anon";
 
-    // Captura o contexto de estação antes de enviar a resposta (req pode ser destruído)
-    const dbContextSnapshot = {
-      isGlobal: req.dbContext?.isGlobal ?? false,
-      estacaoId: req.dbContext?.estacaoId ?? null,
-    };
-    const userRoleSnapshot = req.user?.role ?? null;
+    if (importacoesPorUsuario.get(userId)?.status === "processing") {
+      return errorResponse(res, "Já existe uma importação em andamento. Aguarde finalizar.", 409);
+    }
+
+    // "Apenas validar": roda todas as regras sem gravar nada
+    const simular = ["true", "1", "on"].includes(String(req.body?.simular ?? "").toLowerCase());
+
+    // Captura o contexto antes de responder (req pode ser destruído)
+    const estacaoContexto = req.dbContext?.estacaoId ?? null;
+
+    importacoesPorUsuario.set(userId, { status: "processing", total: rows.length, processadas: 0, simulacao: simular });
 
     res.json({
       success: true,
-      message: "Importação iniciada em segundo plano",
+      message: simular ? "Validação iniciada em segundo plano (nada será gravado)" : "Importação iniciada em segundo plano",
       totalLinhas: rows.length,
+      simulacao: simular,
     });
 
     setImmediate(async () => {
-      console.log(`🚀 Import CSV iniciado (${rows.length} linhas)`);
-
-      let criados = 0;
-      let atualizados = 0;
-      let skipped = 0;
-      let erroCount = 0;
-      const skippedDetails = [];
-      const updatedDetails = [];
-      const errorDetails = [];
-
-      const cacheVinculos = new Map();
-      const nomeTurnoPorId = new Map(
-        (await prisma.turno.findMany({ select: { idTurno: true, nomeTurno: true } }))
-          .map((t) => [t.idTurno, t.nomeTurno])
-      );
-
-      const parseDate = (v) => {
-        if (!v) return null;
-        const s = String(v).trim();
-
-        // Número serial do Excel (ex: 46479)
-        if (/^\d{4,5}$/.test(s)) {
-          const date = XLSX.SSF.parse_date_code(Number(s));
-          if (date) return new Date(date.y, date.m - 1, date.d);
-        }
-
-        // Formato DD/MM/YYYY
-        const brMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if (brMatch) {
-          const d = new Date(`${brMatch[3]}-${brMatch[2]}-${brMatch[1]}T00:00:00`);
-          return isNaN(d.getTime()) ? null : d;
-        }
-
-        // Formato YYYY-MM-DD (ISO)
-        const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (isoMatch) {
-          const d = new Date(`${s}T00:00:00`);
-          return isNaN(d.getTime()) ? null : d;
-        }
-
-        // Fallback genérico
-        const d = new Date(v);
-        if (isNaN(d.getTime())) return null;
-        return d;
-      };
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-
-        try {
-          const opsId = String(row["ops_id"] || "").trim();
-          if (!opsId) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: "N/A", motivo: "ops_id ausente" });
-            continue;
-          }
-
-          const nomeCompleto = String(row["nome_completo"] || "").trim();
-          const matricula = String(row["matricula"] || "").trim();
-          const cpf = row["cpf"] ? String(row["cpf"]).trim() : "";
-          const idLider = String(row["id_lider"] || "").trim();
-          const idSetor = row["id_setor"] ? Number(row["id_setor"]) : null;
-          const idCargo = row["id_cargo"] ? Number(row["id_cargo"]) : null;
-          const idEmpresa = row["id_empresa"] ? Number(row["id_empresa"]) : null;
-          const idTurno = row["id_turno"] ? Number(row["id_turno"]) : null;
-          const idEscala = row["id_escala"] ? Number(row["id_escala"]) : null;
-          const idEstacaoCsv = row["id_estacao"] ? Number(row["id_estacao"]) : null;
-
-          // A estação do contexto (selecionada/fixada) manda; o CSV só é usado
-          // quando não há contexto (ADMIN global) e nunca pode divergir dele.
-          if (dbContextSnapshot.estacaoId && idEstacaoCsv && idEstacaoCsv !== dbContextSnapshot.estacaoId) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "A estação informada não condiz com a estação atual." });
-            continue;
-          }
-
-          const idEstacao = dbContextSnapshot.estacaoId ?? idEstacaoCsv;
-          if (!idEstacao) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Estação não definida: selecione a estação ou preencha id_estacao." });
-            continue;
-          }
-
-          // Validação de CPF (11 dígitos + dígitos verificadores)
-          const cpfValidado = validarCpf(cpf);
-          if (cpfValidado.erro) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: `CPF ${cpfValidado.erro}` });
-            continue;
-          }
-
-          if (!nomeCompleto || !matricula || !cpf || !idLider || !idSetor || !idCargo || !idEmpresa || !idTurno || !idEscala) {
-            const faltando = [
-              !nomeCompleto && "nome_completo",
-              !matricula    && "matricula",
-              !cpf          && "cpf",
-              !idLider      && "id_lider",
-              !idSetor      && "id_setor",
-              !idCargo      && "id_cargo",
-              !idEmpresa    && "id_empresa",
-              !idTurno      && "id_turno",
-              !idEscala     && "id_escala",
-            ].filter(Boolean);
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: `Campos obrigatórios ausentes: ${faltando.join(", ")}` });
-            continue;
-          }
-
-          const dataAdmissao = parseDate(row["data_admissao"]);
-          if (!dataAdmissao) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "data_admissao inválida ou ausente" });
-            continue;
-          }
-
-          // Horário definido pelo turno; informado diferente (ou turno sem
-          // padrão) recusa a linha — nunca grava null nem o horário errado.
-          const { horario: horarioInicioJornada, erro: erroHorario } = resolverHorarioJornada(
-            nomeTurnoPorId.get(idTurno),
-            row["hora_inicio_jornada"]
-          );
-          if (erroHorario) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: erroHorario });
-            continue;
-          }
-
-          const existing = await prisma.colaborador.findUnique({
-            where: { opsId },
-            select: {
-              opsId: true, nomeCompleto: true, matricula: true, status: true, idEstacao: true,
-              idEscala: true, idCargo: true, idTurno: true,
-              idSetor: true, idEmpresa: true, idLider: true,
-            },
-          });
-
-          // A importação não reativa nem move colaborador: INATIVO exige o fluxo
-          // próprio de reativação e outra estação exige movimentação.
-          if (existing?.status === "INATIVO") {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Colaborador INATIVO: a importação não reativa. Use a reativação no cadastro." });
-            continue;
-          }
-          if (existing?.idEstacao && !getEstacoesDoGrupo(idEstacao).includes(existing.idEstacao)) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: "Colaborador já cadastrado em outra estação." });
-            continue;
-          }
-
-          const errosVinculos = await validarVinculos(
-            prisma,
-            { idEstacao, idLider, idSetor, idCargo, idEmpresa, idTurno, idEscala },
-            cacheVinculos
-          );
-          if (errosVinculos.length) {
-            skipped++;
-            skippedDetails.push({ linha: i + 1, ops_id: opsId, motivo: errosVinculos.join("; ") });
-            continue;
-          }
-
-          const data = {
-            opsId,
-            nomeCompleto,
-            genero: row["genero"] || null,
-            matricula,
-            dataAdmissao,
-            horarioInicioJornada,
-            cpf: cpfValidado.cpf,
-            dataNascimento: parseDate(row["data_nascimento"]),
-            email: row["email"] || null,
-            telefone: row["telefone"] ? String(row["telefone"]) : null,
-            contatoEmergenciaNome: row["contato_emergencia_nome"] ? String(row["contato_emergencia_nome"]).trim() : null,
-            contatoEmergenciaTelefone: row["contato_emergencia_telefone"] ? String(row["contato_emergencia_telefone"]).trim() : null,
-            idSetor: idSetor,
-            idCargo: idCargo,
-            idEmpresa: idEmpresa,
-            idEstacao: idEstacao,
-            idTurno: idTurno,
-            idEscala: idEscala,
-            idLider: idLider || null,
-          };
-
-          // Status só é definido na criação: reimportar não pode sobrescrever
-          // o status de quem já existe (ex.: férias/afastado).
-          const colab = await prisma.colaborador.upsert({
-            where: { opsId },
-            update: data,
-            create: { ...data, status: "ATIVO" },
-          });
-
-          /* =========================
-             SE NOVO OU ESCALA MUDOU
-          ========================= */
-          const escalaMudou =
-            data.idEscala &&
-            (!existing || Number(existing.idEscala) !== Number(data.idEscala));
-
-          if (escalaMudou) {
-            const hoje = startOfDayBR();
-
-            /* FECHAR HISTÓRICO ANTERIOR */
-            await prisma.colaboradorEscalaHistorico.updateMany({
-              where: {
-                opsId: colab.opsId,
-                dataFim: null,
-              },
-              data: {
-                dataFim: new Date(hoje.getTime() - 86400000),
-              },
-            });
-
-            /* CRIAR NOVO HISTÓRICO */
-            const historicoHoje = await prisma.colaboradorEscalaHistorico.findFirst({
-              where: { opsId: colab.opsId, dataInicio: hoje },
-            });
-
-            if (historicoHoje) {
-              await prisma.colaboradorEscalaHistorico.update({
-                where: { id: historicoHoje.id },
-                data: { idEscala: data.idEscala, dataFim: null },
-              });
-            } else {
-              await prisma.colaboradorEscalaHistorico.create({
-                data: {
-                  opsId: colab.opsId,
-                  idEscala: data.idEscala,
-                  dataInicio: hoje,
-                },
-              });
-            }
-
-            /* =========================
-               REMOVER DSR FUTURO ANTIGO
-               Sem isso, dias já gerados como DSR pela escala antiga
-               (ex: importação anterior) ficam "presos" na frequência
-               e continuam aparecendo mesmo depois da troca de escala.
-            ========================= */
-            const tipoDSR = await prisma.tipoAusencia.findFirst({
-              where: { codigo: "DSR" },
-              select: { idTipoAusencia: true },
-            });
-
-            const escala = await prisma.escala.findUnique({
-              where: { idEscala: data.idEscala },
-              select: { nomeEscala: true, idEstacao: true },
-            });
-
-            if (tipoDSR) {
-              await prisma.frequencia.deleteMany({
-                where: {
-                  opsId: colab.opsId,
-                  dataReferencia: { gte: hoje },
-                  idTipoAusencia: tipoDSR.idTipoAusencia,
-                  manual: false,
-                  ...preservarFolgaDominicalWhere(escala?.nomeEscala),
-                },
-              });
-            }
-
-            /* ESCALA */
-
-            const nomeEscala = escala?.nomeEscala;
-            const idEstacaoEscala = escala?.idEstacao ?? null;
-
-            /* BACKFILL */
-            await gerarDSRBackfillColaborador({
-              opsId: colab.opsId,
-              nomeEscala,
-              dataInicio: hoje,
-              idEstacao: idEstacaoEscala,
-            });
-
-            /* FUTURO */
-            await gerarDSRFuturoColaborador({
-              opsId: colab.opsId,
-              nomeEscala,
-              idEstacao: idEstacaoEscala,
-            });
-          }
-
-          if (existing) {
-            atualizados++;
-            const LABELS = {
-              nomeCompleto: "Nome", matricula: "Matrícula",
-              idCargo: "Cargo", idTurno: "Turno", idSetor: "Setor",
-              idEmpresa: "Empresa", idLider: "Líder", idEscala: "Escala",
-            };
-            const campos = Object.entries(LABELS)
-              .filter(([key]) => String(existing[key] ?? "") !== String(data[key] ?? ""))
-              .map(([key, label]) => `${label}: ${existing[key] ?? "-"} → ${data[key] ?? "-"}`);
-            if (campos.length > 0) {
-              updatedDetails.push({ linha: i + 1, ops_id: opsId, nome: existing.nomeCompleto, campos });
-            }
-          } else {
-            criados++;
-          }
-
-          // Onboarding: gera se ainda não existir registro para o dia de admissão
-          try {
-            const dia1 = new Date(`${dataAdmissao.toISOString().slice(0, 10)}T00:00:00.000Z`);
-            const jaTemOnboarding = await prisma.frequencia.findFirst({
-              where: { opsId: colab.opsId, dataReferencia: dia1 },
-              select: { idFrequencia: true },
-            });
-            if (!jaTemOnboarding) {
-              await gerarOnboardingColaborador({ opsId: colab.opsId, dataAdmissao });
-              console.log(`✅ Onboarding gerado para ${colab.opsId} (admissão: ${dataAdmissao.toISOString().slice(0, 10)})`);
-            }
-          } catch (onboardErr) {
-            console.error(`❌ Onboarding falhou para ${colab.opsId}: ${onboardErr.message}`);
-          }
-
-        } catch (err) {
-          erroCount++;
-          const opsId = String(row["ops_id"] || "N/A").trim();
-          let motivo = err.message;
-          if (err?.code === "P2002") {
-            const campo = Array.isArray(err?.meta?.target) ? err.meta.target[0] : err?.meta?.target;
-            const mensagens = {
-              matricula: `Matrícula "${row["matricula"]}" já está em uso por outro colaborador`,
-              cpf: `CPF "${row["cpf"]}" já está cadastrado para outro colaborador`,
-              email: `E-mail "${row["email"]}" já está em uso por outro colaborador`,
-            };
-            motivo = mensagens[campo] ?? `Dado duplicado (${campo ?? "campo único"})`;
-          }
-          errorDetails.push({ linha: i + 1, ops_id: opsId, motivo });
-        }
-      }
-
-      const resultado = {
-        total: rows.length,
-        criados,
-        atualizados,
-        skipped,
-        erros: erroCount,
-        skippedDetails,
-        updatedDetails,
-        errorDetails,
-        finalizado: true,
-        data: new Date(),
-      };
-
-      ultimoResultadoImport = resultado;
-
-      console.log("✅ Import CSV finalizado", resultado);
-
-      if (errorDetails.length) {
-        console.log("⚠ ERROS CSV:");
-        errorDetails.slice(0, 20).forEach((e) => console.log(`L${e.linha} ${e.ops_id}: ${e.motivo}`));
+      console.log(`🚀 Import ${simular ? "(simulação) " : ""}iniciado (${rows.length} linhas)`);
+      try {
+        const resultado = await processarImportacao({
+          rows,
+          estacaoContexto,
+          simular,
+          startOfDayBR,
+          onProgresso: (feitas, total) => {
+            const estado = importacoesPorUsuario.get(userId);
+            if (estado?.status === "processing") estado.processadas = feitas;
+          },
+        });
+        importacoesPorUsuario.set(userId, { status: "completed", ...resultado });
+        console.log("✅ Import finalizado", { ...resultado, skippedDetails: undefined, updatedDetails: undefined, errorDetails: undefined });
+      } catch (err) {
+        console.error("❌ ERRO IMPORT CSV (processamento):", err);
+        importacoesPorUsuario.set(userId, {
+          status: "completed", total: rows.length, criados: 0, atualizados: 0, skipped: 0, erros: 1,
+          skippedDetails: [], updatedDetails: [], simulacao: simular, finalizado: true, data: new Date(),
+          errorDetails: [{ linha: 0, ops_id: "N/A", motivo: `Falha geral na importação: ${err.message}` }],
+        });
       }
     });
 
@@ -1837,16 +1565,17 @@ const importColaboradores = async (req, res) => {
 };
 
 const getStatusImport = async (req, res) => {
-  if (!ultimoResultadoImport) {
-    return res.json({
-      status: "processing"
-    });
+  const estado = importacoesPorUsuario.get(req.user?.id ?? "anon");
+
+  if (!estado) {
+    return res.json({ status: "processing" });
   }
 
-  return res.json({
-    status: "completed",
-    ...ultimoResultadoImport
-  });
+  if (estado.status === "processing") {
+    return res.json(estado);
+  }
+
+  return res.json(estado);
 };
 
 /* ================= GET BY OPS ID (DUPLICADO - MANTER SE NECESSÁRIO) ================= */

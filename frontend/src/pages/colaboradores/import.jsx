@@ -27,6 +27,8 @@ export default function ImportarColaboradores() {
   const [refsError, setRefsError] = useState(false)
   const [status, setStatus] = useState({ message: "", type: "" })
   const [checkingStatus, setCheckingStatus] = useState(false)
+  // "Apenas validar": roda as regras no servidor sem gravar nada
+  const [simular, setSimular] = useState(false)
   const [skippedDetails, setSkippedDetails] = useState([])
   const [updatedDetails, setUpdatedDetails] = useState([])
   const [errorDetails, setErrorDetails] = useState([])
@@ -99,6 +101,13 @@ export default function ImportarColaboradores() {
         const res = await api.get("/colaboradores/import-status")
         statusErrorCount.current = 0 // reset contador ao ter sucesso
 
+        if (res.data.status === "processing" && res.data.total) {
+          setStatus({
+            message: `${res.data.simulacao ? "Validando" : "Processando"}... ${res.data.processadas ?? 0} de ${res.data.total} linhas`,
+            type: "success",
+          })
+        }
+
         if (res.data.status === "completed") {
           clearInterval(intervalRef.current)
           intervalRef.current = null
@@ -106,7 +115,19 @@ export default function ImportarColaboradores() {
 
           // FIX #2: atualizar os dois estados juntos via um único setState em batch
           setStatus({
-            message: `Importação finalizada ✔\n\nCriados: ${res.data.criados}\nAtualizados: ${res.data.atualizados}\nIgnorados: ${res.data.skipped}\nErros: ${res.data.erros}`,
+            message: res.data.simulacao
+              ? `Validação finalizada ✔ (nada foi gravado)
+
+Seriam criados: ${res.data.criados}
+Seriam atualizados: ${res.data.atualizados}
+Seriam ignorados: ${res.data.skipped}
+Erros: ${res.data.erros}`
+              : `Importação finalizada ✔
+
+Criados: ${res.data.criados}
+Atualizados: ${res.data.atualizados}
+Ignorados: ${res.data.skipped}
+Erros: ${res.data.erros}`,
             type: res.data.erros > 0 ? "error" : "success",
           })
           setSkippedDetails(res.data.skippedDetails || [])
@@ -139,6 +160,7 @@ export default function ImportarColaboradores() {
 
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("simular", simular ? "true" : "false")
 
     try {
       setLoading(true)
@@ -401,6 +423,21 @@ export default function ImportarColaboradores() {
             </div>
           )}
 
+          <label className="flex items-start gap-3 bg-surface border border-default rounded-xl p-4 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={simular}
+              onChange={(e) => setSimular(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm">
+              <span className="font-semibold">Apenas validar (não grava no banco)</span>
+              <span className="block text-xs text-muted">
+                Mostra o que seria criado, atualizado e ignorado, com o motivo de cada linha recusada.
+              </span>
+            </span>
+          </label>
+
           {/* FIX #4: desabilita durante checkingStatus também */}
           <button
             onClick={handleImport}
@@ -411,7 +448,7 @@ export default function ImportarColaboradores() {
                 : "bg-orange-500 hover:bg-orange-600"
             }`}
           >
-            {loading ? "Enviando..." : checkingStatus ? "Processando..." : "Iniciar Importação"}
+            {loading ? "Enviando..." : checkingStatus ? "Processando..." : simular ? "Validar arquivo" : "Iniciar Importação"}
           </button>
 
           {/* ATUALIZADOS */}
