@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useContext, useMemo } from "react";
 import {
   CalendarDays, RefreshCcw, Trash2, Play,
   AlertTriangle, CheckCircle2, Users, Calendar,
-  Filter, X, ChevronRight, Clock, Sun, Download,
+  Filter, X, ChevronRight, Clock, Sun, Download, CalendarPlus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -353,6 +353,7 @@ export default function FolgaDominicalPage() {
   const [loading,      setLoading]             = useState(false);
   const [resumo,       setResumo]              = useState(null);
   const [erro,         setErro]                = useState("");
+  const [infoComplementar, setInfoComplementar] = useState("");
   const [domingoSelecionado, setDomingoSelecionado] = useState(null);
   const [turnoSelecionado,   setTurnoSelecionado]   = useState("");
   const [escalaSelecionada,  setEscalaSelecionada]  = useState("");
@@ -382,7 +383,7 @@ export default function FolgaDominicalPage() {
 
   useEffect(() => {
     setDomingoSelecionado(null); setTurnoSelecionado("");
-    setPreviewData(null); setPreviewErro("");
+    setPreviewData(null); setPreviewErro(""); setInfoComplementar("");
   }, [ano, mes]);
 
   /* -- actions ---------------------------------- */
@@ -395,6 +396,39 @@ export default function FolgaDominicalPage() {
     try { await api.post("/folga-dominical", { ano, mes }); await load(); }
     catch (e) { setErro(e?.response?.data?.error || "Erro ao gerar planejamento."); }
     finally { setLoading(false); }
+  }
+
+  // Complementa o planejamento já gerado: só elegíveis sem folga em domingo do mês,
+  // só domingos futuros; não apaga nem altera o que já existe. Simula antes de gravar.
+  async function complementar() {
+    if (!isAdmin && !isAltaGestao) return;
+    if (semEstacaoSelecionada) { setErro("Selecione uma estação no menu superior antes de complementar as folgas."); return; }
+    setLoading(true); setErro(""); setInfoComplementar("");
+    try {
+      const sim = await api.post("/folga-dominical/complementar", { ano, mes, simular: true });
+      const d = sim.data?.data || {};
+
+      if (!d.geradas) {
+        setInfoComplementar(d.mensagem || "Nenhum colaborador elegível precisa de complemento neste mês.");
+        return;
+      }
+
+      setLoading(false);
+      const ok = await confirmDialog(
+        `${d.geradas} colaborador(es) elegível(is) estão sem folga dominical neste mês.\n` +
+        `Serão geradas ${d.geradas} folga(s) nos domingos que ainda não passaram.\n` +
+        (d.naoAlocados ? `${d.naoAlocados} não puderam ser alocados.\n` : "") +
+        "O planejamento existente não será alterado.\nDeseja continuar?"
+      );
+      if (!ok) return;
+
+      setLoading(true);
+      const res = await api.post("/folga-dominical/complementar", { ano, mes });
+      setInfoComplementar(res.data?.message || "Planejamento complementado.");
+      await load();
+    } catch (e) {
+      setErro(e?.response?.data?.error || "Erro ao complementar planejamento.");
+    } finally { setLoading(false); }
   }
 
   async function reprocessar() {
@@ -617,6 +651,28 @@ export default function FolgaDominicalPage() {
                 </button>
               )}
 
+              {/* Complementar — só elegíveis sem folga, só domingos futuros */}
+              {(isAdmin || isAltaGestao) && (
+                <button
+                  onClick={complementar}
+                  disabled={loading || previewLoading || semEstacaoSelecionada}
+                  title={semEstacaoSelecionada ? "Selecione uma estação no menu superior primeiro" : "Gera folga só para elegíveis que ainda estão sem folga dominical no mês, sem alterar o que já existe"}
+                  style={{
+                    height: 40, padding: "0 18px", borderRadius: 12,
+                    background: `${GREEN}18`, border: `1px solid ${GREEN}40`,
+                    color: GREEN, fontSize: 13, fontWeight: 700,
+                    cursor: semEstacaoSelecionada ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: 7,
+                    opacity: (loading || previewLoading || semEstacaoSelecionada) ? 0.5 : 1, transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => !semEstacaoSelecionada && (e.currentTarget.style.background = `${GREEN}30`)}
+                  onMouseLeave={(e) => !semEstacaoSelecionada && (e.currentTarget.style.background = `${GREEN}18`)}
+                >
+                  <CalendarPlus size={14} />
+                  Complementar
+                </button>
+              )}
+
               {/* Reprocessar — exclusivo ADMIN */}
               {isAdmin && (
                 <button
@@ -646,6 +702,13 @@ export default function FolgaDominicalPage() {
             <AlertBanner type="warning">
               Nenhuma estação selecionada. Selecione uma estação no menu superior para simular ou gerar folgas dominicais.
             </AlertBanner>
+          )}
+
+          {/* -- RESULTADO DO COMPLEMENTAR ---------------------- */}
+          {!loading && infoComplementar && (
+            <div className="fd-fade">
+              <AlertBanner type="success">{infoComplementar}</AlertBanner>
+            </div>
           )}
 
           {/* -- ERRO GLOBAL ------------------------------------ */}
