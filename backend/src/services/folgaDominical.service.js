@@ -846,9 +846,32 @@ async function gerarFolgaDominicalIncremental({ ano, mes, userId, estacaoId = nu
 
   if (!simular) await processarPlanejamentosEmLotes(planejamentos, userId);
 
+  // Quem foi (ou seria) alocado e em qual domingo — para a tela mostrar o detalhe
+  const extras = planejamentos.length
+    ? await prisma.colaborador.findMany({
+        where: { opsId: { in: planejamentos.map((pl) => pl.opsId) } },
+        select: { opsId: true, lider: { select: { nomeCompleto: true } }, setor: { select: { nomeSetor: true } } },
+      })
+    : [];
+  const extraPorOps = new Map(extras.map((e) => [e.opsId, e]));
+
+  const alocados = planejamentos
+    .map((pl) => ({
+      opsId: pl.opsId,
+      nomeCompleto: pl.nomeCompleto,
+      turno: pl.turno,
+      escala: pl.escala,
+      setor: extraPorOps.get(pl.opsId)?.setor?.nomeSetor ?? null,
+      lider: extraPorOps.get(pl.opsId)?.lider?.nomeCompleto ?? null,
+      domingo: pl.domingo, // AAAA-MM-DD
+      forcado: Boolean(pl.forcado),
+    }))
+    .sort((a, b) => a.domingo.localeCompare(b.domingo) || a.nomeCompleto.localeCompare(b.nomeCompleto));
+
   return {
     modo: "incremental",
     simulacao: simular,
+    alocados,
     ano,
     mes,
     domingos: domingosFuturos.length,

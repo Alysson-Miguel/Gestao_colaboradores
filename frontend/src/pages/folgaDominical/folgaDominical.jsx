@@ -233,6 +233,165 @@ function AlertBanner({ type = "error", children }) {
   )
 }
 
+/* --- PAINEL DO COMPLEMENTAR ---------------------------------------- */
+// modo "previa": lista quem seria alocado e em qual domingo, antes de gravar.
+// modo "resultado": lista quem foi alocado de fato.
+function PainelComplementar({ painel, onConfirmar, onFechar, ocupado }) {
+  const { modo, dados } = painel
+  const previa = modo === "previa"
+  const cor = previa ? BLUE : GREEN
+  const alocados = dados.alocados || []
+  const naoAlocados = dados.detalheNaoAlocados || []
+
+  const porDomingo = alocados.reduce((acc, a) => {
+    acc[a.domingo] = (acc[a.domingo] || 0) + 1
+    return acc
+  }, {})
+  const domingos = Object.keys(porDomingo).sort()
+
+  const th = {
+    textAlign: "left", padding: "9px 12px", fontSize: 11, fontWeight: 700,
+    letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-muted)",
+    position: "sticky", top: 0, background: "var(--color-surface)",
+    borderBottom: "1px solid var(--color-border)",
+  }
+  const td = { padding: "10px 12px", fontSize: 12.5, color: "var(--color-text)",
+    borderBottom: "1px solid var(--color-border)", verticalAlign: "middle" }
+
+  return (
+    <section
+      className="fd-fade"
+      role="region"
+      aria-label={previa ? "Pré-visualização do complemento" : "Resultado do complemento"}
+      style={{
+        background: "var(--color-surface)", border: `1px solid ${cor}50`,
+        borderLeft: `4px solid ${cor}`, borderRadius: 16, padding: "18px 20px",
+        display: "flex", flexDirection: "column", gap: 14,
+      }}
+    >
+      {/* cabeçalho */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+          {previa ? <CalendarPlus size={18} color={cor} style={{ marginTop: 2, flexShrink: 0 }} />
+                  : <CheckCircle2 size={18} color={cor} style={{ marginTop: 2, flexShrink: 0 }} />}
+          <div>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--color-text)" }}>
+              {previa
+                ? `${alocados.length} folga(s) serão geradas`
+                : `${alocados.length} folga(s) dominical(is) complementada(s)`}
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--color-muted)" }}>
+              {previa
+                ? "Confira quem receberá a folga e em qual domingo. Nada foi gravado ainda."
+                : "Estes colaboradores estavam sem folga dominical no mês. O planejamento existente não foi alterado."}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button" onClick={onFechar} disabled={ocupado} aria-label="Fechar painel"
+          style={{
+            width: 36, height: 36, borderRadius: 10, flexShrink: 0, cursor: ocupado ? "not-allowed" : "pointer",
+            background: "transparent", border: "1px solid var(--color-border)", color: "var(--color-muted)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* resumo por domingo */}
+      {domingos.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }} aria-label="Resumo por domingo">
+          {domingos.map((d) => (
+            <span key={d} style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 99,
+              background: `${cor}14`, border: `1px solid ${cor}35`, color: cor, fontSize: 12, fontWeight: 700,
+            }}>
+              <Calendar size={12} />
+              {formatDateWithWeekday(d)} · {porDomingo[d]} colaborador(es)
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* tabela */}
+      <div style={{ maxHeight: 340, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+          <caption style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+            Colaboradores e domingo da folga
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" style={th}>OPS ID</th>
+              <th scope="col" style={th}>Nome</th>
+              <th scope="col" style={th}>Turno</th>
+              <th scope="col" style={th}>Escala</th>
+              <th scope="col" style={th}>Líder</th>
+              <th scope="col" style={th}>Domingo da folga</th>
+            </tr>
+          </thead>
+          <tbody>
+            {alocados.map((a) => (
+              <tr key={a.opsId}>
+                <td style={{ ...td, color: BRAND, fontWeight: 700, whiteSpace: "nowrap" }}>{a.opsId}</td>
+                <td style={{ ...td, fontWeight: 600 }}>{a.nomeCompleto}</td>
+                <td style={td}><Badge value={a.turno} map={TURNO_COLORS} /></td>
+                <td style={td}><Badge value={a.escala} map={ESCALA_COLORS} /></td>
+                <td style={{ ...td, color: "var(--color-muted)" }}>{a.lider || "—"}</td>
+                <td style={{ ...td, whiteSpace: "nowrap", fontWeight: 700 }}>
+                  {formatDateWithWeekday(a.domingo)}
+                  {a.forcado && (
+                    <span title="Alocado no domingo menos ocupado, sem folga de capacidade livre"
+                      style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: YELLOW }}>
+                      capacidade cheia
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* não alocados */}
+      {naoAlocados.length > 0 && (
+        <AlertBanner type="warning">
+          {naoAlocados.length} colaborador(es) não puderam ser alocados:{" "}
+          {naoAlocados.map((n) => n.nomeCompleto || n.opsId).join(", ")}.
+        </AlertBanner>
+      )}
+
+      {/* ações */}
+      {previa && (
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button" onClick={onFechar} disabled={ocupado}
+            style={{
+              height: 40, padding: "0 18px", borderRadius: 12, fontSize: 13, fontWeight: 700,
+              background: "transparent", border: "1px solid var(--color-border)", color: "var(--color-text)",
+              cursor: ocupado ? "not-allowed" : "pointer", opacity: ocupado ? 0.5 : 1,
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button" onClick={onConfirmar} disabled={ocupado || alocados.length === 0}
+            style={{
+              height: 40, padding: "0 20px", borderRadius: 12, fontSize: 13, fontWeight: 700,
+              background: BRAND, color: "#fff", border: "none",
+              cursor: ocupado ? "not-allowed" : "pointer", opacity: ocupado ? 0.5 : 1,
+              display: "flex", alignItems: "center", gap: 7,
+            }}
+          >
+            <CalendarDays size={14} />
+            {ocupado ? "Gerando..." : `Confirmar e gerar ${alocados.length} folga(s)`}
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
 /* --- SELECT -------------------------------------------------------- */
 function StyledSelect({ value, onChange, children }) {
   return (
@@ -354,6 +513,7 @@ export default function FolgaDominicalPage() {
   const [resumo,       setResumo]              = useState(null);
   const [erro,         setErro]                = useState("");
   const [infoComplementar, setInfoComplementar] = useState("");
+  const [painelComplementar, setPainelComplementar] = useState(null);
   const [domingoSelecionado, setDomingoSelecionado] = useState(null);
   const [turnoSelecionado,   setTurnoSelecionado]   = useState("");
   const [escalaSelecionada,  setEscalaSelecionada]  = useState("");
@@ -383,7 +543,7 @@ export default function FolgaDominicalPage() {
 
   useEffect(() => {
     setDomingoSelecionado(null); setTurnoSelecionado("");
-    setPreviewData(null); setPreviewErro(""); setInfoComplementar("");
+    setPreviewData(null); setPreviewErro(""); setInfoComplementar(""); setPainelComplementar(null);
   }, [ano, mes]);
 
   /* -- actions ---------------------------------- */
@@ -399,11 +559,12 @@ export default function FolgaDominicalPage() {
   }
 
   // Complementa o planejamento já gerado: só elegíveis sem folga em domingo do mês,
-  // só domingos futuros; não apaga nem altera o que já existe. Simula antes de gravar.
+  // só domingos futuros; não apaga nem altera o que já existe.
+  // 1) simula e mostra quem receberia a folga e em qual domingo; 2) o usuário confirma.
   async function complementar() {
     if (!isAdmin && !isAltaGestao) return;
     if (semEstacaoSelecionada) { setErro("Selecione uma estação no menu superior antes de complementar as folgas."); return; }
-    setLoading(true); setErro(""); setInfoComplementar("");
+    setLoading(true); setErro(""); setInfoComplementar(""); setPainelComplementar(null);
     try {
       const sim = await api.post("/folga-dominical/complementar", { ano, mes, simular: true });
       const d = sim.data?.data || {};
@@ -412,19 +573,17 @@ export default function FolgaDominicalPage() {
         setInfoComplementar(d.mensagem || "Nenhum colaborador elegível precisa de complemento neste mês.");
         return;
       }
+      setPainelComplementar({ modo: "previa", dados: d });
+    } catch (e) {
+      setErro(e?.response?.data?.error || "Erro ao simular o complemento.");
+    } finally { setLoading(false); }
+  }
 
-      setLoading(false);
-      const ok = await confirmDialog(
-        `${d.geradas} colaborador(es) elegível(is) estão sem folga dominical neste mês.\n` +
-        `Serão geradas ${d.geradas} folga(s) nos domingos que ainda não passaram.\n` +
-        (d.naoAlocados ? `${d.naoAlocados} não puderam ser alocados.\n` : "") +
-        "O planejamento existente não será alterado.\nDeseja continuar?"
-      );
-      if (!ok) return;
-
-      setLoading(true);
+  async function confirmarComplementar() {
+    setLoading(true); setErro("");
+    try {
       const res = await api.post("/folga-dominical/complementar", { ano, mes });
-      setInfoComplementar(res.data?.message || "Planejamento complementado.");
+      setPainelComplementar({ modo: "resultado", dados: res.data?.data || {} });
       await load();
     } catch (e) {
       setErro(e?.response?.data?.error || "Erro ao complementar planejamento.");
@@ -704,11 +863,20 @@ export default function FolgaDominicalPage() {
             </AlertBanner>
           )}
 
-          {/* -- RESULTADO DO COMPLEMENTAR ---------------------- */}
+          {/* -- COMPLEMENTAR: AVISO, PRÉVIA E RESULTADO -------- */}
           {!loading && infoComplementar && (
             <div className="fd-fade">
               <AlertBanner type="success">{infoComplementar}</AlertBanner>
             </div>
+          )}
+
+          {painelComplementar && (
+            <PainelComplementar
+              painel={painelComplementar}
+              ocupado={loading}
+              onConfirmar={confirmarComplementar}
+              onFechar={() => setPainelComplementar(null)}
+            />
           )}
 
           {/* -- ERRO GLOBAL ------------------------------------ */}
