@@ -22,6 +22,8 @@ const STATUS_CONFIG = {
   LM:  { label: "Lic. Maternidade", short: "LM", bg: "bg-pink-600/20", text: "text-pink-400" },
   LP:  { label: "Lic. Paternidade", short: "LP", bg: "bg-indigo-600/20", text: "text-indigo-400" },
   AFA: { label: "Afastado", short: "AFA", bg: "bg-orange-600/20", text: "text-orange-400" },
+  // Tipo legado/duplicado gravado pelo preenchimento automático de afastamento: mesmo visual do AFA
+  AF:  { label: "Afastado", short: "AFA", bg: "bg-orange-600/20", text: "text-orange-400" },
   BH:  { label: "Banco de Horas", short: "BH", bg: "bg-yellow-600/20", text: "text-yellow-400" },
   FO:  { label: "Folga", short: "FO", bg: "bg-slate-600/20", text: "text-slate-400" },
   TR:  { label: "Transferido", short: "TR", bg: "bg-neutral-600/20", text: "text-neutral-400" },

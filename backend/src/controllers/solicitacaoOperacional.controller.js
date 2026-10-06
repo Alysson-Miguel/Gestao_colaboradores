@@ -2050,11 +2050,10 @@ async function aplicarMudancaCadastral(tx, solicitacao, registradoPor) {
       })
     );
 
-    const tipoAfastamento = await tx.tipoAusencia.findFirst({
-      where: { OR: [{ codigo: "AFA" }, { codigo: "AF" }] },
-      select: { idTipoAusencia: true },
-      orderBy: { codigo: "asc" },
-    });
+    // AFA é o código que a tela reconhece (AF é um tipo legado/duplicado)
+    const tipoAfastamento =
+      (await tx.tipoAusencia.findFirst({ where: { codigo: "AFA" }, select: { idTipoAusencia: true } })) ||
+      (await tx.tipoAusencia.findFirst({ where: { codigo: "AF" }, select: { idTipoAusencia: true } }));
     if (tipoAfastamento) {
       const jaExiste = await tx.ausencia.findFirst({
         where: { opsId: solicitacao.opsId, idTipoAusencia: tipoAfastamento.idTipoAusencia, dataInicio: solicitacao.afastamentoDataInicio },

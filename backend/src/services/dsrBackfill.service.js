@@ -285,11 +285,11 @@ async function gerarFrequenciaAusencia({ opsId, idTipoAusencia, dataInicio, data
 async function gerarFrequenciaAfastamento({ opsId, dataInicio, dataFim, tx = prisma }) {
   if (!opsId || !dataInicio || !dataFim) return;
 
-  const tipoAus = await tx.tipoAusencia.findFirst({
-    where: { OR: [{ codigo: "AFA" }, { codigo: "AF" }] },
-    select: { idTipoAusencia: true },
-    orderBy: { codigo: "asc" },
-  });
+  // Existem dois tipos no cadastro: AFA (usado pela tela) e AF. O orderBy antigo
+  // ("asc") escolhia AF, que a tela não reconhece e desenhava como Falta.
+  const tipoAus =
+    (await tx.tipoAusencia.findFirst({ where: { codigo: "AFA" }, select: { idTipoAusencia: true } })) ||
+    (await tx.tipoAusencia.findFirst({ where: { codigo: "AF" }, select: { idTipoAusencia: true } }));
   if (!tipoAus) return;
 
   const di = new Date(dataInicio);
