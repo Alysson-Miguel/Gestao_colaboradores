@@ -63,7 +63,9 @@
   .text-subtle { color: var(--color-subtle); }
 
   .hover\:bg-surface-3:hover { background-color: var(--color-surface-3); }
-  .divide-default > * + * { border-color: var(--color-border); }
+  /* divide-y desenha o divisor na borda inferior de todos menos o último, então a cor
+     precisa valer para todos os filhos — com "* + *" o primeiro ficava com a borda branca. */
+  .divide-default > * { border-color: var(--color-border); }
 }
 
 /* =====================================================
