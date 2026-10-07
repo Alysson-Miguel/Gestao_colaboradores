@@ -121,7 +121,10 @@ const obterPainelExecutivo = async (req, res) => {
         }
       : null;
 
-    // ---------- Realizado (pessoas distintas alocadas em cada turno) ----------
+    // ---------- Realizado ----------
+    // Turno ENCERRADO: pessoas distintas que passaram pela área no turno.
+    // Turno ATUAL: quem está na área AGORA (alocação aberta), igual ao "Total HC" da tela de cada esteira;
+    // contar todo mundo que já passou pelo turno inflava o número (quem saiu continuava somando).
     const inicioDia = janelas.T1.inicio;
     const fimDia = janelas.T3.fim;
     const alocacoes = await prisma.mapaAlocacao.findMany({
@@ -146,6 +149,7 @@ const obterPainelExecutivo = async (req, res) => {
       membrosDaAlocacao(a).forEach(({ chave, turno }) => {
         const j = janelas[turno];
         if (!j) return;
+        if (statusTurno[turno] === "ATUAL" && a.fim) return; // já saiu: não conta no turno em andamento
         if (!(a.inicio < j.fim && fimEfetivo > j.inicio)) return;
         porArea[area][turno].add(chave);
         geral[turno].add(chave);
@@ -178,6 +182,7 @@ const obterPainelExecutivo = async (req, res) => {
       if (!area || !j) return;
       const fimDaPermanencia = s.dataFinalizacao || agora;
       if (!(s.dataChegada < j.fim && fimDaPermanencia > j.inicio)) return;
+      if (statusTurno[s.turno] === "ATUAL" && s.dataFinalizacao) return; // já voltou à origem
       porArea[area][s.turno].add(s.opsId);
       geral[s.turno].add(s.opsId);
     });

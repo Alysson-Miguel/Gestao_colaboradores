@@ -533,6 +533,12 @@ export default function PainelExecutivo() {
             </div>
           )}
 
+          {noDiaAtual && !diaPassado && !erro && (
+            <p className="text-xs text-muted">
+              No turno em andamento, o HC Real é quem está alocado agora (igual ao Total HC de cada esteira). Nos turnos encerrados, são as pessoas que estiveram alocadas no turno.
+            </p>
+          )}
+
           {diaPassado && !erro && (
             <p className="flex items-center gap-2 text-sm text-muted bg-surface border border-default rounded-xl px-4 py-3">
               <History size={16} aria-hidden="true" /> Você está vendo um dia anterior. O HC Real mostra quem esteve alocado em cada turno.
