@@ -12,6 +12,8 @@
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  Factory,
+  Tag,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
@@ -81,6 +83,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const [pontoOpen, setPontoOpen] = useState(location.pathname.startsWith("/ponto"));
   const [medidasOpen, setMedidasOpen] = useState(location.pathname.startsWith("/medidas-disciplinares"));
   const [gestaoOpen, setGestaoOpen] = useState(location.pathname.startsWith("/treinamentos"));
+  const [operacaoOpen, setOperacaoOpen] = useState(location.pathname.startsWith("/operacao"));
+  const [labelOpen, setLabelOpen] = useState(location.pathname.startsWith("/operacao/label"));
 
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
@@ -477,6 +481,108 @@ export default function Sidebar({ isOpen, onClose }) {
               </div>
             </div>
           </div>
+
+          {/* ===================== OPERAÇÃO ===================== */}
+          {(isAdmin || user?.idEstacao === 1) && (
+            <div className="mt-2">
+              <button
+                onClick={() => setOperacaoOpen(!operacaoOpen)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition ${
+                  location.pathname.startsWith("/operacao")
+                    ? "bg-surface-2 text-page"
+                    : "text-muted hover:bg-surface-3"
+                } ${isCollapsed ? "lg:justify-center" : ""}`}
+                title={isCollapsed ? "Operação" : ""}
+              >
+                <div className="flex items-center gap-3">
+                  <Factory size={18} />
+                  <span className={labelCls}>Operação</span>
+                </div>
+                <ChevronDown size={16} className={chevronCls(operacaoOpen)} />
+              </button>
+
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  operacaoOpen && !isCollapsed ? "max-h-[48rem] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <div className="ml-8 mt-1 space-y-1">
+                  {/* ── Sub-nível: LABEL ── */}
+                  <button
+                    onClick={() => setLabelOpen(!labelOpen)}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium transition ${
+                      location.pathname.startsWith("/operacao/label")
+                        ? "bg-surface-2 text-page"
+                        : "text-muted hover:bg-surface-3"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Tag size={15} />
+                      <span>Label</span>
+                    </div>
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${labelOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      labelOpen ? "max-h-[40rem] opacity-100" : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <div className="ml-6 mt-1 space-y-1">
+                      <SidebarSubItem
+                        label="Painel Executivo"
+                        active={location.pathname === "/operacao/label/painel-executivo"}
+                        onClick={() => go("/operacao/label/painel-executivo")}
+                      />
+                      <div className="pt-1 pb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted/70">
+                        Esteiras
+                      </div>
+                      <SidebarSubItem
+                        label="Esteira Termoplástica"
+                        active={location.pathname === "/operacao/label/esteiras/1"}
+                        onClick={() => go("/operacao/label/esteiras/1")}
+                      />
+                      <SidebarSubItem
+                        label="Esteira U"
+                        active={location.pathname === "/operacao/label/esteiras/2"}
+                        onClick={() => go("/operacao/label/esteiras/2")}
+                      />
+                      <SidebarSubItem
+                        label="Esteira Linear"
+                        active={location.pathname === "/operacao/label/esteiras/3"}
+                        onClick={() => go("/operacao/label/esteiras/3")}
+                      />
+                      <SidebarSubItem
+                        label="Esteira FULL"
+                        active={location.pathname === "/operacao/label/esteiras/13"}
+                        onClick={() => go("/operacao/label/esteiras/13")}
+                      />
+                      <SidebarSubItem
+                        label="FULL D+1"
+                        active={location.pathname === "/operacao/label/full-d1"}
+                        onClick={() => go("/operacao/label/full-d1")}
+                      />
+                      <SidebarSubItem
+                        label="Colaboradores"
+                        active={location.pathname === "/operacao/label/efetivo"}
+                        onClick={() => go("/operacao/label/efetivo")}
+                      />
+                      <SidebarSubItem
+                        label="Gestão de Docas"
+                        active={location.pathname === "/operacao/label/docas"}
+                        onClick={() => go("/operacao/label/docas")}
+                      />
+                      <SidebarSubItem
+                        label="Sinergia Interna"
+                        active={location.pathname.startsWith("/operacao/label/sinergias")}
+                        onClick={() => go("/operacao/label/sinergias")}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ===================== PONTO ===================== */}
           <div className="mt-2">

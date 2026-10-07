@@ -21,6 +21,13 @@ import DashboardAdmin from "./pages/dashboards/dashboardAdmin";
 import DashboardColaborador from "./pages/dashboards/dashboardColaborador";
 import DashboardAtestados from "./pages/dashboards/dashboardAtestados";
 import GestaoOperacional from "./pages/dashboards/gestaoOperacional";
+import EsteiraDetalhe from "./pages/mapaOperacional/EsteiraDetalhe";
+import FullD1 from "./pages/mapaOperacional/FullD1";
+import GestaoDocas from "./pages/mapaOperacional/GestaoDocas";
+import Efetivo from "./pages/mapaOperacional/Efetivo";
+import PainelExecutivo from "./pages/mapaOperacional/PainelExecutivo";
+import SinergiaInterna from "./pages/mapaOperacional/SinergiaInterna";
+import LeitorSinergia from "./pages/mapaOperacional/LeitorSinergia";
 import DashboardDesligamento from "./pages/dashboards/dashboardDesligamento";
 import DashboardFaltas from "./pages/dashboards/DashboardFaltas"
 import DashboardAbsenteismo from "./pages/dashboards/DashboardAbsenteismo";
@@ -171,6 +178,69 @@ export default function App() {
         element={
           <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1, 6]}>
             <GestaoOperacional />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/esteiras/:idEsteira"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <EsteiraDetalhe />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/full-d1"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <FullD1 />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/docas"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <GestaoDocas />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/sinergias"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <SinergiaInterna />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/sinergias/leitor"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <LeitorSinergia />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/painel-executivo"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <PainelExecutivo />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/efetivo"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+            <Efetivo />
           </ProtectedRoute>
         }
       />
