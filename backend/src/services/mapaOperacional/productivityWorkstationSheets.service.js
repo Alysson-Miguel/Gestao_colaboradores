@@ -1,4 +1,5 @@
 const { google } = require("googleapis");
+const { instanteSP } = require("../../utils/turnoMapaOperacional");
 
 /* =====================================================
    Leitura ao vivo da aba "Productivity Workstation" (mesma
@@ -81,7 +82,7 @@ async function getThroughputPorEstacao() {
   // dado (o contador zera às 06:00 e logo depois ainda pode vir do dia anterior).
   const carimbo = String((rows[0] || []).find((c) => /^Atualizado:/i.test(String(c || ""))) || "");
   const m = carimbo.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
-  mapa.atualizadoEm = m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6])) : null;
+  mapa.atualizadoEm = m ? instanteSP(Number(m[3]), Number(m[2]), Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6])) : null;
 
   cache = mapa;
   cacheTs = Date.now();

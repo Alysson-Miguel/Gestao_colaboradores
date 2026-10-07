@@ -7,7 +7,7 @@ const {
   WORKSTATION_MAPPINGS,
 } = require("../services/mapaOperacional/workstationSheets.service");
 const { getThroughputPorEstacao } = require("../services/mapaOperacional/productivityWorkstationSheets.service");
-const { parseDataHoraPlanilha, getTurnoOperacionalAtual } = require("../utils/turnoMapaOperacional");
+const { parseDataHoraPlanilha, getTurnoOperacionalAtual, inicioDoDiaOperacional } = require("../utils/turnoMapaOperacional");
 const { encerrarAlocacoesManuaisDeDiasAnteriores } = require("../services/mapaOperacional/viradaDiaOperacional.service");
 
 // Módulo Mapa Operacional (Label) é exclusivo da estação 1 (Jaboatão).
@@ -81,8 +81,7 @@ async function atualizarProducaoTurnoPorWorkstation(esteiras) {
   // baseline do T1 é sempre 0, mesmo que o job só suba depois das 06:00, e
   // enquanto a planilha ainda traz o dado do dia anterior o valor vale 0.
   // T2 e T3 dependem do baseline capturado na virada de turno (14:00/22:00).
-  const inicioDiaOperacional = new Date(diaOperacional);
-  inicioDiaOperacional.setHours(6, 0, 0, 0);
+  const inicioDiaOperacional = inicioDoDiaOperacional(diaOperacional);
   const dadoDoDiaAtual = !throughputMap.atualizadoEm || throughputMap.atualizadoEm >= inicioDiaOperacional;
   const lerThroughput = (codigo) => {
     if (turno === "T1" && !dadoDoDiaAtual) return 0;

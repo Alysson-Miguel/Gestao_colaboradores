@@ -13,7 +13,7 @@ const {
 } = require("../services/mapaOperacional/colaboradorElegibilidade.service");
 const { encerrarAlocacoesManuaisDeDiasAnteriores } = require("../services/mapaOperacional/viradaDiaOperacional.service");
 const { avaliarConflitoAlocacao } = require("../services/mapaOperacional/alocacaoConflito.service");
-const { agoraBrasil, getTurnoOperacionalAtual, getJanelaTurno, formatDataHora } = require("../utils/turnoMapaOperacional");
+const { partesSP, getTurnoOperacionalAtual, getJanelaTurno, formatDataHora } = require("../utils/turnoMapaOperacional");
 
 function turnoParaId(turno) {
   return turno === "T1" ? 1 : turno === "T2" ? 2 : 3;
@@ -255,7 +255,7 @@ const listarAutoAlocacoes = async (req, res) => {
       return !turnoCadastrado || turnoCadastrado === turno;
     }
 
-    const horaAtual = agoraBrasil().getHours();
+    const horaAtual = partesSP().hora;
 
     const resultado = (
       await Promise.all(
@@ -378,7 +378,7 @@ const listarFullD1 = async (req, res) => {
       : [];
     const colaboradorPorOpsId = new Map(colaboradores.map((c) => [c.opsId, c]));
 
-    const horaAtual = agoraBrasil().getHours();
+    const horaAtual = partesSP().hora;
     const semDuplicar = new Map();
     pessoas.forEach((p) => semDuplicar.set(p.opsId, p));
 

@@ -1,5 +1,5 @@
 const { prisma } = require("../../config/database");
-const { getTurnoOperacionalAtual, getJanelaTurno } = require("../../utils/turnoMapaOperacional");
+const { getTurnoOperacionalAtual, getJanelaTurno, partesSP, instanteSP } = require("../../utils/turnoMapaOperacional");
 const { FILTRO_CARGO_PRISMA } = require("../mapaOperacional/colaboradorElegibilidade.service");
 const {
   ErroNegocio,
@@ -189,10 +189,9 @@ function serializar(row, nomes, user, permitidas) {
 function fimDoTurnoCadastrado(horarioFim, referencia) {
   if (!(horarioFim instanceof Date)) return null;
   const limite = referencia.getTime() - 8 * 3600 * 1000;
+  const p = partesSP(referencia); // o horário do turno é de Brasília, não do fuso do servidor
   for (const deslocamentoDias of [-1, 0, 1]) {
-    const candidato = new Date(referencia);
-    candidato.setDate(candidato.getDate() + deslocamentoDias);
-    candidato.setHours(horarioFim.getUTCHours(), horarioFim.getUTCMinutes(), 0, 0);
+    const candidato = instanteSP(p.ano, p.mes, p.dia + deslocamentoDias, horarioFim.getUTCHours(), horarioFim.getUTCMinutes());
     if (candidato.getTime() > limite) return candidato;
   }
   return null;
