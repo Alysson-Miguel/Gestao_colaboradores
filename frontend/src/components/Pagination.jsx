@@ -13,6 +13,7 @@ export default function Pagination({
   limit,
   onPageChange,
   onLimitChange,
+  limitOptions = [10, 25, 100],
 }) {
   const isFirst = page <= 1;
   const effectiveTotalPages = Math.max(1, totalPages);
@@ -54,9 +55,9 @@ export default function Pagination({
               focus:ring-1 focus:ring-[#FA4C00]
             "
           >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={100}>100</option>
+            {limitOptions.map((opcao) => (
+              <option key={opcao} value={opcao}>{opcao}</option>
+            ))}
           </select>
           <span className="text-muted">por página</span>
         </div>

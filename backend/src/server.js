@@ -14,6 +14,8 @@ const { iniciarJobExportColaboradores } = require('./jobs/exportColaboradores.jo
 const { iniciarJobVarrerFaltas } = require('./jobs/detectarFaltasAutomatico.job');
 const { iniciarJobExportDailyWorks } = require('./jobs/exportDailyWorks.job');
 const { iniciarJobEfetivarDesligamentos } = require('./jobs/efetivarDesligamentos.job');
+const { iniciarJobSyncAutoAlocacoesLabel } = require('./jobs/syncAutoAlocacoesLabel.job');
+const { iniciarJobSinergiaInterna } = require('./jobs/sinergiaInterna.job');
 
 
 // =====================================================
@@ -57,6 +59,12 @@ const startServer = async () => {
 
       // Efetiva (inativa) automaticamente desligamentos agendados cuja data prevista chegou
       iniciarJobEfetivarDesligamentos();
+
+      // Persiste as auto-alocações da Label (Operação) pra permitir consulta histórica
+      iniciarJobSyncAutoAlocacoesLabel();
+
+      // Sinergia Interna (Label): fim previsto -> aguardando retorno / expiração
+      iniciarJobSinergiaInterna();
     });
 
     // Tratamento de erros não capturados
