@@ -534,6 +534,13 @@ export default function Sidebar({ isOpen, onClose }) {
                         active={location.pathname === "/operacao/label/painel-executivo"}
                         onClick={() => go("/operacao/label/painel-executivo")}
                       />
+                      {(isAdmin || isAltaGestao) && (
+                        <SidebarSubItem
+                          label="Configuração"
+                          active={location.pathname === "/operacao/label/configuracao"}
+                          onClick={() => go("/operacao/label/configuracao")}
+                        />
+                      )}
                       <div className="pt-1 pb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted/70">
                         Esteiras
                       </div>

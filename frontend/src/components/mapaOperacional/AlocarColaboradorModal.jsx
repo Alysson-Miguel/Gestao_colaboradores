@@ -4,9 +4,10 @@ import toast from "react-hot-toast";
 import { AbasSegmentadas, BuscaColaborador, Modal, PainelDiarista } from "./ui";
 import { BTN_PERIGO } from "./uiTokens";
 import { PescasDoBraco } from "./PescasDoBraco";
+import { FanoutsDoBraco } from "./fanout/FanoutsDoBraco";
 import { MapaOperacionalAPI } from "../../services/mapaOperacional";
 
-export function AlocarColaboradorModal({ esteira, braco, alocacaoAtual, pescas = [], todasPescas = [], onClose, onAllocated }) {
+export function AlocarColaboradorModal({ esteira, braco, alocacaoAtual, pescas = [], todasPescas = [], fanouts, onClose, onAllocated }) {
   const [aba, setAba] = useState("colaborador");
   const [salvando, setSalvando] = useState(false);
   const [saldoDiarista, setSaldoDiarista] = useState(null);
@@ -86,6 +87,8 @@ export function AlocarColaboradorModal({ esteira, braco, alocacaoAtual, pescas =
           <PainelDiarista saldo={saldoDiarista} rotuloAcao="Alocar diarista neste braço" onAlocar={() => alocar(null, true)} ocupado={salvando} />
         )}
       </div>
+
+      <FanoutsDoBraco fanouts={fanouts} braco={braco} />
 
       <PescasDoBraco esteira={esteira} braco={braco} pescas={pescas} todasPescas={todasPescas} editavel onChanged={onAllocated} />
     </Modal>

@@ -26,6 +26,7 @@ import FullD1 from "./pages/mapaOperacional/FullD1";
 import GestaoDocas from "./pages/mapaOperacional/GestaoDocas";
 import Efetivo from "./pages/mapaOperacional/Efetivo";
 import PainelExecutivo from "./pages/mapaOperacional/PainelExecutivo";
+import ConfiguracaoLabel from "./pages/mapaOperacional/Configuracao";
 import SinergiaInterna from "./pages/mapaOperacional/SinergiaInterna";
 import LeitorSinergia from "./pages/mapaOperacional/LeitorSinergia";
 import DashboardDesligamento from "./pages/dashboards/dashboardDesligamento";
@@ -232,6 +233,15 @@ export default function App() {
         element={
           <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
             <PainelExecutivo />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/operacao/label/configuracao"
+        element={
+          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO"]} onlyEstacoes={[1]}>
+            <ConfiguracaoLabel />
           </ProtectedRoute>
         }
       />

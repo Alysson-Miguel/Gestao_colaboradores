@@ -2,8 +2,9 @@ import { Info, Trophy } from "lucide-react";
 import { Modal } from "./ui";
 import { formatNumero } from "./uiTokens";
 import { PescasDoBraco } from "./PescasDoBraco";
+import { FanoutsDoBraco } from "./fanout/FanoutsDoBraco";
 
-export function AutoAlocacaoDetalheModal({ esteira, braco, grupo, pescas = [], todasPescas = [], editavel = false, onChanged, onClose }) {
+export function AutoAlocacaoDetalheModal({ esteira, braco, grupo, pescas = [], todasPescas = [], fanouts, editavel = false, onChanged, onClose }) {
   const colaboradores = grupo?.colaboradores || [];
   // Visão ao vivo traz produção/rank em tempo real (lido da planilha); visão
   // histórica (persistida no banco) só tem quem/quando — sem produtividade
@@ -65,6 +66,8 @@ export function AutoAlocacaoDetalheModal({ esteira, braco, grupo, pescas = [], t
           ))}
         </ol>
       </div>
+
+      <FanoutsDoBraco fanouts={fanouts} braco={braco} />
 
       <PescasDoBraco esteira={esteira} braco={braco} pescas={pescas} todasPescas={todasPescas} editavel={editavel} onChanged={onChanged} />
 

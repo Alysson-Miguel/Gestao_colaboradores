@@ -72,6 +72,7 @@ export default function EsteiraDetalhe() {
   const [atualizando, setAtualizando] = useState(false);
   const [modal, setModal] = useState(null); // { braco, alocacaoAtual }
   const [modalAuto, setModalAuto] = useState(null); // { braco, grupo }
+  const [fanouts, setFanouts] = useState(null); // { "3-A": ["LPE-93", ...] } — configurados em Operação > Label > Configuração
   const [turnoAtual, setTurnoAtual] = useState(null); // turno/dia operacional real, vindo do backend
 
   // Turno e dia ficam na URL (sobrevivem ao F5 e podem ser compartilhados); sem eles vale o "agora".
@@ -106,6 +107,17 @@ export default function EsteiraDetalhe() {
         else setErro("Esteira não encontrada.");
       })
       .catch((e) => ativo && setErro(e.response?.data?.message || "Erro ao carregar esteira"));
+    return () => {
+      ativo = false;
+    };
+  }, [idEsteira]);
+
+  // Fanouts por braço: mudam raramente (só pela tela de configuração), então carregam uma vez por esteira.
+  useEffect(() => {
+    let ativo = true;
+    MapaOperacionalAPI.listarFanouts({ escopo: "ESTEIRA", idEsteira })
+      .then((r) => ativo && setFanouts(Object.fromEntries(r.posicoes.map((p) => [`${p.braco}-${p.lado}`, p.fanouts]))))
+      .catch(() => ativo && setFanouts(null));
     return () => {
       ativo = false;
     };
@@ -325,6 +337,7 @@ export default function EsteiraDetalhe() {
           braco={modal.braco}
           alocacaoAtual={modal.alocacaoAtual}
           pescas={pescasDoBraco(pescas, modal.braco)}
+          fanouts={fanouts?.[`${modal.braco.numero}-${modal.braco.lado}`]}
           todasPescas={pescas}
           onClose={() => setModal(null)}
           onAllocated={carregar}
@@ -337,6 +350,7 @@ export default function EsteiraDetalhe() {
           braco={modalAuto.braco}
           grupo={modalAuto.grupo}
           pescas={pescasDoBraco(pescas, modalAuto.braco)}
+          fanouts={fanouts?.[`${modalAuto.braco.numero}-${modalAuto.braco.lado}`]}
           todasPescas={pescas}
           editavel={estaNoTurnoAtual}
           onChanged={carregar}

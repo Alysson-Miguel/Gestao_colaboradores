@@ -64,6 +64,16 @@ export const MapaOperacionalAPI = {
     return res.data.data;
   },
 
+  // Fanouts por braço/lado (esteiras) ou por posição (Setup D+1). Escrita: só Admin e Alta Gestão.
+  // params: { escopo: "ESTEIRA", idEsteira } ou { escopo: "SETUP_D1" }
+  listarFanouts: async (params) => (await api.get("/mapa-operacional/fanouts", { params })).data.data,
+
+  listarHistoricoFanouts: async (params) => (await api.get("/mapa-operacional/fanouts/historico", { params })).data.data,
+
+  salvarFanouts: async (corpo) => (await api.put("/mapa-operacional/fanouts/posicao", corpo)).data,
+
+  moverFanouts: async (corpo) => (await api.post("/mapa-operacional/fanouts/mover", corpo)).data,
+
   buscarColaboradoresElegiveis: async ({ contexto, turno, search }) => {
     const params = { contexto, search };
     if (turno) params.turno = turno;
