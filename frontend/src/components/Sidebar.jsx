@@ -58,11 +58,6 @@ export default function Sidebar({ isOpen, onClose }) {
     }
   }, [user?.idEstacao]);
 
-  // OPERACAO não vê sidebar
-  if (user?.role === "OPERACAO") {
-    return null;
-  }
-
   /* =====================
      SUBMENUS
   ===================== */
@@ -85,6 +80,11 @@ export default function Sidebar({ isOpen, onClose }) {
   const [gestaoOpen, setGestaoOpen] = useState(location.pathname.startsWith("/treinamentos"));
   const [operacaoOpen, setOperacaoOpen] = useState(location.pathname.startsWith("/operacao"));
   const [labelOpen, setLabelOpen] = useState(location.pathname.startsWith("/operacao/label"));
+
+  // OPERACAO não vê sidebar. O retorno antecipado fica DEPOIS de todos os hooks (regra dos hooks do React).
+  if (user?.role === "OPERACAO") {
+    return null;
+  }
 
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(path + "/");
