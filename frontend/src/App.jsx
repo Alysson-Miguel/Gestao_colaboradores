@@ -96,6 +96,7 @@ import FolgaDominicalPage from "./pages/folgaDominical/folgaDominical";
 
 /* ================= PROTEÇÃO ================= */
 import ProtectedRoute from "./routes/ProtectedRoute";
+import LabelRoute from "./routes/LabelRoute";
 import ReportRoute from "./routes/report";
 
 export default function App() {
@@ -186,72 +187,72 @@ export default function App() {
       <Route
         path="/operacao/label/esteiras/:idEsteira"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <EsteiraDetalhe />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/full-d1"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <FullD1 />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/docas"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <GestaoDocas />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/sinergias"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <SinergiaInterna />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/sinergias/leitor"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <LeitorSinergia />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/painel-executivo"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <PainelExecutivo />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/configuracao"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO"]}>
             <ConfiguracaoLabel />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
       <Route
         path="/operacao/label/efetivo"
         element={
-          <ProtectedRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]} onlyEstacoes={[1]}>
+          <LabelRoute roles={["ADMIN", "ALTA_GESTAO", "LIDERANCA"]}>
             <Efetivo />
-          </ProtectedRoute>
+          </LabelRoute>
         }
       />
 
