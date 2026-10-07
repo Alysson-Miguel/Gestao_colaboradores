@@ -18,7 +18,8 @@ const {
 } = require("../controllers/mapaOperacional.controller");
 const { listarEfetivo } = require("../controllers/efetivo.controller");
 const { obterPainelExecutivo } = require("../controllers/painelExecutivo.controller");
-const { adminAltaGestaoLideranca } = require("../utils/roles");
+const { listarFanouts, listarHistorico, salvarPosicao, moverFanouts } = require("../controllers/fanouts.controller");
+const { adminAltaGestaoLideranca, adminOrAltaGestao } = require("../utils/roles");
 const onlyEstacao = require("../middlewares/onlyEstacao");
 
 // Exclusivo estação 1 (Jaboatão) — ADMIN global passa direto
@@ -41,5 +42,11 @@ router.get("/full-d1", listarFullD1);
 router.post("/full-d1/alocacoes", criarAlocacaoFullD1);
 router.delete("/full-d1/alocacoes/:idAlocacao", removerAlocacaoFullD1);
 router.get("/painel-executivo", obterPainelExecutivo);
+
+// Fanouts por braço: todos que operam a Label leem; só Admin e Alta Gestão alteram.
+router.get("/fanouts", listarFanouts);
+router.get("/fanouts/historico", adminOrAltaGestao, listarHistorico);
+router.put("/fanouts/posicao", adminOrAltaGestao, salvarPosicao);
+router.post("/fanouts/mover", adminOrAltaGestao, moverFanouts);
 
 module.exports = router;

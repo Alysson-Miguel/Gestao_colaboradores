@@ -1097,6 +1097,39 @@ model MapaAlocacao {
   @@map("mapa_alocacao")
 }
 
+// Fanouts por posição do Setup D+1 (pool sem braços): posições numeradas, só lado A.
+// Os fanouts das esteiras ficam em mapa_esteira_braco.fanouts.
+model MapaSetupFanout {
+  idSetupFanout Int      @id @default(autoincrement()) @map("id_setup_fanout")
+  idEstacao     Int      @map("id_estacao")
+  posicao       Int
+  fanouts       String[] @default([])
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([idEstacao, posicao], map: "uq_mapa_setup_fanout_posicao")
+  @@map("mapa_setup_fanout")
+}
+
+// Trilha de quem mudou os fanouts de cada posição (edição, balanceamento entre braços, carga inicial).
+model MapaFanoutHistorico {
+  idHistorico Int      @id @default(autoincrement()) @map("id_historico")
+  idEstacao   Int      @map("id_estacao")
+  escopo      String   @db.VarChar(12) // ESTEIRA | SETUP_D1
+  idEsteira   Int?     @map("id_esteira")
+  braco       Int
+  lado        String   @db.VarChar(1)
+  acao        String   @db.VarChar(20) // EDICAO | MOVER_SAIDA | MOVER_ENTRADA | CARGA_INICIAL
+  antes       String[] @default([])
+  depois      String[] @default([])
+  usuarioId   String?  @map("usuario_id")
+  usuarioNome String?  @map("usuario_nome")
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  @@index([idEstacao, criadoEm], map: "idx_mapa_fanout_hist_data")
+  @@index([escopo, idEsteira, braco, lado], map: "idx_mapa_fanout_hist_posicao")
+  @@map("mapa_fanout_historico")
+}
+
 model MapaEsteiraProducaoHora {
   id             Int      @id @default(autoincrement())
   idEsteira      Int      @map("id_esteira")
