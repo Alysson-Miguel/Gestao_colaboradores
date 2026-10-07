@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, History, Network, Pencil, Search, X } from "lucide-react";
+import { ChevronDown, Clock, History, Network, Pencil, Search, X } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import MainLayout from "../../components/MainLayout";
@@ -21,22 +21,32 @@ const formatarQuando = (iso) =>
 const rotuloDaPosicao = (setup, braco, lado) => (setup ? `Posição ${braco}` : `Braço ${braco}${lado}`);
 
 function CelulaFanout({ posicao, setup, destaque, onEditar, esmaecida }) {
-  const { braco, lado, fanouts, habilitado } = posicao;
+  const { braco, lado, fanouts, habilitado, ultimaAlteracao } = posicao;
   const descricao = `${rotuloDaPosicao(setup, braco, lado)}${habilitado === false ? " (desabilitado)" : ""}`;
   return (
     <button
       type="button"
       onClick={() => onEditar(posicao)}
-      aria-label={`Editar fanouts. ${descricao}. ${fanouts.length ? `Atuais: ${fanouts.join(", ")}.` : "Nenhum fanout."}`}
+      aria-label={`Editar fanouts. ${descricao}. ${fanouts.length ? `Atuais: ${fanouts.join(", ")}.` : "Nenhum fanout."}${
+        ultimaAlteracao ? ` Alterado há ${ultimaAlteracao.minutos} minutos por ${ultimaAlteracao.por}.` : ""
+      }`}
       className={`group w-full min-h-14 flex items-start justify-between gap-3 text-left px-4 py-3 cursor-pointer transition-colors motion-reduce:transition-none hover:bg-surface-2 ${FOCO} ${
         esmaecida ? "opacity-35" : ""
       } ${habilitado === false ? "bg-surface-2/50" : ""}`}
     >
-      {fanouts.length ? (
-        <FanoutChips fanouts={fanouts} destaque={destaque} compacto />
-      ) : (
-        <span className="text-sm text-muted pt-0.5">{habilitado === false ? "Braço desabilitado" : "Sem fanout"}</span>
-      )}
+      <span className="min-w-0 space-y-1.5">
+        {fanouts.length ? (
+          <FanoutChips fanouts={fanouts} destaque={destaque} compacto />
+        ) : (
+          <span className="block text-sm text-muted pt-0.5">{habilitado === false ? "Braço desabilitado" : "Sem fanout"}</span>
+        )}
+        {ultimaAlteracao && (
+          <span className="flex items-center gap-1 text-[11px] text-[#F59E0B]">
+            <Clock size={11} aria-hidden="true" />
+            Alterado {ultimaAlteracao.minutos < 1 ? "agora" : `há ${ultimaAlteracao.minutos} min`} · {ultimaAlteracao.por}
+          </span>
+        )}
+      </span>
       <Pencil size={14} aria-hidden="true" className="shrink-0 mt-1 text-muted opacity-60 group-hover:opacity-100 group-focus-visible:opacity-100" />
     </button>
   );
@@ -412,6 +422,7 @@ export default function Configuracao() {
           braco={edicao.braco}
           lado={edicao.lado}
           fanouts={edicao.fanouts}
+          ultimaAlteracao={edicao.ultimaAlteracao}
           posicoes={dados.posicoes}
           onClose={() => setEdicao(null)}
           onSalvo={recarregar}

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { calcularLayoutEsteira } from "../../utils/esteiraLayout";
+import { FanoutChips } from "./fanout/FanoutChips";
 
 const COR_MANUAL = "#FA4C00";
 const COR_DIARISTA = "#A855F7";
@@ -24,7 +25,7 @@ function primeiroNome(nomeCompleto) {
   return nomeCompleto.split(" ")[0];
 }
 
-function descricaoDoBraco(braco, alocacao, pescas = []) {
+function descricaoDoBraco(braco, alocacao, pescas = [], fanouts = null) {
   const nome = `Braço ${braco.numero}${braco.lado}`;
   if (!braco.habilitado) return `${nome}: desabilitado`;
   const partes = [];
@@ -36,8 +37,11 @@ function descricaoDoBraco(braco, alocacao, pescas = []) {
   if (pescas.length) {
     partes.push(`${pescas.length} ${pescas.length === 1 ? "pesca" : "pescas"}: ${pescas.map((p) => p.diarista ? "diarista" : p.colaborador?.nomeCompleto || p.opsId).join(", ")}`);
   }
+  if (fanouts) partes.push(fanouts.length ? `fanouts: ${fanouts.join(", ")}` : "sem fanout configurado");
   return partes.length ? `${nome}: ${partes.join("; ")}` : `${nome}: livre`;
 }
+
+const LARGURA_DICA = 216;
 
 /**
  * Desenho da esteira. Cada braço é um botão (teclado e leitor de tela).
@@ -51,11 +55,24 @@ export default function ConveyorSvg({
   arrastando = false,
   destinoAtivo = null,
   scrollRef,
+  fanouts = null, // { "3-A": ["LPE-93", ...] }
+  mostrarFanouts = false,
   onBracoClick,
   somenteLeitura = false,
 }) {
   const [hover, setHover] = useState(null);
   const [foco, setFoco] = useState(null);
+  const [dica, setDica] = useState(null); // { chave, braco, x, topo, base }
+  const areaRef = useRef(null);
+
+  // Posição do cartão de fanouts em relação à área do desenho (que rola junto com o mapa).
+  function abrirDica(elemento, braco, chave) {
+    if (!mostrarFanouts || !fanouts || !areaRef.current) return;
+    const a = areaRef.current.getBoundingClientRect();
+    const r = elemento.getBoundingClientRect();
+    const metade = LARGURA_DICA / 2 + 4;
+    setDica({ chave, braco, x: Math.min(Math.max(r.left - a.left + r.width / 2, metade), a.width - metade), topo: r.top - a.top, base: r.bottom - a.top });
+  }
   const layout = calcularLayoutEsteira(esteira);
 
   const alocacaoPorChave = {};
@@ -75,6 +92,7 @@ export default function ConveyorSvg({
   return (
     // Em tela estreita o desenho mantém um tamanho legível e rola dentro do próprio painel.
     <div ref={scrollRef} className="overflow-x-auto -mx-2 px-2">
+      <div ref={areaRef} className="relative">
       <svg
         viewBox={`0 0 ${layout.largura} ${layout.altura}`}
         className="w-full h-auto min-w-[720px]"
@@ -130,7 +148,7 @@ export default function ConveyorSvg({
               data-destino={alvoDeSoltar ? chave : undefined}
               role={interativo ? "button" : undefined}
               tabIndex={interativo ? 0 : undefined}
-              aria-label={descricaoDoBraco(braco, alocacao, pescasDoBraco)}
+              aria-label={descricaoDoBraco(braco, alocacao, pescasDoBraco, braco.habilitado && fanouts ? fanouts[chave] ?? [] : null)}
               onClick={acionar}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -138,10 +156,22 @@ export default function ConveyorSvg({
                   acionar();
                 }
               }}
-              onMouseEnter={() => setHover(chave)}
-              onMouseLeave={() => setHover(null)}
-              onFocus={() => setFoco(chave)}
-              onBlur={() => setFoco(null)}
+              onMouseEnter={(e) => {
+                setHover(chave);
+                if (braco.habilitado) abrirDica(e.currentTarget, braco, chave);
+              }}
+              onMouseLeave={() => {
+                setHover(null);
+                setDica(null);
+              }}
+              onFocus={(e) => {
+                setFoco(chave);
+                if (braco.habilitado) abrirDica(e.currentTarget, braco, chave);
+              }}
+              onBlur={() => {
+                setFoco(null);
+                setDica(null);
+              }}
               style={{ cursor: interativo ? "pointer" : "default", outline: "none" }}
             >
               <rect
@@ -196,6 +226,34 @@ export default function ConveyorSvg({
           );
         })}
       </svg>
+
+      {mostrarFanouts && fanouts && dica && !arrastando && (
+        <div
+          role="tooltip"
+          className="absolute z-20 pointer-events-none rounded-xl border border-default bg-surface shadow-xl px-3 py-2.5"
+          style={{
+            width: LARGURA_DICA,
+            left: dica.x,
+            ...(dica.topo > 110 ? { top: dica.topo - 8, transform: "translate(-50%, -100%)" } : { top: dica.base + 8, transform: "translateX(-50%)" }),
+          }}
+        >
+          <p className="flex items-baseline justify-between gap-3 mb-1.5 text-[11px] text-muted">
+            <span className="font-semibold text-page text-xs">
+              Braço {dica.braco.numero}
+              {dica.braco.lado}
+            </span>
+            <span className="tabular-nums">
+              {(fanouts[dica.chave] || []).length} {(fanouts[dica.chave] || []).length === 1 ? "fanout" : "fanouts"}
+            </span>
+          </p>
+          {(fanouts[dica.chave] || []).length ? (
+            <FanoutChips fanouts={fanouts[dica.chave]} compacto />
+          ) : (
+            <p className="text-xs text-muted">Sem fanout configurado.</p>
+          )}
+        </div>
+      )}
+      </div>
     </div>
   );
 }

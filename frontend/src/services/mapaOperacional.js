@@ -70,9 +70,10 @@ export const MapaOperacionalAPI = {
 
   listarHistoricoFanouts: async (params) => (await api.get("/mapa-operacional/fanouts/historico", { params })).data.data,
 
-  salvarFanouts: async (corpo) => (await api.put("/mapa-operacional/fanouts/posicao", corpo)).data,
+  // Posição alterada há menos de 1 hora: o backend responde 409 e o usuário confirma (conflitoAlocacao.js).
+  salvarFanouts: (corpo) => comTratamentoDeConflito(async (extra) => (await api.put("/mapa-operacional/fanouts/posicao", { ...corpo, ...extra })).data),
 
-  moverFanouts: async (corpo) => (await api.post("/mapa-operacional/fanouts/mover", corpo)).data,
+  moverFanouts: (corpo) => comTratamentoDeConflito(async (extra) => (await api.post("/mapa-operacional/fanouts/mover", { ...corpo, ...extra })).data),
 
   buscarColaboradoresElegiveis: async ({ contexto, turno, search }) => {
     const params = { contexto, search };

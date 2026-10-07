@@ -17,7 +17,7 @@ import {
   PageHeader,
   TurnoTabs,
 } from "../../components/mapaOperacional/ui";
-import { BTN_SECUNDARIO, formatNumero } from "../../components/mapaOperacional/uiTokens";
+import { BTN_SECUNDARIO, FOCO, formatNumero } from "../../components/mapaOperacional/uiTokens";
 import { MapaOperacionalAPI } from "../../services/mapaOperacional";
 
 const POLL_INTERVAL_MS = 20000;
@@ -72,6 +72,23 @@ export default function EsteiraDetalhe() {
   const [atualizando, setAtualizando] = useState(false);
   const [modal, setModal] = useState(null); // { braco, alocacaoAtual }
   const [modalAuto, setModalAuto] = useState(null); // { braco, grupo }
+  // Preferência de cada pessoa neste navegador: cartão de fanouts ao passar o mouse nos braços.
+  const [fanoutsAoPassarMouse, setFanoutsAoPassarMouse] = useState(() => {
+    try {
+      return localStorage.getItem("label_fanouts_hover") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const alternarFanoutsHover = () =>
+    setFanoutsAoPassarMouse((atual) => {
+      try {
+        localStorage.setItem("label_fanouts_hover", atual ? "0" : "1");
+      } catch {
+        // sem armazenamento: vale só nesta sessão
+      }
+      return !atual;
+    });
   const [fanouts, setFanouts] = useState(null); // { "3-A": ["LPE-93", ...] } — configurados em Operação > Label > Configuração
   const [turnoAtual, setTurnoAtual] = useState(null); // turno/dia operacional real, vindo do backend
 
@@ -302,12 +319,33 @@ export default function EsteiraDetalhe() {
                     <LegendaItem cor="#2563EB" rotulo="Pesca" total={pescas.length} />
                     <LegendaItem cor="var(--color-border)" tracejado rotulo="Livre" />
                   </div>
-                  {estaNoTurnoAtual && <span>Clique em um braço para alocar ou encerrar</span>}
+                  <div className="flex items-center gap-x-5 gap-y-2 flex-wrap">
+                    {fanouts && (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={fanoutsAoPassarMouse}
+                        onClick={alternarFanoutsHover}
+                        className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-default hover:bg-surface-2 cursor-pointer text-xs transition-colors motion-reduce:transition-none ${FOCO}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`relative h-4 w-7 rounded-full transition-colors motion-reduce:transition-none ${fanoutsAoPassarMouse ? "bg-[#FA4C00]" : "bg-surface-3"}`}
+                        >
+                          <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all motion-reduce:transition-none ${fanoutsAoPassarMouse ? "left-3.5" : "left-0.5"}`} />
+                        </span>
+                        Fanouts ao passar o mouse
+                      </button>
+                    )}
+                    {estaNoTurnoAtual && <span>Clique em um braço para alocar ou encerrar</span>}
+                  </div>
                 </div>
                 <MapaEsteiraComPescas
                   esteira={esteiraAtual}
                   alocacoes={alocacoesBraco}
                   pescas={pescas}
+                  fanouts={fanouts}
+                  mostrarFanouts={fanoutsAoPassarMouse}
                   somenteLeitura={!estaNoTurnoAtual}
                   onBracoClick={handleBracoClick}
                   versao={atualizadoEm?.getTime()}

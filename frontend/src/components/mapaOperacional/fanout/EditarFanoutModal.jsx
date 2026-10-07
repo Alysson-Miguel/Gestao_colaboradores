@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowRightLeft, Loader2, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { confirmDialog } from "../../ConfirmDialog";
-import { Modal } from "../ui";
+import { Aviso, Modal } from "../ui";
 import { BTN_PRIMARIO, BTN_SECUNDARIO, FOCO, INPUT } from "../uiTokens";
 import { MapaOperacionalAPI } from "../../../services/mapaOperacional";
 
@@ -16,7 +16,7 @@ const rotuloPosicao = (escopoSetup, braco, lado) => (escopoSetup ? `Posição ${
  * Edição dos fanouts de uma posição (braço/lado ou posição do Setup D+1) e balanceamento:
  * selecionar fanouts e levá-los para outra posição em uma operação só. Tudo vai para o histórico.
  */
-export function EditarFanoutModal({ escopo, idEsteira, nomeAlvo, braco, lado, fanouts, posicoes, onClose, onSalvo }) {
+export function EditarFanoutModal({ escopo, idEsteira, nomeAlvo, braco, lado, fanouts, ultimaAlteracao, posicoes, onClose, onSalvo }) {
   const setup = escopo === "SETUP_D1";
   const [lista, setLista] = useState(fanouts);
   const [entrada, setEntrada] = useState("");
@@ -72,7 +72,7 @@ export function EditarFanoutModal({ escopo, idEsteira, nomeAlvo, braco, lado, fa
       await onSalvo?.();
       onClose();
     } catch (e) {
-      toast.error(e.response?.data?.message || "Não foi possível salvar os fanouts");
+      if (!e.tratado) toast.error(e.response?.data?.message || "Não foi possível salvar os fanouts");
     } finally {
       setOcupado(null);
     }
@@ -87,7 +87,7 @@ export function EditarFanoutModal({ escopo, idEsteira, nomeAlvo, braco, lado, fa
       await onSalvo?.();
       onClose();
     } catch (e) {
-      toast.error(e.response?.data?.message || "Não foi possível mover os fanouts");
+      if (!e.tratado) toast.error(e.response?.data?.message || "Não foi possível mover os fanouts");
       await onSalvo?.();
     } finally {
       setOcupado(null);
@@ -103,6 +103,12 @@ export function EditarFanoutModal({ escopo, idEsteira, nomeAlvo, braco, lado, fa
       bloqueado={!!ocupado}
       largura="max-w-lg"
     >
+      {ultimaAlteracao && (
+        <Aviso tipo="alerta">
+          Alterado {ultimaAlteracao.minutos < 1 ? "agora há pouco" : `há ${ultimaAlteracao.minutos} min`} por {ultimaAlteracao.por}. Ao salvar, vamos pedir sua confirmação.
+        </Aviso>
+      )}
+
       <div className="space-y-1.5">
         <label htmlFor="novo-fanout" className="text-xs text-muted">
           Adicionar fanouts
