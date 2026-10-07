@@ -1,6 +1,5 @@
-import toast from "react-hot-toast";
 import api from "./api";
-import { confirmDialog } from "../components/ConfirmDialog";
+import { comTratamentoDeConflito } from "./conflitoAlocacao";
 
 function turnoParams({ turno, data } = {}) {
   const params = {};
@@ -41,31 +40,11 @@ export const MapaOperacionalAPI = {
     return res.data.data;
   },
 
-  // O backend barra quem está no packing automático ou em outra esteira/doca (orienta a pedir sinergia)
-  // e, se a pessoa já está em outra função da mesma esteira, pede a confirmação do líder.
-  // Erro já mostrado ao usuário volta com `tratado = true`: quem chamou não precisa avisar de novo.
-  alocar: async (idEsteira, { braco, lado, opsId, diarista, labor }) => {
-    const enviar = (extra = {}) =>
-      api.post(`/mapa-operacional/esteiras/${idEsteira}/alocacoes`, { braco, lado, opsId, diarista, labor, ...extra });
-    try {
-      return (await enviar()).data.data;
-    } catch (e) {
-      const info = e.response?.data;
-      const codigo = info?.errors?.codigo;
-      if (codigo === "CONFIRMAR_SUBSTITUICAO") {
-        if (!(await confirmDialog(info.message, { confirmText: "Mover" }))) {
-          e.tratado = true;
-          throw e;
-        }
-        return (await enviar({ confirmarSubstituicao: true })).data.data;
-      }
-      if (codigo) {
-        toast.error(info.message, { duration: 8000 });
-        e.tratado = true;
-      }
-      throw e;
-    }
-  },
+  // Conflitos (packing automático, outra esteira/doca, outra função) tratados em conflitoAlocacao.js
+  alocar: (idEsteira, { braco, lado, opsId, diarista, labor }) =>
+    comTratamentoDeConflito(async (extra) =>
+      (await api.post(`/mapa-operacional/esteiras/${idEsteira}/alocacoes`, { braco, lado, opsId, diarista, labor, ...extra })).data.data
+    ),
 
   encerrarAlocacao: async (idEsteira, idAlocacao) => {
     const res = await api.delete(`/mapa-operacional/esteiras/${idEsteira}/alocacoes/${idAlocacao}`);

@@ -3,6 +3,7 @@ const { successResponse, errorResponse, notFoundResponse } = require("../utils/r
 const { getStatusDocas } = require("../services/mapaOperacional/dockManagementSheets.service");
 const { validarColaboradorElegivel, contextoDaOperacao } = require("../services/mapaOperacional/colaboradorElegibilidade.service");
 const { calcularSaldoDiaristas } = require("./mapaOperacional.controller");
+const { avaliarConflitoDoca, avaliarConflitoTime } = require("../services/mapaOperacional/alocacaoConflito.service");
 const { getTurnoOperacionalAtual } = require("../utils/turnoMapaOperacional");
 
 const OPERACAO_LABEL = { INBOUND: "Recebimento", OUTBOUND: "Expedição" };
@@ -149,7 +150,7 @@ const alocarDoca = async (req, res) => {
   try {
     const idEstacao = req.dbContext?.estacaoId ?? 1;
     const numero = Number(req.params.numero);
-    const { operacao, idTime, opsId, diarista, funcao } = req.body;
+    const { operacao, idTime, opsId, diarista, funcao, confirmarSubstituicao = false } = req.body;
 
     if (!["INBOUND", "OUTBOUND"].includes(operacao)) {
       return errorResponse(res, "Informe a operação (INBOUND ou OUTBOUND)", 400);
@@ -196,6 +197,13 @@ const alocarDoca = async (req, res) => {
         return errorResponse(res, `Este time já está alocado na Doca ${timeEmOutraDoca.numeroDoca}.`, 400);
       }
 
+      const integrantes = await prisma.timeIntegrante.findMany({
+        where: { idTime: time.idTime },
+        include: { colaborador: { select: { nomeCompleto: true } } },
+      });
+      const conflitoTime = await avaliarConflitoTime({ integrantes });
+      if (conflitoTime) return errorResponse(res, conflitoTime.mensagem, 400, { codigo: conflitoTime.codigo });
+
       dadosAlocacao = { labor: laborDoTime(time), idTime: time.idTime, opsId: null, diarista: false };
       historicoExtra = { idTime: time.idTime, nomeTime: time.nome };
     } else {
@@ -210,6 +218,15 @@ const alocarDoca = async (req, res) => {
         const { colaborador, erro } = await validarColaboradorElegivel(opsId, { contexto: contextoDaOperacao(operacao) });
         if (!colaborador) return notFoundResponse(res, "Colaborador não encontrado");
         if (erro) return errorResponse(res, erro, 400);
+
+        // packing automático / outra esteira bloqueiam; outra doca ou função pede a confirmação do líder
+        const conflito = await avaliarConflitoDoca({ colaborador, numeroDoca: numero, labor: FUNCAO_PARA_LABOR[funcao] });
+        if (conflito) {
+          const precisaConfirmar = conflito.codigo === "CONFIRMAR_SUBSTITUICAO";
+          if (!precisaConfirmar || !confirmarSubstituicao) {
+            return errorResponse(res, conflito.mensagem, precisaConfirmar ? 409 : 400, { codigo: conflito.codigo, atual: conflito.atual });
+          }
+        }
 
         await prisma.mapaAlocacao.updateMany({ where: { opsId, fim: null }, data: { fim: now } });
       } else {

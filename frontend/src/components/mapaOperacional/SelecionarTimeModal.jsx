@@ -34,7 +34,7 @@ export function SelecionarTimeModal({ numero, operacaoAtual, onClose, onAllocate
       onAllocated?.();
       onClose();
     } catch (e) {
-      toast.error(e.response?.data?.message || "Erro ao alocar doca");
+      if (!e.tratado) toast.error(e.response?.data?.message || "Erro ao alocar doca");
     } finally {
       setSalvando(false);
     }
@@ -52,7 +52,7 @@ export function SelecionarTimeModal({ numero, operacaoAtual, onClose, onAllocate
       onAllocated?.();
       onClose();
     } catch (e) {
-      toast.error(e.response?.data?.message || "Erro ao alocar doca");
+      if (!e.tratado) toast.error(e.response?.data?.message || "Erro ao alocar doca");
     } finally {
       setSalvando(false);
     }

@@ -1,4 +1,5 @@
 import api from "./api";
+import { comTratamentoDeConflito } from "./conflitoAlocacao";
 
 export const DocasAPI = {
   listar: async () => {
@@ -11,10 +12,9 @@ export const DocasAPI = {
     return res.data.data;
   },
 
-  alocar: async (numero, payload) => {
-    const res = await api.post(`/docas/${numero}/alocar`, payload);
-    return res.data.data;
-  },
+  // Conflitos (packing automático, outra esteira, outra doca) tratados em conflitoAlocacao.js
+  alocar: (numero, payload) =>
+    comTratamentoDeConflito(async (extra) => (await api.post(`/docas/${numero}/alocar`, { ...payload, ...extra })).data.data),
 
   liberar: async (numero) => {
     const res = await api.delete(`/docas/${numero}/alocar`);

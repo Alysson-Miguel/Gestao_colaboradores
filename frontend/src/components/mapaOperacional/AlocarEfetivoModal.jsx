@@ -167,7 +167,7 @@ function AlocarDocaOuTime({ colaborador, operacao, turno, onFeito, salvando, set
       toast.success(`${colaborador.nomeCompleto} alocado`);
       onFeito();
     } catch (e) {
-      toast.error(e.response?.data?.message || "Erro ao alocar");
+      if (!e.tratado) toast.error(e.response?.data?.message || "Erro ao alocar");
     } finally {
       setSalvando(false);
     }

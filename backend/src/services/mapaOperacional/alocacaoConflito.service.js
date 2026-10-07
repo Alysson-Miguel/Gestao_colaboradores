@@ -115,4 +115,100 @@ async function avaliarConflitoAlocacao({ colaborador, esteira, labor, braco, lad
   return null;
 }
 
-module.exports = { avaliarConflitoAlocacao };
+/* =====================================================
+   Docas (Recebimento / Expedição)
+   Mesmas regras das esteiras: packing automático ou outra esteira bloqueiam e orientam a pedir
+   Sinergia Interna; já estar em outra doca (ou em outra função da mesma doca) pede confirmação.
+===================================================== */
+
+const descreverLabor = (labor) => LABOR_LABEL[String(labor || "").replace(/^DOCK_/, "")] || labor;
+
+/** Colaborador avulso sendo alocado numa doca. Retorna null ou { codigo, mensagem, atual? }. */
+async function avaliarConflitoDoca({ colaborador, numeroDoca, labor }) {
+  const { opsId, nomeCompleto } = colaborador;
+
+  const auto = await localAutomatico(opsId);
+  if (auto) {
+    return {
+      codigo: "OUTRA_ESTEIRA",
+      mensagem: `${nomeCompleto} está no packing automático em ${auto.local} e não pode ser alocado na Doca ${numeroDoca}. ${SINERGIA}`,
+    };
+  }
+
+  const manual = await prisma.mapaAlocacao.findFirst({
+    where: { opsId, fim: null, origem: "MANUAL" },
+    include: { esteira: { select: { nome: true } } },
+  });
+  if (manual) {
+    if (manual.numeroDoca == null) {
+      const nomeEsteira = manual.esteira?.nome || (manual.labor === "FULL_D1" ? ESTEIRA_FULL : "—");
+      return {
+        codigo: "OUTRA_ESTEIRA",
+        mensagem: `${nomeCompleto} já tem alocação em ${descreverPosicao(manual, nomeEsteira)}. ${SINERGIA}`,
+      };
+    }
+    const atual = `Doca ${manual.numeroDoca} · ${descreverLabor(manual.labor)}`;
+    if (manual.numeroDoca === numeroDoca && manual.labor === labor) {
+      return { codigo: "JA_ALOCADO", mensagem: `${nomeCompleto} já tem essa alocação (${atual}).` };
+    }
+    return {
+      codigo: "CONFIRMAR_SUBSTITUICAO",
+      atual,
+      mensagem: `${nomeCompleto} já tem alocação em ${atual}. Confirma mover para Doca ${numeroDoca} · ${descreverLabor(labor)}?`,
+    };
+  }
+
+  const times = await prisma.timeIntegrante.findMany({ where: { opsId }, select: { idTime: true } });
+  if (times.length) {
+    const emDoca = await prisma.mapaAlocacao.findFirst({
+      where: { idTime: { in: times.map((t) => t.idTime) }, fim: null, numeroDoca: { not: null } },
+      include: { time: { select: { nome: true } } },
+    });
+    if (emDoca) {
+      return {
+        codigo: "JA_ALOCADO",
+        mensagem: `${nomeCompleto} já está na Doca ${emDoca.numeroDoca} pelo time ${emDoca.time?.nome || ""}. Libere a doca ou tire a pessoa do time antes.`,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Um time inteiro indo para a doca: quem do time está no packing automático ou alocado manualmente
+ * numa esteira/FULL D+1 impede a alocação (o líder resolve via sinergia ou ajusta o time).
+ */
+async function avaliarConflitoTime({ integrantes }) {
+  const ops = integrantes.map((i) => i.opsId);
+  if (!ops.length) return null;
+  const nomes = new Map(integrantes.map((i) => [i.opsId, i.colaborador?.nomeCompleto || i.opsId]));
+  const problemas = [];
+
+  let autos = new Map();
+  try {
+    autos = await getLocaisAutomaticosPorOps(ops);
+  } catch (err) {
+    console.error("⚠️ [CONFLITO-ALOCACAO] Workstation indisponível para validar o time:", err.message);
+  }
+  const manuais = await prisma.mapaAlocacao.findMany({
+    where: { opsId: { in: ops }, fim: null, origem: "MANUAL", numeroDoca: null },
+    include: { esteira: { select: { nome: true } } },
+  });
+  const manualPorOps = new Map(manuais.map((m) => [m.opsId, m]));
+
+  ops.forEach((opsId) => {
+    const auto = autos.get(normalizeOpsId(opsId));
+    if (auto) return problemas.push(`${nomes.get(opsId)} (packing automático em ${auto.local})`);
+    const m = manualPorOps.get(opsId);
+    if (m) problemas.push(`${nomes.get(opsId)} (${descreverPosicao(m, m.esteira?.nome || ESTEIRA_FULL)})`);
+  });
+  if (!problemas.length) return null;
+
+  const lista = problemas.slice(0, 5).join("; ") + (problemas.length > 5 ? `; e mais ${problemas.length - 5}` : "");
+  return {
+    codigo: "OUTRA_ESTEIRA",
+    mensagem: `Não é possível alocar o time na doca: ${lista}. Tire essas pessoas do time ou solicite uma Sinergia Interna.`,
+  };
+}
+
+module.exports = { avaliarConflitoAlocacao, avaliarConflitoDoca, avaliarConflitoTime };
